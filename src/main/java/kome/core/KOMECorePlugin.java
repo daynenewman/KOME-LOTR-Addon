@@ -23,6 +23,7 @@ public final class KOMECorePlugin implements IFMLLoadingPlugin {
                 KOMEWaypointTransformer.class.getName(),
                 KOMECampaignHealthTransformer.class.getName(),
                 KOMEPublicWaypointTransformer.class.getName(),
+                KOMEMapInputTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),

@@ -66,6 +66,9 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Public waypoint publication is unavailable on a dedicated server");
     }
 
+    public void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) { }
+    public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) { }
+
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }
     public void displayConquestCaptureGui(kome.common.network.KOMEPacketConquestCaptureGui message) { }
@@ -77,6 +80,8 @@ public class KOMECommonProxy {
         displayCompanyListGui(tileId, companies, canCreate);
     }
 
+    public void acceptCompanyRally(kome.common.data.KOMECompanyRallySnapshot snapshot,Object connection) { }
+    public void acceptCompanySourceOptions(kome.common.data.KOMECompanySourceOptions snapshot,Object connection) { }
     public void displayCompanyMoveConfirmGui(kome.common.network.KOMEPacketCompanyMoveConfirmGui message) {
     }
 
@@ -84,8 +89,11 @@ public class KOMECommonProxy {
     }
 
     public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) { }
+    public void acceptJoinBattleView(kome.common.network.KOMEPacketJoinBattleViewResponse message,Object connection) {displayJoinBattleGui(message);}
     public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) { }
     public void displayJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message) { }
+    public void acceptJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message,Object connection) {displayJoinBattleSelectionResult(message);}
+    public void acceptJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message,Object connection) {displayJoinBattleRetreatResult(message);}
 
     public void displayMovementHistory(String title, String requestFaction, boolean allFactions, java.util.List records) {
     }

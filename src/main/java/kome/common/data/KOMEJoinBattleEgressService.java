@@ -22,6 +22,12 @@ public final class KOMEJoinBattleEgressService {
     public static final KOMEJoinBattleEgressService INSTANCE = new KOMEJoinBattleEgressService();
     private static final String ENDED_REASON = "The associated conflict ended.";
     static final long RETRY_MILLIS = 60000L;
+    /** Runtime classification only; deliberately not part of the deployment receipt codec. */
+    enum Failure {
+        RETURN_DIMENSION_UNAVAILABLE, LOCAL_SURFACE_NOT_FOUND, SOURCE_TILE_UNRESOLVED,
+        SOURCE_TILE_FALLBACK_UNAVAILABLE, SOURCE_TILE_FALLBACK_OUTSIDE_TILE,
+        MOUNT_RETURN_UNRESOLVED, PHYSICAL_APPLICATION_FAILED, FINALIZATION_FAILED
+    }
     private final Map<UUID,Long> nextPoll = new java.util.HashMap<UUID,Long>();
     private final Map<UUID,Integer> loginTicks = new java.util.HashMap<UUID,Integer>();
     private final Map<UUID,Retry> retries = new java.util.HashMap<UUID,Retry>();
@@ -86,6 +92,7 @@ public final class KOMEJoinBattleEgressService {
         final KOMEJoinBattleDeploymentReceipt.Pose playerTarget;
         final KOMEJoinBattleDeploymentReceipt.Pose mountTarget;
         final String failureReason;
+        Failure failure;
 
         private Preparation(boolean ready, boolean transfer, NBTTagCompound snapshot,
                 MountDisposition disposition, KOMEJoinBattleDeploymentReceipt.Pose playerTarget,
@@ -100,7 +107,7 @@ public final class KOMEJoinBattleEgressService {
         }
 
         static Preparation unavailable() {
-            return unavailable("Saved return position is not currently safe.");
+            return unavailable(Failure.LOCAL_SURFACE_NOT_FOUND,"Saved return position is not currently safe.");
         }
 
         static Preparation restoredSource() {
@@ -109,7 +116,12 @@ public final class KOMEJoinBattleEgressService {
         }
 
         static Preparation unavailable(String reason) {
-            return new Preparation(false, false, null, null, null, null, reason);
+            return unavailable(Failure.MOUNT_RETURN_UNRESOLVED,reason);
+        }
+
+        static Preparation unavailable(Failure failure, String reason) {
+            Preparation result=new Preparation(false, false, null, null, null, null, reason);
+            result.failure=failure;return result;
         }
 
         static Preparation playerOnly(MountDisposition disposition) {
@@ -155,6 +167,8 @@ public final class KOMEJoinBattleEgressService {
     interface PhysicalAccess {
         EntityPlayerMP findOnline(UUID playerId);
         Preparation prepare(EntityPlayerMP player, KOMEJoinBattleDeploymentReceipt receipt);
+        default Preparation prepare(KOMEWorldData data, EntityPlayerMP player,
+                KOMEJoinBattleDeploymentReceipt receipt) { return prepare(player,receipt); }
         PhysicalResult egress(EntityPlayerMP player, KOMEJoinBattleDeploymentReceipt receipt,
             Preparation preparation);
     }
@@ -174,6 +188,10 @@ public final class KOMEJoinBattleEgressService {
                 KOMEJoinBattleDeploymentReceipt receipt) {
             return KOMEJoinBattlePhysicalAccess.prepareEgress(player, receipt);
         }
+        @Override public Preparation prepare(KOMEWorldData data,EntityPlayerMP player,
+                KOMEJoinBattleDeploymentReceipt receipt) {
+            return KOMEJoinBattlePhysicalAccess.prepareEgress(data,player,receipt);
+        }
         @Override public PhysicalResult egress(EntityPlayerMP player,
                 KOMEJoinBattleDeploymentReceipt receipt, Preparation preparation) {
             return KOMEJoinBattlePhysicalAccess.egress(player, receipt, preparation);
@@ -187,9 +205,11 @@ public final class KOMEJoinBattleEgressService {
     public static final class CompletionResult {
         public final Completion completion;
         public final String reason;
-        private CompletionResult(Completion completion, String reason) {
+        final Failure failure;
+        private CompletionResult(Completion completion, String reason, Failure failure) {
             this.completion = completion;
             this.reason = reason == null ? "" : reason;
+            this.failure = failure;
         }
     }
 
@@ -339,8 +359,7 @@ public final class KOMEJoinBattleEgressService {
             CompletionResult result=performCompletion(data,player,receipt,requestedNow,physical);
             if(result.completion==Completion.PENDING){
                 retries.put(id,new Retry(data,receipt.getReceiptId(),requestedNow+RETRY_MILLIS,result));
-                KOMEJoinBattleEntryRecoveryService.LOGGER.warn("Egress {} pending: {}",
-                    receipt.getReceiptId(),result.reason);
+                if(result.failure!=null)recordFailure(data,receipt,requestedNow,result);
             }else retries.remove(id);
             return result;
         }finally{inFlight.remove(id);}
@@ -358,12 +377,12 @@ public final class KOMEJoinBattleEgressService {
         String strategicBlock=KOMEFormalRetreatService.egressBlockedReason(data,current);
         if(strategicBlock!=null)return attempt(Completion.PENDING,strategicBlock);
         Preparation prepared;
-        try { prepared = physical.prepare(player, current); }
+        try { prepared = physical.prepare(data, player, current); }
         catch (Throwable physicalFailure) {
-            return attempt(Completion.PENDING, "Physical egress preparation failed: "
+            return failed(Failure.PHYSICAL_APPLICATION_FAILED,"Physical egress preparation failed: "
                 + physicalFailure.getClass().getSimpleName() + ".");
         }
-        if (prepared == null) return attempt(Completion.PENDING,
+        if (prepared == null) return failed(Failure.PHYSICAL_APPLICATION_FAILED,
             "Physical egress preparation returned no result.");
         if(prepared.sourceRestored && current.isEnteredMounted()
                 && current.getMountTransferPhase()==MountTransferPhase.EGRESS_TRANSFER_PENDING){
@@ -372,14 +391,14 @@ public final class KOMEJoinBattleEgressService {
                 .mountTransferPhase(MountTransferPhase.DEPLOYMENT_COMPLETE).temporaryMountNbt(null).build();
             data.ensureWritable();data.getJoinBattleDeploymentReceipts().restoreEgressSource(restored);data.markDirty();
         }
-        if (!prepared.ready) return attempt(Completion.PENDING, prepared.failureReason);
+        if (!prepared.ready) return failed(prepared.failure, prepared.failureReason);
         if(current.isEnteredMounted() && current.getMountTransferPhase()==MountTransferPhase.EGRESS_TRANSFER_PENDING
                 && !prepared.transferRecordedMount)
-            return attempt(Completion.PENDING,"The interrupted mounted return must be recovered before closure.");
+            return failed(Failure.MOUNT_RETURN_UNRESOLVED,"The interrupted mounted return must be recovered before closure.");
 
         if (current.isEnteredMounted() && prepared.transferRecordedMount) {
             if (prepared.mountSnapshot == null || prepared.mountSnapshot.hasNoTags())
-                return attempt(Completion.PENDING,
+                return failed(Failure.MOUNT_RETURN_UNRESOLVED,
                     "Mounted egress snapshot could not be captured safely.");
             long snapshotAt = Math.max(requestedNow, current.getUpdatedAtMillis());
             try {
@@ -393,7 +412,7 @@ public final class KOMEJoinBattleEgressService {
                 data.markDirty();
                 current = snapshotted;
             } catch (RuntimeException invalidSnapshot) {
-                return attempt(Completion.PENDING,
+                return failed(Failure.MOUNT_RETURN_UNRESOLVED,
                     "Mounted egress recovery state could not be persisted.");
             }
         }
@@ -401,10 +420,10 @@ public final class KOMEJoinBattleEgressService {
         PhysicalResult result;
         try { result = physical.egress(player, current, prepared); }
         catch (Throwable physicalFailure) {
-            return attempt(Completion.PENDING, "Physical egress failed: "
+            return failed(Failure.PHYSICAL_APPLICATION_FAILED, "Physical egress failed: "
                 + physicalFailure.getClass().getSimpleName() + ".");
         }
-        if (result == null) return attempt(Completion.PENDING,
+        if (result == null) return failed(Failure.PHYSICAL_APPLICATION_FAILED,
             "Physical egress returned no verification result.");
         if (!result.completed) {
             if(result.sourceRestored && current.isEnteredMounted()
@@ -416,7 +435,7 @@ public final class KOMEJoinBattleEgressService {
                 data.ensureWritable();
                 data.getJoinBattleDeploymentReceipts().restoreEgressSource(restored);data.markDirty();
             }
-            return attempt(Completion.PENDING, result.failureReason);
+            return failed(Failure.PHYSICAL_APPLICATION_FAILED, result.failureReason);
         }
         long closedAt = Math.max(requestedNow, current.getUpdatedAtMillis());
         ClosureOutcome outcome = current.getDeployedAtMillis() == null
@@ -437,12 +456,74 @@ public final class KOMEJoinBattleEgressService {
             data.markDirty();
             return attempt(Completion.CLOSED, "Physical egress completed.");
         } catch (RuntimeException finalizationFailure) {
-            return attempt(Completion.PENDING,
+            return failed(Failure.FINALIZATION_FAILED,
                 "Physical egress succeeded, but durable closure remains pending.");
         }
     }
 
     private static CompletionResult attempt(Completion completion, String reason) {
-        return new CompletionResult(completion, reason);
+        return new CompletionResult(completion, reason, null);
+    }
+
+    private static CompletionResult failed(Failure failure,String reason) {
+        return new CompletionResult(Completion.PENDING,reason,failure);
+    }
+
+    private static final String AUDIT_DOMAIN="join-battle", AUDIT_ACTION="egress-pending";
+
+    private static KOMEAuditEntry lastFailure(KOMEWorldData data,String receipt) {
+        List<KOMEAuditEntry> entries=KOMEAuditService.entries(data);
+        for(int i=entries.size()-1;i>=0;i--){
+            KOMEAuditEntry entry=entries.get(i);
+            if(AUDIT_DOMAIN.equals(entry.domain)&&AUDIT_ACTION.equals(entry.action)
+                    &&receipt.equals(entry.subject))return entry;
+        }
+        return null;
+    }
+
+    private static void recordFailure(KOMEWorldData data,KOMEJoinBattleDeploymentReceipt receipt,
+            long now,CompletionResult result) {
+        String reason=result.reason.replace('|',' ').replace('\n',' ').replace('\r',' ').trim();
+        if(reason.length()>240)reason=reason.substring(0,240);
+        String classified=result.failure.name()+": "+reason;
+        KOMEAuditEntry previous=lastFailure(data,receipt.getReceiptId());
+        if(previous!=null&&classified.equals(previous.reason))return;
+        KOMEJoinBattleDeploymentReceipt.Pose source=receipt.getReturnAnchor();
+        KOMETileResolution tile=KOMETileWorldResolver.INSTANCE.resolveWorldPosition(
+            source.dimensionId,source.x,source.z);
+        data.ensureWritable();
+        KOMEAuditService.record(data,now,AUDIT_DOMAIN,AUDIT_ACTION,
+            receipt.getPlayerId().toString(),receipt.getReceiptId(),classified,
+            "conflict="+receipt.getConflictId()+"; sourceTile="
+                +(tile.status==KOMETileResolution.Status.RESOLVED?tile.tileId:"unresolved"));
+        KOMEJoinBattleEntryRecoveryService.LOGGER.warn("Egress {} pending: {}",
+            receipt.getReceiptId(),classified);
+    }
+
+    /** Whitelisted player wording: technical reasons/identities never enter ordinary UI text. */
+    public String pendingReason(KOMEWorldData data,KOMEJoinBattleDeploymentReceipt receipt) {
+        if(receipt==null||receipt.getState()!=State.PENDING_EGRESS)
+            return "The server is safely completing your return.";
+        Retry retry=retries.get(receipt.getPlayerId());
+        Failure failure=retry!=null&&retry.data==data&&retry.receipt.equals(receipt.getReceiptId())
+            ?retry.result.failure:null;
+        if(failure==null){
+            KOMEAuditEntry entry=lastFailure(data,receipt.getReceiptId());
+            if(entry!=null)for(Failure candidate:Failure.values())
+                if(entry.reason.startsWith(candidate.name()+": ")){failure=candidate;break;}
+        }
+        if(failure==null)return "The server is safely completing your return.";
+        String reason;
+        switch(failure){
+            case RETURN_DIMENSION_UNAVAILABLE: reason="the saved return dimension is unavailable";break;
+            case SOURCE_TILE_UNRESOLVED: reason="the original tile could not be resolved";break;
+            case SOURCE_TILE_FALLBACK_UNAVAILABLE: reason="the original tile has no valid arrival point";break;
+            case SOURCE_TILE_FALLBACK_OUTSIDE_TILE: reason="the original tile's arrival point is outside that tile";break;
+            case MOUNT_RETURN_UNRESOLVED: reason="safe recovery of your recorded mount is unresolved";break;
+            case PHYSICAL_APPLICATION_FAILED: reason="physical return could not be verified";break;
+            case FINALIZATION_FAILED: reason="return completion could not be saved";break;
+            default: reason="no safe position was found in your original tile";
+        }
+        return "Return is pending: "+reason+". The server will retry.";
     }
 }

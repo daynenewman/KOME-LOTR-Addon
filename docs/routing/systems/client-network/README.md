@@ -1,11 +1,11 @@
 # Client presentation and networking
 
-Pass 3 current matching-artifact version: `1.0.10-service-g10`.
+Pass 3/dev sync current matching-artifact version: `1.0.10-service-g14`.
 The existing Rank page, tracker, relationship actions and native offer shells now
 publish pledge-based Serf standing and direct three-service promotions. Recommendation
 and mentor context comes from server progression history. Rank-derived ability rows
-and connection/revision/dimension fences remain unchanged. Old g9 artifacts cannot
-mix with g10. Native invasion reporting and map objectives target the current Liege;
+and connection/revision/dimension fences remain unchanged. Old service-g10 and dev integration-g13 artifacts cannot
+mix with g14. Native invasion reporting and map objectives target the current Liege;
 no additional Prince/trial objective is injected. See
 [implementation and acceptance limits](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
 
@@ -35,8 +35,8 @@ automated evidence from outstanding connected-client acceptance.
 
 [Index](../../INDEX.md)
 
-October 10 progression integration uses matching-artifact protocol
-`1.0.9-integration-g6`. Published Join Battle IDs 53–58 are retained; the previously
+The combined progression/KOM-84 contract uses matching-artifact protocol
+`1.0.10-service-g14`. Published Join Battle IDs 53–58 are retained; the previously
 unpublished progression identity packet moves to 59. Visual marker ID 43 includes
 the authoritative current-objective flag, and Standing eligibility retains its
 expanded payload. The existing network check rejects older artifacts. Progression
@@ -64,7 +64,7 @@ book framework and authoritative map focus. See [October 11 report](../../../PRO
 - [KOMEGuiConquestCapture](../../../../src/main/java/kome/client/gui/KOMEGuiConquestCapture.java), [KOMEConquestMapOverlay](../../../../src/main/java/kome/client/KOMEConquestMapOverlay.java), [KOMEGuiCompanyList](../../../../src/main/java/kome/client/gui/KOMEGuiCompanyList.java), [KOMEGuiLordMenu](../../../../src/main/java/kome/client/gui/KOMEGuiLordMenu.java): visible consumers and intent creation.
 - [KOMEPacketServerRecordRequest](../../../../src/main/java/kome/common/network/KOMEPacketServerRecordRequest.java), [KOMEGuiServerRecords](../../../../src/main/java/kome/client/gui/KOMEGuiServerRecords.java): server-built permitted records, pagination, display. [KOMEGuiTheme](../../../../src/main/java/kome/client/gui/KOMEGuiTheme.java) and [KOMEGuiScrollPanel](../../../../src/main/java/kome/client/gui/KOMEGuiScrollPanel.java) own shared layout.
 
-Join Battle packet registration and [KOMEPopulationWire](../../../../src/main/java/kome/common/network/KOMEPopulationWire.java) now use integration-g5. [Disconnect evidence](../../../pr26-joinbattle-fix-20261009/README.md) records why an older client lacking response 54 must fail the exact-version handshake. [KOMEGuiJoinBattle](../../../../src/main/java/kome/client/gui/KOMEGuiJoinBattle.java) is a client projection; physical entry/receipt authority remains server-owned in the [conflict route](../conflict-tactical/README.md).
+Join Battle packet registration and [KOMEPopulationWire](../../../../src/main/java/kome/common/network/KOMEPopulationWire.java) now use service-g14 (the earlier Join Battle integration used g5). [Disconnect evidence](../../../pr26-joinbattle-fix-20261009/README.md) records why an older client lacking response 54 must fail the exact-version handshake. [KOMEGuiJoinBattle](../../../../src/main/java/kome/client/gui/KOMEGuiJoinBattle.java) is a client projection; physical entry/receipt authority remains server-owned in the [conflict route](../conflict-tactical/README.md).
 
 Dependencies: [runtime/session ownership](../runtime-state/README.md), [population](../build-population/README.md), [geography](../geography/README.md), [progression](../progression/README.md), [waypoint synchronization](../waypoints/README.md). Integrated Character/Aqua/siege channels use their own dispatch; KOME queue guarantees do not automatically apply to them.
 
@@ -85,4 +85,124 @@ book/title update. Server action checks remain independent of this transient cac
 
 ## KOM-18 merge compatibility
 
-The progression merge retains the matching-artifact integration-g8 contract and Pass 1 projection, including progression identities at 59 and Join Battle at 53–58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.
+The merged g14 contract retains dev's progression identities at 59, its objective/eligibility payloads, and KOM-84's correlated Join Battle shapes at 53-58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.
+
+## KOM-84 reconciled packet and workflow boundary
+
+ID 60 remains unused. Destination queries use 61/62, confirmed single-company movement uses 63/64,
+source metadata/source-scoped destination queries use 65/66, and Rally sessions use 67/68.
+KOM-84 payloads are unchanged by discriminator reassignment. Matching g14 artifacts are required;
+service-g10, integration-g13 and earlier incompatible artifacts are rejected. Server intents retain the bounded server-thread handlers;
+tactical ID 48 continues to own its separate bounded queue.
+
+Map Move Here, Move To, Rally, root Join and tile-local Units share connection-fenced client state.
+Rally executes only frozen server-preview inclusions through fresh canonical company submissions;
+Units uses read-only source metadata. Join screen ownership/correlation, success-only close and
+non-pausing command screens remain client presentation rules, not deployment authority.
+Progression and destination browsing both reset on connect/disconnect/world unload;
+progression viewer/revision/epoch fences and movement connection/sequence fences remain separate.
+Both the native map input transformer and progression regional-seat transformer are registered.
+Verify registration/protocol/public-access tests, company network tests and Join GUI tests alongside
+Campaign health/recovery/reconstruction and ordinary battle suites after reconciliation.
+
+## KOM-91 return surface recovery (Slice 1)
+
+Join Battle return placement keeps the exact persisted pre-entry pose first. If unsupported,
+`KOMEJoinBattlePhysicalAccess.resolveReturnPlacement` uses the center column and deterministic
+nearest-first columns within the existing +/-8 X/Z envelope. Each column probes nine support
+blocks near saved Y and five near the native heightmap, deriving standing Y from collision-box
+tops and retaining full terrain/liquid/body and mount/rider clearance checks. There is no full
+vertical column scan: at most 289 height lookups, 4,046 support-block probes and 4,047 placement
+validations including the exact-pose check. These are candidate-generation limits; existing
+collision/footprint validation performs its normal bounded local checks as well.
+
+The canonical captured tile resolver fences fallbacks to the original player return tile when
+that anchor resolves. Mounted placement uses the persisted mount base but the player's return
+anchor owns this fence. An unresolved source receives only the same local physical search;
+no tile, spawn or strategic destination is substituted. There is no flight exemption inferred
+from current capabilities. No receipt/schema, conflict-end, registry, retry or transfer-phase
+change was part of Slice 1. Slice 2 below extends only egress recovery and diagnostics.
+
+Regressions: `KOMEJoinBattleReturnGeometryTest`, `KOMEJoinBattleSurfaceRecoveryTest`, and the
+ordinary-resolution integration in `KOMEOrdinaryBattleResolutionServiceTest`. Retain existing
+mounted publication, entry/persistence, Formal Retreat and canonical tile-resolution suites.
+Automated verification does not substitute for live return/terrain confirmation.
+
+## KOM-91 same-source-tile fallback and diagnostics (Slice 2)
+
+`KOMEJoinBattlePhysicalAccess.prepareEgress` keeps exact/local recovery first, then
+uses the read-only `KOMEJoinBattleReturnAuthority`: saved WorldData RALLY first,
+packaged `KOMETileGameplayDefaults.getArrivalDefault` second, with duplicate anchors
+removed. Every canonical anchor, rider offset and search candidate must resolve to
+the original persisted player source tile in the source dimension. Gaps, exclusions,
+other tiles and historical out-of-tile arrival exceptions never authorize fallback.
+Unresolved original anchors receive exact/local recovery only. Entry rollback still
+uses the original resolver without the canonical fallback extension.
+
+Each of at most two canonical anchors reuses Slice 1's center-inclusive +/-8 surface
+search and physical checks. Across original, saved and packaged searches the maximum
+is 867 height lookups, 12,138 support probes and 12,141 placement validations; existing
+footprint/collision queries remain additional bounded work. Closure still follows
+verified physical application only. Mounted interrupted-egress discovery loads bounded
+original/fallback areas and the current same-source-tile player area to find the exact
+recorded UUID; that discovery pose does not authorize a return destination or missing-evidence
+recreation. UUID/type/profile, snapshot, attachment, uniqueness, rollback and publication
+contracts remain in force. Formal Retreat gates run before physical preparation.
+
+`KOMEJoinBattleEgressService` classifies real failed attempts without receipt fields.
+The existing capped persistent audit records receipt/player/conflict/source-tile identity
+and concise classification/reason. It compares the latest retained event for that exact
+receipt, so identical retries (including after restart) do not append again; changed
+category/reason does. The global audit cap remains 500. Login waits, five-second polling,
+60-second physical-failure backoff and durable-receipt restart recovery remain unchanged.
+
+`KOMEPacketJoinBattleViewResponse.forPlayer` uses the existing `reasonText` field for
+RETURNING. `pendingReason` maps classifications to concise player wording without raw
+receipt/conflict/player IDs, using runtime failure state or the last retained audit after
+restart. No packet shape/protocol change. Truly impossible source authority stays pending;
+operator repair remains separate work.
+
+`KOMEJoinBattleSameTileFallbackTest` covers real search/application/closure, unrelated
+later Join, mounted transfer/interruption, boundary rejection, default rejection, NBT
+restart, diagnostic suppression/change, player text and Formal Retreat precedence.
+See [Slice 2 evidence and concurrency boundary](../../../kom91-slice2/README.md).
+These deterministic tests do not claim connected-client or live acceptance for Slice 2.
+
+## KOM-88 progression tracker render isolation
+
+`KOMEProgressionTrackerOverlay.drawTracker` owns an exception-safe all-attribute and
+matrix scope around its textures, progress bar, text, item and chat-edit outline.
+Both the HUD and chat redraw use that same protected path. Native LOTR alignment
+renders later at FML render-tick END and relies on inherited alpha/blend state;
+the tracker restores its incoming state rather than overriding native alignment.
+Minecraft 1.7.10 binds textures directly, so no ResourceLocation restoration cache
+is introduced. `KOMEProgressionTrackerOverlayTest` checks scope coverage and normal/
+exceptional cleanup in bytecode; manual live visual acceptance remains required.
+
+## KOM-97 destination browser budget continuation
+
+Move Here and Attack both open `KOMECompanyDestinationSelector` through
+`KOMEConquestMapOverlay.openCompanySelector`. The destination query already returns
+completed rows, a catalogue token and the last completed company ID when its shared
+arrival budget expires. The next request excludes that completed prefix and evaluates
+the first deferred company with a fresh budget. Routes exceeding the individual
+limit remain explicit unknown-eligibility rows, never eligible or denied guesses.
+
+The selector now accepts `ARRIVAL_BUDGET_EXCEEDED` as a recoverable page only with
+`hasMore`, a nonempty token and a strictly advancing cursor (and ordered rows ending
+at that cursor when present). It applies the same retained-catalogue identity check
+as ordinary pages. The existing bounded rolling window and All/Ready/Arrive Now
+filters retain only authoritative projections; zero matches do not end continuation.
+The panel offers Continue instead of restarting the prefix with Refresh. Filter and
+browse follow-ups still stop after three pages per gesture; throttle responses wait
+for their server deadline and retry the outstanding cursor. Nonadvancing evidence
+fails closed without an automatic retry loop. No server or protocol change.
+
+Verification: `KOMECompanyDestinationQueryTest`, `KOMECompanyDestinationSelectorTest`,
+`KOMECompanyDestinationPagingTest`, `KOMECompanyDestinationBrowsingTest`, and
+`KOMEMapRadialInteractionTest` pass (176 tests). The paging regression first reproduced
+ERROR on a real budget-exhausted query, then traversed ten companies in four bounded
+pages without skips or duplicate accepted rows. Radial adapter tests cover both
+Move Here and Attack, including movement confirmation and adaptive Join eligibility.
+Move To/source queries, Rally and Units retain their separate authority and flows.
+These automated checks do not establish connected-client/live acceptance.

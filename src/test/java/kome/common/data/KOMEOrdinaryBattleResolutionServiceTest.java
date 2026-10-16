@@ -31,6 +31,32 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
             LOTRFactionRelations.Relation.NEUTRAL);
     }
 
+    @Test public void ordinaryResolutionRecoversElevatedReturnAndAllowsUnrelatedJoin() throws Exception {
+        Fixture f=fixture("gondor","gondor").campaign("C1","mordor",10L).episode(TimerStatus.COMPLETE,false);
+        KOMEJoinBattleReturnGeometryTest.Fixture physical=KOMEJoinBattleSurfaceRecoveryTest.fixture();
+        KOMEJoinBattleDeploymentReceipt pending=KOMEJoinBattleReturnGeometryTest.returnReceipt(physical,
+            new KOMEJoinBattleDeploymentReceipt.Pose(0,8.5D,82.5D,9.5D,0F,0F));
+        f.data.getJoinBattleDeploymentReceipts().publishNew(KOMEJoinBattleDeploymentReceipt.copyOf(pending)
+            .state(KOMEJoinBattleDeploymentReceipt.State.DEPLOYED).factionId("mordor")
+            .acceptedConflictRevision(f.conflict().getRevision()).egressRequestedAtMillis(null).egressReason("").build());
+        KOMEOrdinaryBattleResolutionService.Result resolution=f.service().resolve(f.data,TILE,500L,200L);
+        assertTrue(resolution.reason,resolution.resolved());assertEquals(State.ENDED,f.conflict().getState());
+        try(KOMEJoinBattleReturnGeometryTest.ReturnBinding binding=new KOMEJoinBattleReturnGeometryTest.ReturnBinding(physical)){
+            physical.world.noGround=true;
+            KOMEJoinBattleSurfaceRecoveryTest.Physical failed=new KOMEJoinBattleSurfaceRecoveryTest.Physical(physical);
+            assertFalse(KOMEJoinBattleEgressService.INSTANCE.reconcilePlayer(f.data,physical.access.player,200L,failed));
+            assertEquals(0,failed.applies);
+            assertEquals("mordor",f.tile().projectRulingFaction());
+            assertEquals(KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS,f.data.getJoinBattleDeploymentReceipts().get("JB1").getState());
+            assertFalse(KOMEJoinBattlePhysicalAccess.validateReturnPlacement(physical.world,pending.getReturnAnchor(),physical.access.player,null));
+            physical.world.noGround=false;KOMEJoinBattleSurfaceRecoveryTest.Physical access=new KOMEJoinBattleSurfaceRecoveryTest.Physical(physical);
+            assertTrue(KOMEJoinBattleEgressService.INSTANCE.tick(f.data,physical.access.player,60200L,access));
+            KOMEJoinBattleSurfaceRecoveryTest.assertClosed(f.data);assertEquals(74D,physical.access.player.posY,0D);
+            assertEquals(8.5D,physical.access.player.posX,0D);assertEquals(9.5D,physical.access.player.posZ,0D);
+            assertFalse(KOMEJoinBattleEgressService.INSTANCE.tick(f.data,physical.access.player,120200L,access));assertEquals(1,access.applies);
+            KOMEJoinBattleSurfaceRecoveryTest.assertUnrelatedJoin(f.data,physical);
+        }finally{KOMEJoinBattleEgressService.INSTANCE.resetSession();KOMEJoinBattleActionTokenService.INSTANCE.clearForTests();}
+    }
     @Test public void completeResponseAndNoMilitaryPairPermitActiveOrStoppedEpisodeResolution() {
         Fixture complete = fixture("gondor", "gondor").campaign("C1", "gondor", 10L)
             .episode(TimerStatus.COMPLETE, false);

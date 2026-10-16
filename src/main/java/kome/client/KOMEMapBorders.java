@@ -126,6 +126,18 @@ final class KOMEMapBorders {
             });
     }
 
+    /** Persistent destination boundary, independent of pointer hover and route geometry. */
+    void drawDestination(KOMEMapViewport view,int rgb,QuadSink sink) {
+        if(rgb==0)return;
+        visitEdges(view.mapX(view.left-3)/mapPerCellX,view.mapY(view.top-3)/mapPerCellY,
+            view.mapX(view.right+3)/mapPerCellX,view.mapY(view.bottom+3)/mapPerCellY,
+            (verticalAxis,line,start,end,a,b)->{
+                if((a==0||(a&0xFFFFFF)!=rgb)&&(b==0||(b&0xFFFFFF)!=rgb))return;
+                double at=verticalAxis?view.screenX(line*mapPerCellX):view.screenY(line*mapPerCellY);
+                if(verticalAxis)clipped(view,at-1.5,view.screenY(start*mapPerCellY),at+1.5,view.screenY(end*mapPerCellY),0xFF69DDE8,sink);
+                else clipped(view,view.screenX(start*mapPerCellX),at-1.5,view.screenX(end*mapPerCellX),at+1.5,0xFF69DDE8,sink);
+            });
+    }
     /** Hover fill uses visible cached spans, not a mask scan/upload on every tile change. */
     void drawHighlight(KOMEMapViewport view, int hoverRgb, QuadSink sink) {
         if (hoverRgb == 0) return;

@@ -13,6 +13,12 @@ loaded encounter cleanup; orphan actors/controllers reconcile on natural load.
 No migration promotion, item reward or ceremony is replayed. Exact evidence and
 legacy boundaries are in the [report](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
 
+October 15 dev sync preserves the service migration and strategic schemas.
+`KOMECorePlugin` registers both `KOMEMapInputTransformer` for native map input and
+`KOMEProgressionSeatTransformer` for native regional-seat receipts, with all existing
+Campaign health, waypoint, Aqua and integrated mob hooks retained. Automated ASM and
+server-loading checks are distinct from pending live Forge/client acceptance.
+
 ## Authority and entry points
 
 - [KOMEAddon.preInit](../../../../src/main/java/kome/common/KOMEAddon.java), `init`, `postInit`, `serverStarting`, and [KOMECommonProxy.init](../../../../src/main/java/kome/common/KOMECommonProxy.java): module initialization, events, commands, GUI/network registration. [KOMECorePlugin](../../../../src/main/java/kome/core/KOMECorePlugin.java) registers KOME, LOTRMoreMobs, and Aqua ASM hooks.

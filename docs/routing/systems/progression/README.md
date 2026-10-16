@@ -46,7 +46,7 @@ Lord-to-Prince checklist remains explicitly labelled legacy/pending redesign;
 existing Lord/Prince ranks and higher relationships remain compatible.
 
 The existing Rank page, tracker and map point final reports at the current superior.
-Pass 2 privileges remain derived from canonical rank, with g10 matching artifacts
+Pass 2 privileges remain derived from canonical rank, with g14 matching artifacts
 and unchanged strategic resource/office checks. Headless authority, save/load,
 native bytecode and layout tests are distinct from pending Minecraft acceptance.
 
@@ -110,6 +110,12 @@ two vertical blocks, with an unobstructed approach. Technical Standing activatio
 failures retain the same trial and refund its daily reservation; gameplay failures
 retain the existing daily and failed-Liege consequences. See
 [testing implementation and evidence](../../../PROGRESSION_TESTING_FIXES_20261010.md).
+
+The October 15 dev sync retains this service journey alongside the map movement and
+Join Battle return workflows. New hostile command, map and Rally orders share
+`KOMECompanyMovementService.validateCompanyMove`, which retains the Crown/declared-war
+guard from `KOMECompanyCommandAuthority.newMilitaryOperationDenial`. Rank alone
+does not authorize a new hostile operation. Lord-to-Prince remains deferred.
 
 ## Authority and entry points
 

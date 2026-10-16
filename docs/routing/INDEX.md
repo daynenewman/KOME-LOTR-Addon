@@ -63,3 +63,14 @@ integration is established for future royal service, while Lord-to-Prince's lega
 path remains available. Matching artifacts use `1.0.10-service-g10`. Pass 2 abilities,
 military authority, population and strategic cadence remain intact. Native world,
 client GUI and multiplayer acceptance are still pending.
+
+## Progression Pass 3 dev sync
+
+The October 15 local sync combines Pass 3 with dev **b593f5f**: company destination,
+source, Rally and Units workflows; map radial input; correlated Join Battle;
+same-source-tile return recovery; destination budget continuation; tracker GL state
+restoration. The shared movement validator retains the Crown/declared-war guard.
+Matching artifacts use `1.0.10-service-g14`; movement IDs 61-68 and progression/
+Join Battle IDs are retained. See the [client/network](systems/client-network/README.md)
+and [movement](systems/strategic-movement/README.md) routes for authority boundaries.
+Automated integration verification does not establish live Minecraft acceptance.

@@ -30,6 +30,8 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
         }
     }
     public String tileId="", conflictId="", playerFactionId="", actionToken="";
+    /** UI correlation only; never movement, eligibility or deployment authority. */
+    public UUID correlation=new UUID(0,0);
     public long conflictRevision;
     public KOMEConflictRecord.State conflictState;
     public KOMEJoinBattleService.Reason reason=KOMEJoinBattleService.Reason.INVALID_REQUEST;
@@ -76,8 +78,7 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
                     +result.currentDeploymentConflict+"). The server is safely completing your deployment.";
             }else if(open.getState()==KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS){
                 result.currentDeploymentState="RETURNING";
-                result.reasonText="Returning from "+result.currentDeploymentTile+" ("
-                    +result.currentDeploymentConflict+"). The server is safely completing your return.";
+                result.reasonText=KOMEJoinBattleEgressService.INSTANCE.pendingReason(data,open);
             }else{
                 result.currentDeploymentState="IN_BATTLE";
                 result.reasonText="In battle: "+result.currentDeploymentTile+" ("
@@ -106,6 +107,7 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
     }
 
     @Override public void fromBytes(ByteBuf buf) {
+        correlation=new UUID(buf.readLong(),buf.readLong());
         tileId=KOMEJoinBattleWire.text(buf,KOMEJoinBattleWire.MAX_TILE_LENGTH,"tile");
         conflictId=KOMEJoinBattleWire.text(buf,KOMEJoinBattleWire.MAX_CONFLICT_LENGTH,"conflict");
         conflictRevision=buf.readLong(); if(conflictRevision<0)throw new IllegalArgumentException("Invalid Join Battle revision");
@@ -134,6 +136,7 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
     }
     @Override public void toBytes(ByteBuf buf) {
         KOMEPopulationWire.writePacket(buf,out->{
+            java.util.Objects.requireNonNull(correlation);out.writeLong(correlation.getMostSignificantBits());out.writeLong(correlation.getLeastSignificantBits());
             KOMEJoinBattleWire.write(out,tileId,KOMEJoinBattleWire.MAX_TILE_LENGTH,"tile");
             KOMEJoinBattleWire.write(out,conflictId,KOMEJoinBattleWire.MAX_CONFLICT_LENGTH,"conflict");
             if(conflictRevision<0)throw new IllegalArgumentException("Invalid Join Battle revision"); out.writeLong(conflictRevision);
@@ -164,7 +167,8 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
     public static final class Handler implements IMessageHandler<KOMEPacketJoinBattleViewResponse,IMessage>{
         @Override public IMessage onMessage(KOMEPacketJoinBattleViewResponse message,MessageContext context){
             final KOMEPacketJoinBattleViewResponse copy=KOMEPopulationWire.copyForPublication(message,KOMEPacketJoinBattleViewResponse::new);
-            KOMEAddon.proxy.enqueueClientTask(()->KOMEAddon.proxy.displayJoinBattleGui(copy)); return null;
+            final Object connection=context.getClientHandler();
+            KOMEAddon.proxy.enqueueClientTask(()->KOMEAddon.proxy.acceptJoinBattleView(copy,connection)); return null;
         }
     }
 }
