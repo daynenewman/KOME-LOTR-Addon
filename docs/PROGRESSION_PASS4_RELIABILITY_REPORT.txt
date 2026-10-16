@@ -1,0 +1,391 @@
+KOME - PROGRESSION PASS 4: RELIABILITY AND WORLD COMPATIBILITY
+Date: 2026-10-15, America/Chicago
+Scope: implemented Wanderer -> Serf -> Knight -> Lord reliability; no rank redesign.
+Evidence: actual checkout, shipped LOTR v36.15 bytecode/resources, native constructors,
+production services, headless entity NBT, ASM analysis and offline Gradle validation.
+Live Minecraft acceptance: NOT PERFORMED. No runtime jar installation or saved-world edit.
+
+CLASSIFICATION OF FINDINGS
+FIXED: Supported native trader replacement can preserve an already proven regional seat
+through its carrier, failed-spawn retry, native entity save/load and UUID rebinding.
+FIXED: Master issuance tries remaining eligible types after safe preparation failure,
+with detached objective preparation and rejected-dispatch rollback.
+FIXED: Empty/incomplete delivery requests are skipped before acceptance; accepted work
+is retained, rather than rerolled after later encounter activation trouble.
+PARTIALLY ADDRESSED: Regional world compatibility. Pre-Pass-4 queued carriers and old NPCs
+without genuine generation receipts still cannot recover proof automatically.
+PARTIALLY ADDRESSED: Faction availability. Native candidate/generation paths are audited;
+22 factions have plausible civilian Masters, 23 have regional combat-trader candidates.
+DEFERRED: Legacy seat adoption and remedies for unsupported Fangorn/Half-troll Master
+availability. No fabricated NPC, territory/biome/waypoint/home-only exception was added.
+REQUIRING LIVE ACCEPTANCE: Actual generation density, chunk unload/restart with loaded
+mods, native timed replacement in-game, complete journeys and client presentation.
+DEFERRED: Lord-to-Prince, unsolicited petitions, commander hunts, warrants and other
+previously deferred features. They are not part of this pass.
+
+BASELINE AND PRE-EDIT SAFETY
+Repository: C:/Users/elija/OneDrive/Desktop/Gaming/Minecraft/My Mincraft Modding/CustomMods/KOME-LOTR-Addon
+Branch: elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+Pre-edit HEAD: 189148be736d16ce68e57ae603f24c609235d21d (clean index/worktree/untracked status).
+Current locally merged dev ancestor: b593f5fa8975f76e5c3dfc5ed83e1f5b4ca95e30.
+One worktree; origin remains https://github.com/daynenewman/KOME-LOTR-Addon.git.
+Read routing index, relevant progression/geography/runtime routes, Pass 3 service report
+and dev-sync report; current source takes precedence over historical report claims.
+No fetch, remote update, reset, clean, rebase, stash application/deletion or push occurred.
+
+Verified source/Git checkpoint BEFORE edits:
+../KOME-Progression-Pass4-Backups/20261015-212545
+Absolute parent: C:/Users/elija/OneDrive/Desktop/Gaming/Minecraft/My Mincraft Modding/CustomMods/
+11,610 copied files SHA-256 verified against source. checkout/ includes source, raw .git
+(index, objects, refs, reflogs), dependencies, prior outputs and non-runtime local files.
+repository.bundle passed verification (29 baseline refs); raw .git retains older stash
+reflog objects as well. All three original stash commit objects were checked in the copy.
+sha256-manifest.json: 1474823b4424622487d2d6e5a4db0fe9e97334fd2809973a25f194e99ebd5040
+repository.bundle: 805efc19d76ccb75801276e3d8e59f9d16ba48175d465254e31224c12d0444e2
+Local safety ref: backup/progression-pass4-20261015-212545 -> baseline HEAD.
+
+Excluded root build/, .gradle/, .gradle-user-home/ (generated/cache output) and run/:
+the existing run/saves/Test recovery WAL was locked by an existing process. It was not
+stopped, modified or used for acceptance. This verified checkpoint is SOURCE recovery,
+not a hot world backup. Earlier attempted copies at 20261015-212244 and 20261015-212426
+remain incomplete (cache locks, then active WAL); do not use them as verified snapshots.
+Existing older backups and all three stashes remain intact:
+61f81972fe98afe0497ddd376d571ebb019883ad
+1f7c28e4ab11eb929b64d247de5800048fc9b34a
+7d9c99bc5cfa9d5bd96dbe81fe4203449d007221
+
+Recovery: copy checkout/ INCLUDING hidden .git to a NEW empty recovery directory outside
+the active worktree; never overwrite/reset an active checkout or runtime/world. Run git
+status and git fsck there. Compare each copied file with sha256-manifest.json. Use raw
+.git for complete stash reflogs, with repository.bundle as supplemental portable history.
+RECOVERY.txt records exclusions and procedure. Do not restore the incomplete run/ copies.
+Keep the backup private; it contains ignored local materials.
+The pre-Pass-4 g14 jar was separately copied and SHA-verified in
+outputs/progression-pass4/baseline-artifact/ before full packaging overwrote generated output.
+Its original hash is CDDABDE6CB330AF4A2CF049248964D35609B63E807394BF0DC42274CCE838714.
+
+EXACT IMPLEMENTATION - THREE PRODUCTION FILES
+1. src/main/java/kome/common/data/KOMEProgressionServiceLocation.java
+   - Retains existing KOMERegionalSeat version 1, host/faction rules and native home check.
+   - Generation requires the exact allowlisted native structure package/class name and
+     entity/world agreement, rather than trusting a simple class name from another package.
+   - Proof validation rejects malformed UUIDs and non-finite native home ranges.
+   - captureReplacement records optional version-1 KOMERegionalSeatReplacement in the
+     actual native LOTREntityTraderRespawn entity's ForgeData. Source must already pass
+     regional proof/home validation, be the same-world adult unhired non-encounter combat
+     trader, and have the native shouldTraderRespawn flag. Stale receipt capture is cleared.
+   - Receipt binds carrier UUID, predecessor UUID/class, original proof and exact native
+     home coordinates/range. It copies only provenance; no entity/NPC is manufactured.
+   - replacementSpawned preserves the native boolean. Only successful native spawn with
+     matching carrier, new identity, class, faction, dimension, home and eligibility can
+     receive a copied proof rebound to the new UUID. Final regional validation must pass.
+     It consumes the receipt once on verified success. A failed native spawn keeps it for
+     native retry; malformed/mismatched data publishes no seat proof. Existing target proof
+     is not overwritten. Copied generic receipts on a different carrier fail identity checks.
+   - It never copies player relationship leases, explicit elevated NPC ranks, Crown office,
+     recommendations, service credits, NPC inventory or military rights to the replacement.
+     Ordinary native death/relationship/history behavior remains authoritative.
+2. src/main/java/kome/core/KOMEProgressionSeatTransformer.java
+   - Uses its EXISTING coremod registration, retaining all generation hooks.
+   - Observes the native item-package LOTREntityTraderRespawn.copyTraderDataFrom return.
+   - Wraps that class's native World spawn call after native initialization/home restoration;
+     forwards its original success boolean through replacementSpawned unchanged.
+   - Idempotent transform; no extra transformer, event-based guess, NPC factory or packet.
+3. src/main/java/kome/common/data/KOMESerfdomMasterService.java
+   - Keeps authoritative current Master/rank/pledge/range/betrayal/active-work validation.
+   - Builds the same eligibility-filtered candidate pool and shuffles ONCE with world RNG.
+     Walks each candidate at most once; completed duties and equivalent delivery exclusions
+     remain. A success immediately ends selection; no accepted assignment is rerolled.
+   - Objective preparation uses a detached Serf/Knight state copy. Failed escort destination
+     preparation cannot leak trial/variety changes or bind a charge. Actors/encounters are
+     activated only after one assignment is accepted into canonical state.
+   - Delivery preparation checks eligible goods/material pools and validates complete NBT
+     before acceptance. Missing legitimate goods may fall through without a partial task.
+   - Courier route/correspondent failure continues to another type. A native rejected dispatch
+     spawn restores the complete prior duty/relationship/reward/variety state before fallback.
+     Already-reported credits and historical recommendation records remain untouched.
+   - Uses existing assignment/issuance/objective services, not another quest framework.
+     An authority/state denial is not treated as a retryable preparation failure. Unexpected
+     exceptions are not swallowed as ordinary infeasibility. Once accepted, technical encounter
+     activation uses its existing saved retry/reassignment path instead of issuing other work.
+   - If all preparations fail, returns bounded type-specific reasons and confirms service is
+     preserved; it does not invent a settlement, charge, correspondent, property or reward.
+
+UNCHANGED CONTRACTS
+Three ordinary reported duties + 150 alignment still confer Knight at the current Master;
+three distinct current-faction commissions + 2000 alignment still confer Lord at the current
+Liege. Low alignment preserves credits. Native pledge grants Serf. No trials, daily duty
+quota, fourth assignment, alternative promotion NPC or Lord-to-Prince implementation.
+Build/wire/@Mod/mcmod remain 1.0.10-service-g14. Packet IDs/layouts, core registration order,
+strategic movement/source/Rally, Join Battle, population, Crown spending, diplomacy, political
+governance, military command and ordinary battle/recovery code are unchanged by this pass.
+Root schema 12, ServiceRecognition/migration 1, ConflictData 3 and strategic schemas remain.
+New receipt is optional entity ForgeData, not a root-world migration or placement registry.
+
+SHIPPED NATIVE LIFECYCLE EVIDENCE
+Authoritative dependency: libs/LOTRMod v36.15.jar
+SHA-256: 4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635
+Class bytes were inspected with javap and locally decompiled for navigation; no dependency
+or native source was substituted. Native name banks/relations use the existing test fixture.
+Generated research files remain ignored under outputs/progression-pass4/; decompiled native
+source is not committed as addon implementation.
+
+- LOTRWorldGenStructureBase2.spawnNPCAndSetHome initializes and marks the NPC persistent /
+  trader-respawning, performs native spawn, then assigns its native home. The existing hook
+  records only successful observed spawns; native home is checked when admission/capture occurs.
+  Old structure generators such as ElfLordHouse similarly spawn their genuine Lord and set home.
+- LOTREntityNPC persists native home/respawn fields; Forge Entity NBT persists generic ForgeData.
+  Normal unload/save/reload keeps original NPC UUID and proof. Tests use full native NPC NBT,
+  not merely a player record. Actual chunk unloading in Minecraft remains live acceptance.
+- Native LOTREntityNPC death creates lotr.common.entity.item.LOTREntityTraderRespawn when its
+  own rules permit. copyTraderDataFrom carries class ID, native home, location name, respawn
+  flag and (for LOTRTradeable) trader data, but originally omitted generic regional proof.
+- Carrier native NBT keys include TraderClassID, TraderHasHome, TraderHomeX/Y/Z,
+  TraderHomeRadius, TraderShouldRespawn, TraderLocationName, TraderData and TimeUntilSpawn.
+  ForgeData independently carries the narrow addon receipt, including carrier identity.
+- Carrier onUpdate creates the native registered class, positions/initializes it, restores home
+  and respawn flag, and calls World.spawnEntityInWorld. On failure it waits/retries and can
+  move upward. On success it restores ordinary trader data and removes itself. The new hook
+  observes that success after native home restoration, preserving all native mechanics.
+  A moved/off-home replacement remains unproven; no arbitrary relocation fallback is introduced.
+
+Evidence boundary: lifecycle tests invoke the production callbacks at the inspected native
+boundaries and execute real carrier copy/NBT and native NPC NBT methods. Patched timed
+onUpdate is checked against actual jar bytecode with ASM; it is not claimed to have run
+in a live Forge classloader/world. Headless fixtures suppress watcher broadcasts during
+native construction/read and provide native name banks/material identities. The synthetic
+courier Villager and its spawn list exist only in test sources and are not packaged NPCs.
+
+LEGACY ADOPTION - DEFERRED, WITH REASON
+LOTRVillagePositionCache is a bounded in-memory HashMap (20,000 entries, clearCache), not a
+persisted ledger of built structure types, successful NPC spawns or UUIDs. LocationInfo records
+coordinates/rotation/name and fixed-waypoint context, including RANDOM_GEN_HERE and
+SPAWNED_BY_PLAYER sentinels; none binds a native noble to a completed regional structure.
+LOTRVillageGen recomputes/sets up AbstractInstance structure lists using world seed/location.
+Its StructureInfo describes planned generators and coordinates, without a saved successful
+spawn receipt. Decorator-built towers/camps do not acquire a universal persisted component
+registry through these classes. A possible predicted building is not an actual structure
+receipt. NPC home/location text also lacks the generating class and original spawn identity.
+
+Consequently no trustworthy general automatic adoption rule was found. The implementation
+continues rejecting untagged old homes/nobles, wandering nobles, copied UUID proofs, malformed
+receipt fields, wrong factions/dimensions/classes, changed homes and unproven respawners.
+Existing accepted relationships remain valid without retroactive seat proof requirements;
+existing death/faction-change cleanup still applies normally. A carrier already queued before
+Pass 4 cannot recover its lost predecessor proof and remains an explicit compatibility limit.
+These are server-owned provenance records, not cryptographic authentication against an
+administrator who can rewrite arbitrary trusted server NBT.
+
+Separately reviewable remedy proposal (NOT IMPLEMENTED): an operator-only, dry-run-first,
+single-NPC adoption tool with explicit stopped-world evidence review, exact world/NPC UUID,
+native class/faction/home, verified actual structure evidence, bounded scope and durable audit.
+A human would approve evidence for each adoption; a seed prediction or block/roof/waypoint
+radius alone would not authorize it. It must never spawn/replace an NPC or transfer a player's
+relationship. Its policy, evidence requirements and tests require separate review.
+
+REAL FACTION AVAILABILITY - NATIVE EVIDENCE, LIVE JOURNEYS PENDING
+The native availability test constructs actual shipped NPC classes with native name resources,
+uses the production ordinaryMaster/combat-trader/faction predicates, and checks world generation
+or spawn references. Regional rows also check constructor bytecode in the host/inherited factory,
+including GondorFiefdom.createCaptain. Generation spawn calls were inspected, not inferred solely
+from allowlisted structure names. These are plausible native paths, not guaranteed nearby adults,
+structure density measurements or live settlement availability. Admission still checks adulthood,
+pledge/alignment, actual home/proof and interaction eligibility for the real individual.
+
+Faction | Plausible Master / native source | Regional Liege / native source | Classification
+Hobbit | Hobbit / spawn list, houses, tavern | HobbitShirriff / HobbitTavern | REQUIRING LIVE ACCEPTANCE
+Bree | BreeMan / spawn list, houses/inn | BreeCaptain / BreeOffice | REQUIRING LIVE ACCEPTANCE
+Dunedain | DunedainBlacksmith / RangerSmithy | RangerNorthCaptain / RangerCamp | PARTIALLY ADDRESSED: smith/site dependent
+Blue Mountains | BlueMountainsSmith / BlueMountainsSmithy | BlueDwarfCommander / BlueMountainsStronghold | PARTIALLY ADDRESSED: smith/site dependent
+High Elves | RivendellSmith / RivendellForge | HighElfLord / HighElvenTower; RivendellLord / RivendellHall | PARTIALLY ADDRESSED: forge/settlement dependent
+Gundabad | GundabadOrcTrader / GundabadCamp | GundabadOrcMercenaryCaptain / GundabadCamp, RuinedDwarvenTower | PARTIALLY ADDRESSED: trader/camp dependent
+Angmar | AngmarOrcTrader / AngmarCamp | AngmarHillmanChieftain / AngmarHillmanChieftainHouse; Orc captain / AngmarTower | PARTIALLY ADDRESSED: trader/camp dependent
+Wood Elves | WoodElfSmith / WoodElvenForge | WoodElfCaptain / WoodElfTower | PARTIALLY ADDRESSED: forge/tower dependent
+Dol Guldur | DolGuldurOrcTrader / DolGuldurCamp | DolGuldurOrcChieftain / DolGuldurTower | PARTIALLY ADDRESSED: trader/camp dependent
+Dale | DaleMan / spawn list, house | DaleCaptain / DaleFortress | REQUIRING LIVE ACCEPTANCE
+Durin's Folk | DwarfSmith / DwarfSmithy; IronHillsMerchant | DwarfCommander / DwarvenTower | PARTIALLY ADDRESSED: smith/merchant dependent
+Lothlorien | GaladhrimSmith / GaladhrimForge; GaladhrimTrader | GaladhrimLord / ElfLordHouse | PARTIALLY ADDRESSED: forge/house dependent
+Dunland | DunlendingBartender / DunlendingTavern | DunlendingWarlord / DunlandHillFort | PARTIALLY ADDRESSED: tavern dependent
+Isengard | UrukHaiTrader / UrukCamp | UrukHaiMercenaryCaptain / UrukCamp | PARTIALLY ADDRESSED: trader/camp dependent
+Rohan | RohanMan / spawn list, house, MeadHall | RohirrimMarshal / RohanFortress | REQUIRING LIVE ACCEPTANCE
+Gondor | GondorMan / spawn list, houses | Gondorian/fief captains / Fortress family via fief factory | REQUIRING LIVE ACCEPTANCE
+Mordor | MordorOrcTrader / MordorCamp | MordorOrcMercenaryCaptain / MordorTower; BlackUrukCaptain / BlackUrukFort | PARTIALLY ADDRESSED: trader/camp dependent
+Dorwinion | DorwinionMan / spawn list, houses | DorwinionCaptain / DorwinionCaptainTent | REQUIRING LIVE ACCEPTANCE
+Rhun | Easterling / spawn list, houses | EasterlingWarlord / EasterlingFortress | REQUIRING LIVE ACCEPTANCE
+Harad | SouthronBaker / SouthronBazaar and other native civilian professions | NearHaradrimWarlord / SouthronFortress; UmbarCaptain / UmbarFortress | REQUIRING LIVE ACCEPTANCE
+Morwaith | MoredainHuntsman / MoredainHutTrader; MoredainHutmaker | MoredainChieftain / MoredainHutChieftain | PARTIALLY ADDRESSED: specialized hut dependent
+Taurethrim | Tauredain / spawn list, native houses | TauredainChieftain / TauredainChieftainPyramid | REQUIRING LIVE ACCEPTANCE
+Half-trolls | NO qualifying native Master found | HalfTrollWarlord / HalfTrollWarlordHouse | DEFERRED: fresh journey blocked at Master
+Fangorn | NO qualifying native Master found | NO supported native combat-unit-trader Liege | DEFERRED: fresh journey blocked at both stages
+
+Fangorn Ent/Huorn and HalfTroll/Warrior/Scavenger/Warlord actual constructors fail the current
+ordinary civilian/farmer Master rule; native combat AI and/or combat-trader role excludes them.
+A Scavenger's trade GUI does not make it a civilian. No unsupported class/title exception or
+artificial fallback NPC was introduced. Historical accepted relationships/progression are retained.
+RohanWatchtower and DaleWatchtower are allowlisted host names but their generation does NOT
+construct the Marshal/Captain. They supply soldiers; they are not reliable Liege destinations.
+MeadHall generates a Meadhost/civilians/warriors; no regional noble is assumed from its name.
+Real availability of three distinct duties/commissions still depends on genuine local geography,
+correspondents, charges and objectives; the selector now exhausts safe alternatives rather than
+promising every location can supply a complete journey.
+
+FOCUSED TESTS AND RESULTS
+New KOMEProgressionSeatReplacementTest: 7 passing tests, including full native carrier NBT and
+UUID rebinding, full native NPC NBT/home/proof save/load, retry, one-time consumption, legacy
+rejection, copied/malformed/mismatched data, hired/encounter/non-respawning rejection and
+accepted old relationship/history preservation.
+New KOMEMasterDutyReliabilityTest: 7 passing tests for courier/escort preparation fallback,
+no partial trial/bound charge, no duplicate dispatch after failed spawn, preserved credits/
+recommendation history/restart, all-unavailable explanation, frozen accepted work and variety.
+New KOMEProgressionNativeAvailabilityTest: 4 passing tests; 22 actual Master types, 23 actual
+regional noble types/native construction paths, unsupported Fangorn/Half-troll candidates,
+and negative watchtower evidence.
+Extended KOMEProgressionSeatTransformerTest: 2 passing tests; actual shipped structure and
+native trader respawner bytes, exactly one capture and one spawn callback, ASM stack analysis,
+idempotence and unrelated-byte preservation. New tests total 18; existing tests were retained.
+
+Targeted run: 489 PASSED, 0 skipped/failures/errors; BUILD SUCCESSFUL in 16s.
+Exact selectors/flags: outputs/progression-pass4/validate.ps1 without -Full.
+Includes existing service/migration/recommendation, Serf/Knight, military, company movement/
+Rally/source, Join Battle, packet/handshake/registration and server class-loading regressions.
+Final targeted XML/log: outputs/progression-pass4/targeted-final-results/ and targeted.log.
+Early failed fixture logs are retained as targeted-first.log through targeted-fifth.log;
+XML snapshots are retained in targeted-first-results/ through targeted-fourth-results/.
+They exposed incomplete headless trade identities/name banks, a client-vs-server watcher
+fixture, the nested Gondor fief factory, test dimension mismatch and candidate availability
+assumptions. The final tests supply valid native resources/materials and preserve the same
+behavioral assertions. No production authority assertion or existing test was suppressed.
+
+Full required command, holding Local\KOME-Heavy-Validation and using existing cached dependencies:
+gradlew.bat test build reobfJar --offline --no-daemon --max-workers=2 --console=plain
+Result: BUILD SUCCESSFUL in 1m 3s; 18 actionable tasks (6 executed, 12 up-to-date).
+4109 PASSED, 5 SKIPPED, 0 failures/errors = 4114 cases.
+Jar, sourcesJar, assemble, check, build and reobfJar succeeded. Forge 1.7.10/Java 8 source
+compatibility is compiled/automated evidence. Existing Gradle/RFG deprecation and unchecked
+Java warnings remain; captured stderr may display PowerShell NativeCommandError despite the
+actual successful Gradle exit 0. No dependencies were upgraded or downloaded.
+Full XML: outputs/progression-pass4/full-results/
+Full log/summary: outputs/progression-pass4/full-build.log and full-summary.json
+
+Exact unchanged five skips:
+com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported
+com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported
+kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks
+kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms
+kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms
+
+Packaged jar: build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar
+Bytes: 18589233
+SHA-256: EC90FFBA43E11F1476A40433F3AC017971A5FC2703C1FF183E2631581C4EDF0F
+Package inspection confirms unchanged g14 in mcmod.info, @Mod and wire constants, existing
+map/seat core registrations and both new replacement callbacks. Not installed into a runtime.
+Final routing validation passed: 25 documents, 797 local links, 1064 symbol references
+and 48 exact JUnit selectors. git diff --check also passed.
+
+PRACTICAL GAMEPLAY ACCEPTANCE PLAN - ALL REQUIRING LIVE ACCEPTANCE
+Record build SHA/jar hash, client/server versions, world copy/seed, faction, NPC UUID/class,
+coordinates/home/proof, player rank/alignment, service tokens/credits, inventory/recommendation
+state, population/bank and logs/screenshots at each checkpoint. A visual pass alone is not proof
+of saved authority. Mark each scenario pass/fail/blocked with evidence; do not silently skip a gap.
+
+SETUP (fresh disposable runtime)
+[ ] Use a NEW isolated Forge 1.7.10 runtime with the actual v36.15 dependency and this g14 jar.
+    Keep the existing run/ and all real saves untouched. Use matching artifact hashes on client/
+    server. Verify progression configuration and ordinary native faction interaction requirements.
+[ ] Choose a supported faction with a genuine accessible Master and naturally generated regional
+    noble (Rohan/Gondor are representative starting cases). Do not spawn a fallback noble or infer
+    a seat from a waypoint, roof or arbitrary home. Record the actual generator/proof/native home.
+[ ] Begin unaffiliated: Wanderer remains until actual native pledge commits. Verify pledge -> Serf
+    once; reconnect/restart does not replay an earned ceremony or erase prior standing.
+
+FRESH-WORLD MASTER JOURNEY
+[ ] Select a real adult unhired native civilian Master in faction territory. Check wrong faction,
+    hostile/unaligned NPC, soldier/noble, encounter NPC and distant interactions remain rejected.
+[ ] Complete/report THREE distinct ordinary duties, using at most one of provisioning/material
+    assistance. Exercise courier delivery/return, recovery/escort/defense as legitimately available.
+    Reopen menus and relog mid-assignment: token/type/destination/items must not change.
+[ ] At a location with an unavailable correspondent or unprovable escort destination, request work.
+    Verify another genuinely feasible type can be accepted; there are no stray letters, hired charges,
+    bound actors or extra credits from the rejected preparation. Where none is feasible, verify the
+    useful refusal and unchanged credits/Master. Repeated clicks must not duplicate work/rewards.
+[ ] At the third real report with >=150 alignment, verify immediate Knight standing from that same
+    Master, ended active service, retained history and one recommendation. No trial/fourth duty/day
+    wait/other conferring NPC. In a separate case finish below 150, retain all three credits, gain
+    the missing alignment normally, then report at the same Master for the earned promotion.
+[ ] Exercise full inventory and lost-letter recovery at the former Master and via self-only
+    /progression recommendation, including unloaded/dead issuer. Book copies do not create another
+    saved recommendation grant; redeemed books remain keepsakes. No duplicated promotion reward.
+
+FRESH-WORLD REGIONAL JOURNEY
+[ ] Locate a naturally generated proven regional Lord/Prince of the pledged faction. Verify native
+    trade/alignment rules and home bounds. The introduction admits exactly one relationship; a
+    wandering noble/unproven home cannot redeem it, and denial leaves its authority unspent.
+[ ] Complete/report THREE distinct current-faction commissions at the accepted Liege. Include native
+    invasion as one case (ideally third): verify actual enemy participation/victory and return report.
+    Save/relog during work; reported evidence/tokens remain stable and rewards are not duplicated.
+[ ] At >=2000 alignment, the third qualifying report grants Lord at the current Liege, ends active
+    service and retains real history/recommendation. Below 2000, preserve credits and allow later
+    recognition there. No promotion trial/fourth assignment/Prince detour or new royal duties.
+[ ] Inspect rank-derived abilities immediately. Lord standing alone must not spend population, grant
+    Crown office, authorize new native-hostile orders outside war, or bypass company/conflict rules.
+
+NATIVE LIFECYCLE / RESTART
+[ ] Unload/reload chunks and cleanly stop/restart the disposable runtime with a proven noble alive.
+    UUID, ForgeData proof, native home and accepted relationships should persist unchanged.
+[ ] Observe genuine native death/replacement at a proven seat (do not force-spawn the replacement).
+    Respect existing betrayal/death rules; use a non-serving-player death case separately from a
+    deliberate betrayal case. Record the native respawner, new UUID/class/faction and unchanged home.
+[ ] Cleanly save/restart while that native carrier is pending, then wait for its normal successful
+    replacement. New proof must name the new UUID and keep original generator/anchor/faction;
+    receipt is consumed once. Failed native placement stays on native retry with no fabricated NPC.
+[ ] Verify old player relationship/history is not silently reassigned to the new UUID or made into
+    a new Prince/King office. Existing death recovery/recommendation rules decide later service.
+[ ] In a disposable negative fixture, test wrong class/faction/dimension, moved home and copied/stale
+    receipt. No eligibility/recommendation redemption should occur from invalid evidence.
+
+DISPOSABLE OLDER-WORLD COPY
+[ ] Stop the SOURCE world cleanly before making a consistent full copy, including native entity/
+    dimension data and addon recovery files. Never copy a running locked WAL as acceptance input.
+    Launch only the new disposable copy/path; record baseline ranks, relationships and reported work.
+[ ] Verify accepted old Liege relationships without provenance remain usable after login/restart;
+    old credits, recommendations, lost-issuer history and rank remain intact. Migration does not
+    fabricate a promotion, duplicate reward or replay a ceremony.
+[ ] Try NEW admission at an old untagged regional noble with a plausible home/building: expect
+    conservative denial and no recommendation redemption. Repeat at a wandering noble/home edit.
+[ ] A pre-Pass-4 queued carrier without the new receipt must remain unproven; record this explicit
+    limitation rather than adding a radius/home workaround. Existing accepted histories stay saved.
+[ ] Generate genuinely NEW chunks under this build, find a naturally proven seat, then repeat native
+    death/carrier restart/replacement and new admission. Old world age alone must not block new proof.
+[ ] Continue an old in-flight Master duty and Knight commission through report/restart; new fallback
+    must never replace accepted work. Check full-inventory/lost-letter/faction-change recovery.
+[ ] Change/revoke pledge, reconnect and restart: retain earned standing/history under existing rules,
+    expire incompatible introductions and clean up active relationships/military control normally.
+    Do not reuse old-faction recommendation or unrelated service to grant new-faction authority.
+
+DEV INTEGRATION SPOT CHECKS (same disposable runtime)
+[ ] Move Here, Move To, Rally, Units and map radial menus; arrival-budget Continue behavior.
+[ ] Legal and denied company orders, allowance spending, foreign delegation, Crown/war restrictions.
+[ ] Knight-gated new Join Battle; registered participant maintenance; retreat/return across conflict
+    resolution and restart, including mounted same-source-tile fallback and failed-return retry.
+[ ] Population charging/recruitment, no free campaign troops from personal service, no unauthorized
+    Crown spending or tile capture. Verify HUD/Rank/tracker/map state after reconnect/dimension change.
+
+No suitable isolated interactive gameplay session was used. A pre-existing runtime held a real
+world journal locked; it was left alone. Native constructors, NBT and physical service fixtures
+above are headless automated evidence, not successful live Minecraft acceptance.
+
+FILES AND FINAL LOCAL STATE
+Production changes are limited to KOMEProgressionServiceLocation, KOMESerfdomMasterService
+and the existing KOMEProgressionSeatTransformer. New tests are KOMEProgressionSeatReplacementTest,
+KOMEMasterDutyReliabilityTest and KOMEProgressionNativeAvailabilityTest; the existing seat
+transformer test is extended. Routing index/progression/geography/runtime guides and this report
+record changed entry points, compatibility and verification. No client/packet/strategic file changed.
+Validation evidence, native research and baseline artifact remain ignored in outputs/progression-pass4/.
+5,104 protected pre-existing non-runtime local files verified unchanged after preserving new test logs
+and restoring 11 rotated original root logs. No IDE changes required overwriting. Existing run/ was
+not edited/launched; generated build artifacts may change. See preservation.json.
+All three stashes, old backups, branch identity and existing worktree remain intact. A local commit
+contains this bounded implementation/report; its exact SHA is available with
+  git log -1 --format=%H -- docs/PROGRESSION_PASS4_RELIABILITY_REPORT.txt
+Nothing was pushed or updated remotely. Live acceptance and the explicitly deferred cases above
+remain the only claimed evidence/compatibility limits; they are not represented as successful tests.

@@ -95,20 +95,69 @@ public final class KOMESerfdomMasterService {
         }
         java.util.Collections.shuffle(candidates,random);
         if(candidates.isEmpty())return reject("No suitable local work can be arranged here. Your completed service is preserved.");
-        KOMESerfKnightDutyType next=candidates.get(0);net.minecraft.nbt.NBTTagCompound assignmentData=null;
-        if(KOMESerfServiceObjectives.objective(next)){
-            if(!KOMESerfServiceObjectives.prepare(player,state,npc,next))return reject("No safe destination is available here. Your service is preserved.");
-            state.assignDuty(next,state.getTrialAssignment().writeToNBT());data.markDirty();KOMESerfServiceObjectives.interact(player,npc);return ok();
+        java.util.List<String> unavailable=new java.util.ArrayList<String>();
+        for(KOMESerfKnightDutyType next:candidates) {
+            net.minecraft.nbt.NBTTagCompound assignmentData;
+            if(KOMESerfServiceObjectives.objective(next)) {
+                // Preparation may change the trial and destination history, but must not touch
+                // the accepted state or spawn actors until this candidate has been accepted.
+                KOMESerfKnightProgression prepared=new KOMESerfKnightProgression();
+                prepared.readFromNBT(state.writeToNBT());
+                if(!KOMESerfServiceObjectives.prepare(player,prepared,npc,next)) {
+                    unavailable.add(next.displayName+": no verified safe destination");continue;
+                }
+                prepared.assignDuty(next,prepared.getTrialAssignment().writeToNBT());
+                state.readFromNBT(prepared.writeToNBT());
+                data.markDirty();KOMESerfServiceObjectives.interact(player,npc);return ok();
+            }
+            if(next==KOMESerfKnightDutyType.PROVISIONING) {
+                java.util.List<KOMESerfProvisioningAssignment.Candidate> foods=KOMESerfProvisioningCatalog.foodsForFaction(npc.getFaction().codeName());
+                foods.removeIf(c->!KOMEProgressionGoodsEligibility.provision(player,new net.minecraft.item.ItemStack(net.minecraft.item.Item.getItemById(c.itemId),1,c.damage)));
+                if(foods.isEmpty()||KOMESerfProvisioningCatalog.drinksForFaction(npc.getFaction().codeName()).isEmpty()
+                        ||KOMESerfProvisioningCatalog.vesselsForFaction(npc.getFaction().codeName()).isEmpty()) {
+                    unavailable.add("Provisioning: no eligible local goods");continue;
+                }
+                assignmentData=KOMESerfProvisioningAssignment.generate(player,npc.getFaction().codeName(),random).writeToNBT();
+                if(KOMESerfProvisioningAssignment.readFromNBT(assignmentData)==null) {
+                    unavailable.add("Provisioning: no complete eligible goods request");continue;
+                }
+            } else if(next==KOMESerfKnightDutyType.PROFESSION) {
+                KOMESerfProfessionClassifier.Profession profession=KOMESerfProfessionClassifier.classify(npc);
+                if(KOMESerfProfessionCatalog.candidatesFor(profession.materialProfile,npc.getFaction().codeName()).isEmpty()) {
+                    unavailable.add("Trade Assistance: no eligible materials");continue;
+                }
+                assignmentData=KOMESerfProfessionAssignment.generate(profession,npc.getFaction().codeName(),random).writeToNBT();
+                if(KOMESerfProfessionAssignment.readFromNBT(assignmentData)==null) {
+                    unavailable.add("Trade Assistance: no complete eligible materials request");continue;
+                }
+            } else {
+                KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.create(
+                    KOMEProgressionNpcRankService.referenceOf(npc),KOMEReflection.getWorld(player),state.variety);
+                if(courier==null||!KOMECourierRecipientSpawner.prepareCorrespondent(player.worldObj,courier,npc)) {
+                    unavailable.add("Courier: no suitable faction correspondent and route");continue;
+                }
+                assignmentData=courier.writeToNBT();
+            }
+            net.minecraft.nbt.NBTTagCompound before=state.writeToNBT();
+            KOMESerfKnightService.Result request=KOMESerfKnightService.assignDuty(
+                state,next,assignmentData,KOMESerfKnightService.calendarDayNow(),player.getUniqueID());
+            if(!request.success)return reject(request.reason); // Authority/state denial is not a reroll.
+            if(next==KOMESerfKnightDutyType.COURIER&&!KOMECourierIssuance.initial(player,data,npc)) {
+                // Native rejected dispatch spawn; no document was published. Restore all duty,
+                // relationship, reward and variety fields before trying another candidate.
+                state.readFromNBT(before);data.markDirty();
+                unavailable.add("Courier: dispatch could not be issued safely");continue;
+            }
+            if(next==KOMESerfKnightDutyType.COURIER) {
+                KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(assignmentData);
+                state.variety.remember(KOMEProgressionNpcRankService.referenceOf(npc),"courier",courier.destinationX,courier.destinationZ);
+            }
+            data.markDirty();return ok();
         }
-        if(next==KOMESerfKnightDutyType.PROVISIONING)assignmentData=KOMESerfProvisioningAssignment.generate(player,npc.getFaction().codeName(),random).writeToNBT();
-        else if(next==KOMESerfKnightDutyType.PROFESSION)assignmentData=KOMESerfProfessionAssignment.generate(KOMESerfProfessionClassifier.classify(npc),npc.getFaction().codeName(),random).writeToNBT();
-        else if(next==KOMESerfKnightDutyType.COURIER) { KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.create(KOMEProgressionNpcRankService.referenceOf(npc),KOMEReflection.getWorld(player),state.variety);if(courier==null||!KOMECourierRecipientSpawner.prepareCorrespondent(player.worldObj,courier,npc))return reject("No suitable faction correspondent is available for courier work.");assignmentData=courier.writeToNBT(); }
-        net.minecraft.nbt.NBTTagCompound before=state.writeToNBT();
-        Result request=requestDuty(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMESerfKnightService.calendarDayNow(),assignmentData,random,player.getUniqueID());
-        if(!request.success)return request;
-        if(next==KOMESerfKnightDutyType.COURIER&&!KOMECourierIssuance.initial(player,data,npc)){state.readFromNBT(before);data.markDirty();return reject("The dispatch could not be issued. Ask again when the way is clear.");}
-        if(next==KOMESerfKnightDutyType.COURIER){KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(assignmentData);if(courier!=null)state.variety.remember(KOMEProgressionNpcRankService.referenceOf(npc),"courier",courier.destinationX,courier.destinationZ);}data.markDirty(); return ok();
+        return reject("No suitable local work could be prepared. "+String.join("; ",unavailable)
+            +". Your completed service is preserved. Try again when a safe local route or correspondent is available.");
     }
+
     /** Identity/cadence orchestration only; assignment mutation remains in KOMESerfKnightService. */
     static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {return requestDuty(state,clickedMaster,calendarDay,new java.util.Random());}
     static Result requestDuty(KOMEPlayerProgression progression,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedAssignmentData,java.util.Random random) {if(progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Your current faction rank is not eligible for this Master interaction.");return requestDuty(progression.getSerfKnightProgression(),clickedMaster,calendarDay,suppliedAssignmentData,random);}

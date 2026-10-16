@@ -4,12 +4,13 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.*;
 
-/** Observes native structure spawns without placing structures or manufacturing NPCs. */
+/** Observes native structure generation and trader replacement without creating NPCs. */
 public final class KOMEProgressionSeatTransformer implements IClassTransformer {
     static final String BRIDGE = "kome/common/data/KOMEProgressionServiceLocation";
     @Override public byte[] transform(String name, String transformedName, byte[] bytes) {
+        boolean replacement = "lotr.common.entity.item.LOTREntityTraderRespawn".equals(transformedName);
         if (bytes == null || transformedName == null
-                || !(transformedName.startsWith("lotr.common.world.structure.LOTRWorldGen")
+                || !(replacement || transformedName.startsWith("lotr.common.world.structure.LOTRWorldGen")
                     || transformedName.startsWith("lotr.common.world.structure2.LOTRWorldGen"))) return bytes;
         ClassNode node = new ClassNode(); new ClassReader(bytes).accept(node, 0);
         for (MethodNode method : node.methods) for (AbstractInsnNode i : method.instructions.toArray())
@@ -17,6 +18,16 @@ public final class KOMEProgressionSeatTransformer implements IClassTransformer {
         int count = 0;
         for (MethodNode method : node.methods) {
             if ((method.access & Opcodes.ACC_STATIC) != 0) continue;
+            if (replacement && "copyTraderDataFrom".equals(method.name)
+                    && "(Llotr/common/entity/npc/LOTREntityNPC;)V".equals(method.desc)) {
+                for (AbstractInsnNode i : method.instructions.toArray()) if (i.getOpcode() == Opcodes.RETURN) {
+                    InsnList capture = new InsnList();
+                    capture.add(new VarInsnNode(Opcodes.ALOAD, 0)); capture.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                    capture.add(new MethodInsnNode(Opcodes.INVOKESTATIC, BRIDGE, "captureReplacement",
+                        "(Lnet/minecraft/entity/Entity;Llotr/common/entity/npc/LOTREntityNPC;)V", false));
+                    method.instructions.insertBefore(i, capture); count++;
+                }
+            }
             for (AbstractInsnNode i : method.instructions.toArray()) if (i instanceof MethodInsnNode) {
                 MethodInsnNode call = (MethodInsnNode)i;
                 if (call.getOpcode() != Opcodes.INVOKEVIRTUAL || !"net/minecraft/world/World".equals(call.owner)
@@ -24,8 +35,9 @@ public final class KOMEProgressionSeatTransformer implements IClassTransformer {
                         || !"(Lnet/minecraft/entity/Entity;)Z".equals(call.desc)) continue;
                 method.instructions.insertBefore(call, new InsnNode(Opcodes.DUP2));
                 InsnList after = new InsnList(); after.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                after.add(new MethodInsnNode(Opcodes.INVOKESTATIC, BRIDGE, "generated",
-                    "(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;ZLjava/lang/Object;)Z", false));
+                after.add(new MethodInsnNode(Opcodes.INVOKESTATIC, BRIDGE, replacement ? "replacementSpawned" : "generated",
+                    replacement ? "(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;ZLnet/minecraft/entity/Entity;)Z"
+                        : "(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;ZLjava/lang/Object;)Z", false));
                 method.instructions.insert(call, after); count++;
             }
         }

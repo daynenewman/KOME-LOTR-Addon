@@ -19,9 +19,18 @@ a fort from a roof, waypoint radius, noble title or biome. The narrow
 nothing. Old unproven placements fail closed for new entry; existing service is
 preserved. The faction-host inventory and compatibility gaps are in the
 [Pass 3 report](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
-Native trader replacement restores home information without the generic entity
-receipt; replacement nobles also fail closed for new admission until provenance
-transfer is implemented and validated.
+Pass 4 extends `KOMEProgressionSeatTransformer` at the native trader respawner's
+copy and successful spawn boundaries. `KOMEProgressionServiceLocation.captureReplacement`
+stores a carrier-bound receipt only from a proven, native-home noble that should
+respawn. `replacementSpawned` checks the same class/faction/dimension/home, rebinds
+proof to the new UUID and consumes the receipt once. Forge entity data persists the
+carrier through save/restart. Failed spawns retain the receipt; no NPC is created by
+KOME and no player relationship/rank/history is transferred. Old untagged NPCs and
+already queued pre-Pass-4 respawners remain unproven. Native village position caches
+and predicted structure lists do not authorize adoption. Fangorn has neither a
+qualifying civilian Master nor a regional Liege; Half-trolls have a regional Warlord
+but no qualifying Master. Other audited factions have plausible native candidates,
+with actual generated-world density and journeys requiring live acceptance.
 `KOMEProgressionServiceLocation.royal` joins the existing persistent NPC King slot,
 incarnation and authoritative capital tile for a future service seam; no royal
 leadership quests or succession rules are implemented.

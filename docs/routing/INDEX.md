@@ -74,3 +74,13 @@ Matching artifacts use `1.0.10-service-g14`; movement IDs 61-68 and progression/
 Join Battle IDs are retained. See the [client/network](systems/client-network/README.md)
 and [movement](systems/strategic-movement/README.md) routes for authority boundaries.
 Automated integration verification does not establish live Minecraft acceptance.
+
+## Progression Pass 4 reliability
+
+The [Pass 4 report](../PROGRESSION_PASS4_RELIABILITY_REPORT.txt) records native trader
+replacement provenance and safe Master preparation fallback. Existing accepted
+relationships/history and g14 stay intact. Untagged legacy seats and old queued
+respawners remain closed to new admission. Native class/generation audits find
+plausible Masters in 22 factions and regional combat traders in 23; Fangorn and
+Half-troll Master availability remain unsupported. Automated NBT/ASM/service tests
+are distinct from the report's pending fresh-world and older-copy live checklist.

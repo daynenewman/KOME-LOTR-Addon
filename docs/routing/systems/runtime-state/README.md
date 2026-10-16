@@ -19,6 +19,14 @@ October 15 dev sync preserves the service migration and strategic schemas.
 Campaign health, waypoint, Aqua and integrated mob hooks retained. Automated ASM and
 server-loading checks are distinct from pending live Forge/client acceptance.
 
+Pass 4 adds only an optional version-1 native respawner receipt under
+`KOMEProgressionServiceLocation.REPLACEMENT_TAG` in ordinary Forge entity data.
+The existing registered `KOMEProgressionSeatTransformer` observes copy and successful
+native spawn; it does not add packets, root schema versions, NPCs or saved-world
+registries. Existing regional proof remains version 1 and is rebound to a verified
+replacement UUID. Pre-existing untagged NPCs/carriers are not auto-adopted. Headless
+native NBT round-trips and ASM checks remain separate from live save/restart acceptance.
+
 ## Authority and entry points
 
 - [KOMEAddon.preInit](../../../../src/main/java/kome/common/KOMEAddon.java), `init`, `postInit`, `serverStarting`, and [KOMECommonProxy.init](../../../../src/main/java/kome/common/KOMECommonProxy.java): module initialization, events, commands, GUI/network registration. [KOMECorePlugin](../../../../src/main/java/kome/core/KOMECorePlugin.java) registers KOME, LOTRMoreMobs, and Aqua ASM hooks.

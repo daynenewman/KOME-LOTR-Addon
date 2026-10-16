@@ -117,6 +117,20 @@ Join Battle return workflows. New hostile command, map and Rally orders share
 guard from `KOMECompanyCommandAuthority.newMilitaryOperationDenial`. Rank alone
 does not authorize a new hostile operation. Lord-to-Prince remains deferred.
 
+Pass 4 reliability: `KOMESerfdomMasterService.requestDuty` shuffles eligible duty
+types once, then tries safe preparation in that order. Objective preparation uses
+detached state; unavailable routes/correspondents/goods and rejected courier dispatch
+spawns can fall through without spending credits or leaving a partial assignment.
+Successful acceptance stops selection, including when subsequent encounter activation
+needs its existing technical retry. Completed duties and the two equivalent delivery
+activities retain their exclusions. Native trader replacement preserves only verified
+regional-seat provenance; old unproven seats remain closed to new admission.
+`KOMEProgressionSeatReplacementTest`, `KOMEMasterDutyReliabilityTest` and
+`KOMEProgressionNativeAvailabilityTest` cover lifecycle, rollback and native candidate
+availability. Fangorn and Half-troll Master availability is unsupported by the current
+native civilian/farmer rule; no faction exception is introduced. Three-service/150/2000
+alignment rules, g14, military authority and deferred Lord-to-Prince are unchanged.
+
 ## Authority and entry points
 
 - [KOMEPlayerProgression](../../../../src/main/java/kome/common/data/KOMEPlayerProgression.java), [KOMEProgressionAchievement](../../../../src/main/java/kome/common/data/KOMEProgressionAchievement.java), [KOMECanonicalRankService](../../../../src/main/java/kome/common/data/KOMECanonicalRankService.java), [KOMEProgressionPermissions.has](../../../../src/main/java/kome/common/data/KOMEProgressionPermissions.java): persisted player progression in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java), definitions, canonical rank, action gates. Native pledge/alignment and NPC/entity NBT are additional authorities.
