@@ -75,10 +75,16 @@ public final class KOMEProgressionEncounterCleanup {
     }
 
     public static void cleanup(World world,UUID owner,KOMEPlayerProgression progression) {
+        cleanup(world,owner,progression,false);
+    }
+    static void lostSuperior(World world,UUID owner,KOMEPlayerProgression progression){cleanup(world,owner,progression,true);}
+    private static void cleanup(World world,UUID owner,KOMEPlayerProgression progression,boolean preserveReportedField) {
         if(world==null||owner==null||progression==null)return;
 
         KOMELordshipTrialService.relationshipLost(world,owner,progression);
-        KOMEKnightCommissionService.cancel(world,owner,progression);
+        KOMEKnightCommission field=progression.getKnightService().assignment();
+        if(preserveReportedField&&field!=null&&field.stage==KOMEKnightCommission.Stage.READY_TO_REPORT)KOMEKnightCommissionService.releaseFollower(world,owner,field);
+        else KOMEKnightCommissionService.cancel(world,owner,progression);
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
 

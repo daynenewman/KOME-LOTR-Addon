@@ -21,7 +21,7 @@ public class KOMEProgressionHardeningGeographyTest {
         territory(f);f.s.chunks=false;
         KOMEProgressionGameplayFixture.record(f.s.f.world,2200,1000,"rohan");
         ((KOMECourierGeographyTest.TestManager)f.s.f.world.getWorldChunkManager()).borderZ=4000;
-        for(Type type:Type.values()){KOMEKnightCommissionLocations.Destination d=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed"),again=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed");
+        for(Type type:EnumSet.range(Type.SETTLEMENT_DEFENSE,Type.NATIVE_INVASION)){KOMEKnightCommissionLocations.Destination d=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed"),again=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed");
             if(type==Type.BORDER_INCURSION){assertNull("No hostile neighboring territory exists in this fixture",d);assertNull(again);continue;}
             assertNotNull(type.name(),d);assertEquals(d.x,again.x,0);assertEquals(d.z,again.z,0);double distance=Math.hypot(d.x-1000,d.z-1000);assertTrue(distance>=1000&&distance<=3000);
             KOMEKnightCommission a=new KOMEKnightCommission(type,origin(f));a.x=a.destinationX=d.x;a.z=a.destinationZ=d.z;assertTrue(f.s.p.getKnightService().offer(a));

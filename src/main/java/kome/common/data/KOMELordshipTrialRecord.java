@@ -11,12 +11,13 @@ public final class KOMELordshipTrialRecord {
     private long technicalReassignmentAfter;
     private final List<KOMELordshipTrial> history=new ArrayList<KOMELordshipTrial>();
     public synchronized KOMELordshipTrial assignment() { return assignment; }
+    synchronized void discardTestAssignment(){if(assignment!=null&&assignment.objective.adminForced)assignment=null;}
     public synchronized List<KOMELordshipTrial> history() { return Collections.unmodifiableList(new ArrayList<>(history)); }
     private boolean recorded(String token){for(KOMELordshipTrial t:history)if(t.objective.token.equals(token))return true;return false;}
     public synchronized boolean offer(KOMELordshipTrial trial) { if(assignment!=null||trial==null||recorded(trial.objective.token)||trial.objective.stage==Stage.REPORTED)return false;assignment=trial;return true; }
     public synchronized void archive() {
         if(assignment==null)return;
-        if(!recorded(assignment.objective.token))history.add(assignment);assignment=null;
+        if(!assignment.objective.adminForced&&!recorded(assignment.objective.token))history.add(assignment);assignment=null;
         while(history.size()>16){int remove=0;for(int i=0;i<history.size();i++)if(history.get(i).objective.stage==Stage.FAILED){remove=i;break;}history.remove(remove);}
     }
     public synchronized void reset() { assignment=null;technicalReassignmentAfter=0;history.clear(); }

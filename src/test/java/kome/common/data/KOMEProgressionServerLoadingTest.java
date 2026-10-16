@@ -39,6 +39,8 @@ public class KOMEProgressionServerLoadingTest {
             Class<?> seats=Class.forName("kome.common.data.KOMEProgressionServiceLocation",true,loader);
             assertFalse(((java.util.Map)seats.getMethod("supportedHosts").invoke(null)).isEmpty());
             Class.forName("kome.core.KOMEProgressionSeatTransformer",true,loader);
+            for(String type:new String[]{"KOMEKnightFieldService","KOMEKnightEspionage","KOMEKnightHelpService","KOMEKnightBattlefieldService"})Class.forName("kome.common.data."+type,true,loader);
+            Class.forName("kome.core.KOMEKnightPickpocketTransformer",true,loader);
         }
     }
 }

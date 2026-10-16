@@ -34,6 +34,7 @@ public class KOMEWaypointTransformerTest {
                 KOMEPlayerNameplateTransformer.class.getName(),
                 KOMEProgressionOutlineTransformer.class.getName(),
                 KOMEObjectiveInvasionTransformer.class.getName(),
+                KOMEKnightPickpocketTransformer.class.getName(),
                 KOMEQuestPropertyTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
                 KOMEAlignmentSyncTransformer.class.getName(),

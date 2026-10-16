@@ -60,7 +60,7 @@ public final class KOMEObjectiveInvasionBridge {
         if(!world.spawnEntityInWorld(controller)){t.invasionId="";return false;}
         a.encounterCreated=true;a.activationPending=false;t.invasionEnded=false;
         // The native default is 30-70. A 30-life invasion is serious without choosing its maximum.
-        controller.selectAppropriateBonusFactions();controller.startInvasion(player,30);t.invasionSize=t.invasionRemaining=30;
+        int size=a.tier>=3?36:30;controller.selectAppropriateBonusFactions();controller.startInvasion(player,size);t.invasionSize=t.invasionRemaining=size;
         KOMEProgressionNpcRoles.syncPlayer(KOMEWorldData.get(world),player.getUniqueID());return true;
     }
     /** Called before a native-spawned NPC joins the world (its native invasion ID is already set). */
@@ -77,6 +77,7 @@ public final class KOMEObjectiveInvasionBridge {
             if(a.actors.size()>=128)return;
             a.actors.add(new Actor(npc.getUniqueID().toString(),npc.getClass().getName(),Role.ENEMY,npc.posX,npc.posY,npc.posZ));
             KOMEProgressionEncounterMarker.mark(npc,KOMELordshipTrialService.MARKER,row.getKey(),a.token);
+            if(a.adminForced)KOMEProgressionEncounterMarker.markTesting(npc);
             KOMEProgressionNpcRoles.syncPlayer(data,row.getKey());data.markDirty();return;
         }
     }
@@ -88,7 +89,7 @@ public final class KOMEObjectiveInvasionBridge {
             if(t==null||!t.nativeInvasion||t.invasionEnded||!t.invasionId.equals(controller.getUniqueID().toString())||t.objective.stage!=Stage.ACTIVE)continue;
             t.invasionEnded=true;EntityPlayer owner=controller.worldObj.func_152378_a(row.getKey());
             if(!t.objective.encounterCreated||controller.getInvasionSize()<=0){retry(controller.worldObj,row.getKey(),t);return;}
-            if(victory&&!t.playerDied&&t.objective.participated&&(owner==null||owner.isEntityAlive()
+            if(victory&&!t.playerDied&&KOMEKnightFieldService.qualifiedCombat(t.objective)&&(t.objective.tier==0&&owner==null||owner!=null&&owner.isEntityAlive()
                     &&owner.dimension==t.objective.dimension&&owner.getDistanceSqToEntity(controller)<=96*96)){
                 t.nativeVictory=true;t.invasionRemaining=0;t.objective.threatResolved=true;t.objective.stage=Stage.READY_TO_REPORT;t.finishedAt=controller.worldObj.getTotalWorldTime();
                 data.markDirty();if(owner instanceof EntityPlayerMP)KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP)owner,row.getValue());
@@ -96,6 +97,14 @@ public final class KOMEObjectiveInvasionBridge {
             else KOMELordshipTrialService.fail(data,controller.worldObj,row.getKey(),t,"participation");
             data.markDirty();return;
         }
+    }
+    /** Staff invasions use genuine native combat/outcomes, but cannot distribute native victory rewards. */
+    public static boolean endTest(LOTREntityInvasionSpawner controller,boolean victory){
+        if(controller.worldObj.isRemote)return false;
+        KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(controller);if(marker==null)return false;
+        KOMEPlayerProgression p=KOMEWorldData.get(controller.worldObj).progressions.get(marker.owner);KOMELordshipTrial t=p==null?null:p.getLordship().assignment();
+        if(t==null||!t.nativeInvasion||!t.objective.adminForced||!t.invasionId.equals(controller.getUniqueID().toString())||!t.objective.token.equals(marker.token))return false;
+        ended(controller,victory);controller.setDead();return true;
     }
     static void npcDeath(KOMEWorldData data,UUID owner,KOMELordshipTrial t,String id){
         if(t.authority.entityUuid.equals(id)){t.authority=KOMEProgressionNpcRef.EMPTY;data.markDirty();}
@@ -119,7 +128,7 @@ public final class KOMEObjectiveInvasionBridge {
         }
         t.objective.actors.removeIf(actor->actor.role==Role.ENEMY);
         t.invasionId="";t.invasionEnded=false;t.controllerMissingTicks=0;t.objective.encounterCreated=false;
-        t.objective.participated=false;t.objective.activationPending=true;t.objective.activationRetryAt=world.getTotalWorldTime()+200;
+        t.objective.participated=false;t.objective.combatDamage=0;t.objective.combatHits=0;t.objective.activationPending=true;t.objective.activationRetryAt=world.getTotalWorldTime()+200;
         t.failureReason="technical";KOMEProgressionNpcRoles.syncPlayer(KOMEWorldData.get(world),owner);KOMEWorldData.get(world).markDirty();
     }
     static void cleanupController(World world,KOMELordshipTrial t){

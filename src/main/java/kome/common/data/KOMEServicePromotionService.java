@@ -17,6 +17,7 @@ public final class KOMEServicePromotionService {
     public static String reason(KOMEPlayerProgression p,KOMEProgressionNpcRef superior,String faction,double alignment){
         if(p==null||superior==null||!superior.isSet())return "Return to your current superior.";
         KOMEProgressionRank rank=p.getCanonicalRank();KOMESerfKnightProgression s=p.getSerfKnightProgression();
+        if(rank==KOMEProgressionRank.KNIGHT&&p.getKnightService().testing())return "A staff field exercise is active; earned recognition is suspended until the exercise is ended.";
         if(rank!=KOMEProgressionRank.SERF&&rank!=KOMEProgressionRank.KNIGHT)return "This standing has already been conferred.";
         for(KOMEServiceRecognition.Record r:p.getServiceRecognition().records())if(r.from==rank)
             return "This service has already earned its recognition. A rank correction cannot reuse it.";
@@ -54,6 +55,7 @@ public final class KOMEServicePromotionService {
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);
         synchronized(data){
             KOMEPlayerProgression p=data.getProgression(player.getUniqueID());KOMEProgressionRank from=p.getCanonicalRank();
+            if(p.getKnightService().testing())return false;
             if(from==KOMEProgressionRank.SERF){if(!KOMESerfdomMasterService.validateCurrentMasterInteraction(player,data,npc,true).success)return false;}
             else if(from!=KOMEProgressionRank.KNIGHT||!KOMECurrentLiege.valid(player,npc))return false;
             LOTRFaction f=LOTRLevelData.getData(player).getPledgeFaction();if(f==null)return false;

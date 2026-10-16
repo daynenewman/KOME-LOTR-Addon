@@ -19,7 +19,7 @@ public final class KOMEProgressionProtectedActors {
                 KOMEPlayerProgression p=data.progressions.get(lease.player);
                 KOMEKnightCommission a=p==null?null:p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
                 KOMEKnightCommission.Actor actor=a==null?null:a.protectedActor();
-                if(a!=null&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT
+                if(a!=null&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&!KOMEKnightFieldService.follower(data,npc)&&a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT
                         &&actor!=null&&actor.id.equals(npc.getUniqueID().toString()))protectedRole=true;
             }
         }

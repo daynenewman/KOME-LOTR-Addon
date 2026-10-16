@@ -14,12 +14,16 @@ public final class KOMEProgressionVariety {
     public void read(NBTTagList list){destinations.clear();for(int i=Math.max(0,list.tagCount()-8);i<list.tagCount();i++){NBTTagCompound n=list.getCompoundTagAt(i);if(KOMEKnightCommissionLocations.coordinate(n.getDouble("X"))&&KOMEKnightCommissionLocations.coordinate(n.getDouble("Z")))destinations.add((NBTTagCompound)n.copy());}}
     public void clear(){destinations.clear();}
     static List<KOMEKnightCommission.Type> order(List<KOMEKnightCommission.Type> available,List<KOMEKnightCommission> history,String faction,Random random){
+        return order(available,history,faction,random,0);
+    }
+    static List<KOMEKnightCommission.Type> order(List<KOMEKnightCommission.Type> available,List<KOMEKnightCommission> history,String faction,Random random,int tier){
         List<KOMEKnightCommission.Type> remaining=new ArrayList<KOMEKnightCommission.Type>(available),ordered=new ArrayList<KOMEKnightCommission.Type>();
         while(!remaining.isEmpty()){
-            int total=0;for(KOMEKnightCommission.Type type:remaining)total+=weight(type,history,faction);
-            int roll=random.nextInt(total);for(KOMEKnightCommission.Type type:remaining){roll-=weight(type,history,faction);if(roll<0){ordered.add(type);remaining.remove(type);break;}}
+            int best=0;for(KOMEKnightCommission.Type type:remaining)best=Math.max(best,tier==0?1:KOMEKnightFieldService.preference(type,tier));
+            int total=0;for(KOMEKnightCommission.Type type:remaining)if((tier==0?1:KOMEKnightFieldService.preference(type,tier))==best)total+=weight(type,history,faction);
+            int roll=random.nextInt(total);for(KOMEKnightCommission.Type type:remaining){if((tier==0?1:KOMEKnightFieldService.preference(type,tier))!=best)continue;roll-=weight(type,history,faction);if(roll<0){ordered.add(type);remaining.remove(type);break;}}
         }return ordered;
     }
-    static int category(KOMEKnightCommission.Type type){return type==KOMEKnightCommission.Type.SETTLEMENT_DEFENSE||type==KOMEKnightCommission.Type.BORDER_INCURSION||type==KOMEKnightCommission.Type.NATIVE_INVASION?0:type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?1:type==KOMEKnightCommission.Type.RELIEF?2:3;}
+    static int category(KOMEKnightCommission.Type type){return type==KOMEKnightCommission.Type.WAR_PLANS?4:type==KOMEKnightCommission.Type.RESCUE_PATROL||type==KOMEKnightCommission.Type.PROTECT_LIEGE?1:type==KOMEKnightCommission.Type.SETTLEMENT_DEFENSE||type==KOMEKnightCommission.Type.BORDER_INCURSION||type==KOMEKnightCommission.Type.NATIVE_INVASION||type==KOMEKnightCommission.Type.FIELD_COMMAND?0:type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?1:type==KOMEKnightCommission.Type.RELIEF?2:3;}
     private static int weight(KOMEKnightCommission.Type type,List<KOMEKnightCommission> history,String faction){for(int i=history.size()-1;i>=Math.max(0,history.size()-3);i--){KOMEKnightCommission a=history.get(i);if(category(a.type)==category(type)&&KOMEProgressionRelationshipLifecycle.sameFaction(a.faction,faction))return 1;}return 4;}
 }

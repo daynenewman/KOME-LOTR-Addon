@@ -28,7 +28,8 @@ public final class KOMEProgressionRelationshipLifecycle {
             if(id.equals(state.getLiege().entityUuid))liegeInvalid=!KOMECurrentLiege.validNpc(data,npc,state.getLiege(),progression.getCanonicalRank());
         }
         if(!masterInvalid&&!liegeInvalid)return false;
-        KOMEProgressionEncounterCleanup.cleanup(player,progression);
+        if(liegeInvalid)KOMEProgressionEncounterCleanup.lostSuperior(player.worldObj,player.getUniqueID(),progression);
+        else KOMEProgressionEncounterCleanup.cleanup(player,progression);
         if(masterInvalid)state.handleMasterDeath(false);
         if(liegeInvalid)state.handleLiegeDeath(false);
         KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());data.markDirty();

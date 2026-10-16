@@ -42,10 +42,42 @@ public final class KOMEKnightCommissionLocations {
         return choose(liege,world,type,token,null);
     }
     static Destination choose(KOMEProgressionNpcRef liege,World world,KOMEKnightCommission.Type type,String token,KOMEProgressionVariety variety){
+        return choose(liege,world,type,token,variety,0);
+    }
+    static Destination choose(KOMEProgressionNpcRef liege,World world,KOMEKnightCommission.Type type,String token,KOMEProgressionVariety variety,int tier){
+        if(type==KOMEKnightCommission.Type.PROTECT_LIEGE)return usable(world,KOMEProgressionFactionResolver.resolve(liege.factionKey),liege.x,liege.z)?new Destination(liege.x,liege.z,liege.displayName):null;
+        if(KOMEKnightFieldService.hostileMission(type))return hostile(liege,world,token,variety);
+        if(type==KOMEKnightCommission.Type.RESCUE_PATROL)type=KOMEKnightCommission.Type.STOLEN_GOODS;
+        if(type==KOMEKnightCommission.Type.GO_FOR_HELP)type=KOMEKnightCommission.Type.SETTLEMENT_DEFENSE;
+        if(tier==1){Destination local=chooseRange(liege,world,type,token,variety,192,1200);if(local!=null)return local;}
         Destination preferred=chooseRange(liege,world,type,token,variety,minimum(type),maximum(type));
         if(preferred!=null)return preferred;
         Destination shorter=chooseRange(liege,world,type,token,variety,500,999);
         return shorter!=null?shorter:chooseRange(liege,world,type,token,variety,64,499);
+    }
+    /** Biome/control-zone evidence proves enemy presence, never a fabricated native fort. */
+    static boolean hostileTerritory(World world,LOTRFaction defender,LOTRFaction enemy,double x,double z){
+        if(world==null||world.provider==null||world.provider.dimensionId!=LOTRDimension.MIDDLE_EARTH.dimensionID||world.getWorldChunkManager()==null
+                ||!coordinate(x)||!coordinate(z)||!KOMESerfKnightDefenseService.hostile(defender,enemy))return false;
+        BiomeGenBase b=world.getWorldChunkManager().getBiomeGenAt((int)x,(int)z);
+        return b instanceof LOTRBiome&&territory(world,enemy,(LOTRBiome)b,(int)x,(int)z)&&!territory(world,defender,(LOTRBiome)b,(int)x,(int)z);
+    }
+    private static Destination hostile(KOMEProgressionNpcRef liege,World world,String token,KOMEProgressionVariety variety){
+        if(liege==null||world==null||world.provider==null||liege.dimension!=world.provider.dimensionId||world.getWorldChunkManager()==null)return null;
+        LOTRFaction defender=KOMEProgressionFactionResolver.resolve(liege.factionKey);if(defender==null)return null;
+        Random random=new Random(token.hashCode());
+        for(int attempt=0;attempt<512;attempt++){
+            double distance=256+random.nextDouble()*5744,angle=random.nextDouble()*Math.PI*2;
+            int x=((int)(liege.x+Math.cos(angle)*distance)&~15)+8,z=((int)(liege.z+Math.sin(angle)*distance)&~15)+8;
+            if(!coordinate(x)||!coordinate(z)||routeQuality(world,liege,x,z)>=12)continue;
+            for(lotr.common.world.spawning.LOTRInvasions invasion:KOMEProgressionRegionalEnemies.choices(world,defender,x,z)){
+                if(!hostileTerritory(world,defender,invasion.invasionFaction,x,z))continue;
+                if(KOMEKnightCommissionService.loaded(world,x,z)&&KOMEKnightCommissionService.safeSite(world,x,z)==null)continue;
+                net.minecraft.nbt.NBTTagCompound proof=new net.minecraft.nbt.NBTTagCompound();proof.setString("HostileFaction",invasion.invasionFaction.codeName());
+                return new Destination(x,z,"an enemy field post",proof);
+            }
+        }
+        return null;
     }
     private static Destination chooseRange(KOMEProgressionNpcRef liege,World world,KOMEKnightCommission.Type type,String token,KOMEProgressionVariety variety,int minimum,int maximum){
         if(liege==null||!liege.isSet()||world==null||world.provider==null||liege.dimension!=world.provider.dimensionId

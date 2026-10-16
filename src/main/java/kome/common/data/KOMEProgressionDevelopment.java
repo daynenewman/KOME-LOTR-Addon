@@ -11,6 +11,43 @@ import net.minecraft.nbt.NBTTagCompound;
 /** Staff-only callers use existing completion/cleanup boundaries, with explicit test provenance. */
 public final class KOMEProgressionDevelopment {
     private KOMEProgressionDevelopment() {}
+    public static int experience(int value,LOTREntityNPC npc){return KOMEProgressionEncounterMarker.testing(npc)?0:value;}
+    public static float alignment(float value,LOTREntityNPC npc){return KOMEProgressionEncounterMarker.testing(npc)?0:value;}
+    public static lotr.common.LOTRAchievement killAchievement(lotr.common.LOTRAchievement value,LOTREntityNPC npc){return KOMEProgressionEncounterMarker.testing(npc)?null:value;}
+    public static void nativeAchievement(lotr.common.LOTRPlayerData data,lotr.common.LOTRAchievement achievement,LOTREntityNPC npc){if(!KOMEProgressionEncounterMarker.testing(npc))data.addAchievement(achievement);}
+    public static boolean testDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event){return event.entityLiving instanceof LOTREntityNPC&&KOMEProgressionEncounterMarker.testing((LOTREntityNPC)event.entityLiving);}
+    public static List<String> commission(EntityPlayerMP player,String[] args){
+        if(player==null||!player.canCommandSenderUseCommand(2,"kome"))return Collections.singletonList("Operator permission is required.");
+        String action=args.length==0?"status":args[0].toLowerCase(Locale.ROOT);
+        KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
+        if("list".equals(action))return Collections.singletonList("Commission types: "+Arrays.toString(KOMEKnightCommission.Type.values())+". Tiers 1, 2, 3. Complications: none, counterattack (before activation). Native invasion has no additional wave.");
+        if("status".equals(action))return status(player);
+        KOMEKnightCommission active=p.getLordship().assignment()==null?p.getKnightService().assignment():p.getLordship().assignment().objective;
+        if("reset".equals(action)||"end".equals(action)){
+            if(active!=null&&!active.adminForced)return Collections.singletonList("An earned commission is active. Finish it before running staff exercises.");
+            if(active!=null){if(p.getLordship().assignment()!=null){KOMELordshipTrialService.cleanup(player.worldObj,player.getUniqueID(),p.getLordship().assignment());p.getLordship().discardTestAssignment();}else{KOMEKnightCommissionService.cleanup(player.worldObj,player.getUniqueID(),active);p.getKnightService().discardTestAssignment();}}
+            if("end".equals(action))p.getKnightService().testing(false);
+            changed(player,data,p,"commission."+action);return Collections.singletonList("Exercise cleaned up. "+(p.getKnightService().testing()?"Test session retained; earned promotion remains suspended.":"Earned service may resume."));
+        }
+        if("complication".equals(action)&&args.length==2){
+            if(active==null||!active.adminForced||active.encounterCreated)return Collections.singletonList("Set a complication on an unactivated test commission first.");
+            try{KOMEKnightCommission.Complication choice=KOMEKnightCommission.Complication.valueOf(args[1].toUpperCase(Locale.ROOT));if(p.getLordship().assignment()!=null||active.type==KOMEKnightCommission.Type.RELIEF)return Collections.singletonList("This mission uses its own native/relief lifecycle; no optional counterattack is supported.");active.complication=choice;active.complicationTriggered=false;changed(player,data,p,"commission.complication."+choice);return Collections.singletonList("Saved complication: "+choice);}catch(IllegalArgumentException invalid){return Collections.singletonList("Use none or counterattack.");}
+        }
+        if("start".equals(action)&&args.length==3){
+            if(active!=null)return Collections.singletonList("Finish or reset the active test before starting another. Earned work is never replaced.");
+            if(p.getCanonicalRank()!=KOMEProgressionRank.KNIGHT)return Collections.singletonList("Use a Knight with an authentic current Liege; this command does not change rank or relationships.");
+            Entity entity=KOMEKnightCommissionService.findLoaded(player.worldObj,p.getSerfKnightProgression().getLiege().entityUuid);
+            if(!(entity instanceof LOTREntityNPC)||!KOMECurrentLiege.valid(player,(LOTREntityNPC)entity)||player.getDistanceSqToEntity(entity)>64)return Collections.singletonList("Stand beside your current authentic Liege.");
+            KOMEKnightCommission.Type type;int tier;
+            try{type=KOMEKnightCommission.Type.valueOf(args[1].toUpperCase(Locale.ROOT));tier=Integer.parseInt(args[2]);if(tier<1||tier>3)throw new IllegalArgumentException();}catch(IllegalArgumentException invalid){return Collections.singletonList("Use start <type> <1|2|3>; commission list shows implemented types.");}
+            LOTREntityNPC liege=(LOTREntityNPC)entity;
+            if(type==KOMEKnightCommission.Type.NATIVE_INVASION){KOMELordshipTrial t=KOMELordshipTrialService.generate(player,liege,KOMELordshipTrial.Scenario.NATIVE_INVASION);if(t==null)return Collections.singletonList("No legitimate native invasion can be arranged here.");KOMEKnightFieldService.profile(t.objective,tier);t.objective.complication=KOMEKnightCommission.Complication.NONE;t.ordinaryService=true;t.objective.adminForced=true;t.objective.rewardReserved=true;if(!p.getLordship().offer(t))return Collections.singletonList("Another service is active.");}
+            else{KOMEKnightCommission a=KOMEKnightCommissionService.generate(player,liege,type,tier);if(a==null)return Collections.singletonList("No safe, geographically eligible "+type+" can be arranged here. No state was changed.");a.adminForced=true;a.rewardReserved=true;if(!p.getKnightService().offer(a))return Collections.singletonList("Another service is active.");}
+            p.getKnightService().testing(true);changed(player,data,p,"commission.start."+type+".tier"+tier);
+            return Collections.singletonList("Test orders saved from "+liege.getNPCName()+". Speak to receive them. Reports grant no rank, credits, recommendation or payment. Use commission end to resume earned service.");
+        }
+        return Collections.singletonList("/kome progression commission list | start <type> <1|2|3> | complication <none|counterattack> | status | reset | end");
+    }
     public static String finish(EntityPlayerMP player){
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());KOMESerfKnightProgression s=p.getSerfKnightProgression();
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
@@ -59,6 +96,8 @@ public final class KOMEProgressionDevelopment {
         KOMESerfKnightTrialAssignment standing=s.getTrialAssignment();if(standing!=null)lines.add("Standing trial: "+standing.trialId+" | "+standing.stage+" | token: "+standing.assignmentToken+" | data: "+standing.data);
         KOMELordshipTrial t=p.getLordship().assignment();KOMEKnightCommission a=t==null?p.getKnightService().assignment():t.objective;
         if(a!=null){lines.add((t==null?"Commission":"Lordship trial")+": "+a.type+" | "+a.stage+" | forced: "+a.adminForced);lines.add("Destination: dim "+a.dimension+" ("+a.destinationX+", "+a.destinationZ+") | token/revision: "+a.token+"/"+a.revision);for(KOMEKnightCommission.Actor actor:a.actors)lines.add("Actor: "+actor.role+" "+actor.id+" | dead: "+actor.dead);for(KOMEKnightCommission.Goods g:a.goods)lines.add("Item: "+g.itemKey+":"+g.damage+" "+g.delivered+"/"+g.required);}
+        if(a!=null){lines.add("Tier/phase: "+a.tier+"/"+a.phase+" | complication: "+a.complication+" triggered="+a.complicationTriggered+" | hits="+a.combatHits+" | participated="+a.participated);lines.add("Target="+a.targetId+" | stolen="+a.dispatchStolen+" | detected="+a.detected+" | failure="+a.failureReason);lines.add("Battle evidence: "+a.battleEvidence);}
+        lines.add("Staff commission session: "+p.getKnightService().testing());
         lines.add("Daily duty/trial: "+s.getLastAssignmentEpochDay()+" / "+s.getLastTrialAssignmentEpochDay()+" | today: "+KOMESerfKnightService.calendarDayNow());for(NBTTagCompound n:s.failures())lines.add("Failed Liege: "+n.getString("Npc")+" | faction/trial: "+n.getString("Faction")+"/"+n.getString("Trial")+" | expiry: "+n.getLong("Expiry"));lines.add("Next action: "+why(player));return lines;
     }
     private static String reference(KOMEProgressionNpcRef n){return n.isSet()?n.displayName+" ["+n.entityUuid+"] dim "+n.dimension+" ("+n.x+", "+n.z+")":"none";}

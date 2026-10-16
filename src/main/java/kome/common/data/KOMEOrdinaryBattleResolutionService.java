@@ -438,6 +438,7 @@ public final class KOMEOrdinaryBattleResolutionService {
                     ? Code.RECONCILIATION_PENDING : Code.STALE_RETRY,
                     current, null, 0,
                     "Conflict changed before final closure; a later tick must reconcile.");
+            List<KOMEKnightBattlefieldService.Present> fieldService=KOMEKnightBattlefieldService.beforeClosure(data,current);
             KOMEConflictService.EndResult ended = data.getConflictService()
                 .endWithMovementHandoff(data, current.tileId,
                     ExpectedConflict.at(current.conflictId,
@@ -462,6 +463,8 @@ public final class KOMEOrdinaryBattleResolutionService {
                         || current.captureHistoryAlreadyRecorded)
                     + ";releasedHolds=" + ended.movementHoldsReleased);
             data.syncConquestTiles();
+            try{KOMEKnightBattlefieldService.resolved(data,current,ended.conflictResult.record,fieldService);}
+            catch(RuntimeException failure){org.apache.logging.log4j.LogManager.getLogger("KOME").warn("Personal commission publication failed after canonical battle closure",failure);}
             notificationSink.resolved(current, ended.conflictResult.record);
             return new Result(intent.kind == KOMEOrdinaryBattleRecoveryRegistry.ResolutionKind.CONQUEST || current.ownershipChanges
                     || current.captureHistoryAlreadyRecorded

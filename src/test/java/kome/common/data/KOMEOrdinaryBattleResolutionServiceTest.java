@@ -629,4 +629,24 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
     private static Context context(long at) {
         return new Context(at, "ordinary-battle-test", "test transition");
     }
+    @Test public void qualifyingKnightEvidencePublishesAfterClosureHasStartedCanonicalEgress()throws Exception{
+        try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
+            Fixture f=fixture("rohan","rohan").campaign("C1","rohan",10).episode(TimerStatus.COMPLETE,false);
+            f.data.progressions.put(s.f.player.id,s.p);
+            ok(f.data.getConflictService().acceptValidatedCommitment(new ValidatedCommitmentRequest(TILE,"C2","mordor",ValidatedConflictAuthority.participant("rohan"),105,EntryOrigin.LEGAL_ARRIVAL,"M2",false,Collections.<GarrisonParticipantSeed>emptyList(),ExpectedConflict.at(f.conflict().getConflictId(),f.conflict().getRevision())),(first,second)->first.equals(second)?Hostility.NON_HOSTILE:Hostility.HOSTILE,id->new DetachmentResolution(id,ReferenceStatus.RESOLVED,KOMEHiredUnitClass.CAMPAIGN,id.equals("C2")?"mordor":"rohan",TILE,"validated arrival"),context(105)));
+            KOMEKnightCommission a=new KOMEKnightCommission(KOMEKnightCommission.Type.BORDER_INCURSION,s.p.getSerfKnightProgression().getLiege());a.tier=2;a.stage=KOMEKnightCommission.Stage.ACTIVE;a.acceptedMillis=1;s.p.getKnightService().offer(a);
+            ok(f.data.getConflictService().registerPlayer(TILE,ExpectedConflict.at(f.conflict().getConflictId(),f.conflict().getRevision()),s.f.player.id,"rohan",context(110)));
+            KOMEJoinBattleDeploymentReceipt.Pose pose=new KOMEJoinBattleDeploymentReceipt.Pose(0,0,65,0,0,0);
+            f.data.getJoinBattleDeploymentReceipts().publishNew(KOMEJoinBattleDeploymentReceipt.builder().receiptId("JB1").actionToken("knight-field").playerId(s.f.player.id).conflictId(f.conflict().getConflictId()).tileId(TILE).acceptedConflictRevision(f.conflict().getRevision()).factionId("rohan").selectedCompanyId("C1").createdAtMillis(110).updatedAtMillis(111).deployedAtMillis(111L).state(KOMEJoinBattleDeploymentReceipt.State.DEPLOYED).returnAnchor(pose).deploymentDestination(pose).participationRecovery(KOMEJoinBattleDeploymentReceipt.ParticipationRecovery.PREEXISTING_ACTIVE).build());
+            for(int i=0;i<2;i++){java.util.UUID target=java.util.UUID.randomUUID();assertTrue(KOMEKnightBattlefieldService.recordDamage(f.data,s.f.player.id,a,f.conflict(),target,12,120+i));KOMEKnightBattlefieldService.death(f.data,target);}
+            ok(f.data.getConflictService().releaseValidatedCommitment(new ValidatedDepartureRequest(TILE,"C2","mordor",ExpectedConflict.at(f.conflict().getConflictId(),f.conflict().getRevision())),id->new DetachmentResolution(id,ReferenceStatus.RESOLVED,KOMEHiredUnitClass.CAMPAIGN,id.equals("C2")?"mordor":"rohan",TILE,"surviving defenders"),context(130)));
+            KOMEKnightBattlefieldService.Presence old=KOMEKnightBattlefieldService.presence;
+            try{
+                KOMEKnightBattlefieldService.presence=new KOMEKnightBattlefieldService.Presence(){public net.minecraft.entity.player.EntityPlayerMP player(java.util.UUID id){return s.f.player.id.equals(id)?s.f.player:null;}public boolean inTile(net.minecraft.entity.player.EntityPlayerMP p,String tile){return TILE.equals(tile);}};
+                KOMEOrdinaryBattleResolutionService.Result result=f.service().resolve(f.data,TILE,500,200);assertTrue(result.reason,result.resolved());assertEquals(KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS,f.data.getJoinBattleDeploymentReceipts().get("JB1").getState());
+                assertEquals(KOMEKnightCommission.Stage.READY_TO_REPORT,a.stage);assertEquals(result.endedConflict.getConflictId(),a.battleEvidence.getString("CreditedConflict"));assertTrue(s.p.getKnightService().qualifyingTypes("rohan").isEmpty());
+                assertFalse(f.service().resolve(f.data,TILE,501,201).resolved());assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
+            }finally{KOMEKnightBattlefieldService.presence=old;}
+        }
+    }
 }

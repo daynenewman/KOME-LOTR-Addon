@@ -432,6 +432,7 @@ public class CharacterCreationIsolationTest {
                 kome.core.KOMEPlayerNameplateTransformer.class.getName(),
                 kome.core.KOMEProgressionOutlineTransformer.class.getName(),
                 kome.core.KOMEObjectiveInvasionTransformer.class.getName(),
+                kome.core.KOMEKnightPickpocketTransformer.class.getName(),
                 kome.core.KOMEQuestPropertyTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
                 kome.core.KOMEAlignmentSyncTransformer.class.getName(),

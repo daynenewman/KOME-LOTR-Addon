@@ -47,6 +47,8 @@ public final class KOMEProgressionEncounterMarker {
             clear(npc.getEntityData());
         }
     }
+    public static void markTesting(LOTREntityNPC npc){npc.getEntityData().setBoolean("KOMECommissionTestActor",true);}
+    public static boolean testing(LOTREntityNPC npc){return npc!=null&&npc.getEntityData().getBoolean("KOMECommissionTestActor");}
 
     static void mark(NBTTagCompound entityData, String kind, UUID owner, String token) {
         if (entityData == null || kind == null || owner == null

@@ -30,6 +30,7 @@ public final class KOMECorePlugin implements IFMLLoadingPlugin {
                 KOMEPlayerNameplateTransformer.class.getName(),
                 KOMEProgressionOutlineTransformer.class.getName(),
                 KOMEObjectiveInvasionTransformer.class.getName(),
+                KOMEKnightPickpocketTransformer.class.getName(),
                 KOMEQuestPropertyTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
                 KOMEAlignmentSyncTransformer.class.getName(),

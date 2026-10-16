@@ -173,7 +173,7 @@ public final class KOMEProgressionTrackerSnapshot {
         if(a.stage==KOMEKnightCommission.Stage.FAILED)return shown("commission",KOMEKnightCommissionPresentation.objective(a),"",0F);
         int required=KOMEKnightCommissionPresentation.required(a),done=KOMEKnightCommissionPresentation.completed(a);
         String objective=KOMEKnightCommissionPresentation.objective(a);
-        if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated)objective="Deliver the requested supplies";
+        if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated&&(a.tier==0||a.threatResolved))objective="Deliver the requested supplies";
         ItemStack item=a.type==KOMEKnightCommission.Type.STOLEN_GOODS?KOMEProgressionLostItems.stack(a):null;
         if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated){
             done=0;required=0;for(KOMEKnightCommission.Goods g:a.goods){done+=g.delivered;required+=g.required;}

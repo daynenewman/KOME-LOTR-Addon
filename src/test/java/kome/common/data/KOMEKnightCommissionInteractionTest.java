@@ -72,7 +72,7 @@ public class KOMEKnightCommissionInteractionTest {
             liege.posX=s.f.player.posX=0;liege.posZ=s.f.player.posZ=0;
             KOMEProgressionGameplayFixture.record(s.f.world,800,0,"rohan");KOMEProgressionGameplayFixture.border(s.f.world,LOTRFaction.DUNLAND);
             for(Type type:Type.values()){
-                KOMEKnightCommission generated=KOMEKnightCommissionService.generate(s.f.player,liege,type);assertNotNull(type.name(),generated);
+                KOMEKnightCommission generated=KOMEKnightCommissionService.generate(s.f.player,liege,type);if(type==Type.GO_FOR_HELP){assertNull("No second regional commander in this fixture",generated);continue;}assertNotNull(type.name(),generated);
                 if(type!=Type.RELIEF){assertTrue(KOMESerfKnightDefenseService.hostile(LOTRFaction.ROHAN,KOMEProgressionFactionResolver.resolve(generated.enemyFaction)));assertTrue(generated.enemyClasses.size()>=5&&generated.enemyClasses.size()<=10);for(String unit:generated.enemyClasses)assertEquals(LOTRFaction.DUNLAND,KOMEKnightCommissionService.construct(s.f.world,unit).getFaction());}
                 assertEquals(generated.writeToNBT(),KOMEKnightCommission.readFromNBT(generated.writeToNBT()).writeToNBT());
             }

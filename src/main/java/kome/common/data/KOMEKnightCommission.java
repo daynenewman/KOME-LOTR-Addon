@@ -6,8 +6,11 @@ import net.minecraft.nbt.NBTTagList;
 
 /** Concrete Knight charge, independent of legacy achievements and promotion gates. */
 public final class KOMEKnightCommission {
-    public enum Type { SETTLEMENT_DEFENSE, STOLEN_GOODS, BORDER_INCURSION, DANGEROUS_ESCORT, RELIEF, NATIVE_INVASION }
+    public enum Type { SETTLEMENT_DEFENSE, STOLEN_GOODS, BORDER_INCURSION, DANGEROUS_ESCORT, RELIEF, NATIVE_INVASION,
+        RESCUE_PATROL, PROTECT_LIEGE, RAID_CAMP, WAR_PLANS, FIELD_COMMAND, GO_FOR_HELP }
     public enum Stage { OFFERED, ACCEPTED, ACTIVE, READY_TO_REPORT, REPORTED, FAILED }
+    public enum Phase { INVESTIGATE, ENGAGE, EXTRACT, ESCAPE, SEEK_HELP, RETURN_WITH_HELP }
+    public enum Complication { NONE, COUNTERATTACK }
     public enum Role { BENEFICIARY, CHARGE, ENEMY, GUARD }
     public final Type type;
     public final String token, faction;
@@ -22,6 +25,17 @@ public final class KOMEKnightCommission {
     public boolean activationPending, propertyDropped;
     public long activationRetryAt;
     public String carrierId="";
+    /** Zero denotes an unchanged legacy objective. Only new offers receive a field-service profile. */
+    public int tier, combatHits;
+    public double combatDamage;
+    public Phase phase=Phase.INVESTIGATE;
+    public Complication complication=Complication.NONE;
+    public boolean complicationTriggered, dispatchStolen, detected;
+    public String targetId="", failureReason="";
+    public long nextPickpocketAt, acceptedMillis;
+    public KOMEProgressionNpcRef helpCommander=KOMEProgressionNpcRef.EMPTY;
+    public int helpMissingTicks;
+    public final NBTTagCompound battleEvidence=new NBTTagCompound();
     public final List<Actor> actors = new ArrayList<Actor>();
     public final List<Goods> goods = new ArrayList<Goods>();
     public final List<String> enemyClasses = new ArrayList<String>();
@@ -59,7 +73,12 @@ public final class KOMEKnightCommission {
         NBTTagCompound write() { NBTTagCompound n=new NBTTagCompound();n.setString("Item",itemKey);n.setInteger("Damage",damage);n.setInteger("Required",required);n.setInteger("Delivered",delivered);return n; }
     }
     public NBTTagCompound writeToNBT() {
-        NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",1);n.setString("Type",type.name());n.setString("Token",token);n.setTag("Liege",liege.writeToNBT());n.setString("Stage",stage.name());
+        NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",2);n.setString("Type",type.name());n.setString("Token",token);n.setTag("Liege",liege.writeToNBT());n.setString("Stage",stage.name());
+        n.setInteger("Tier",tier);n.setInteger("CombatHits",combatHits);n.setString("Phase",phase.name());n.setString("Complication",complication.name());n.setBoolean("ComplicationTriggered",complicationTriggered);
+        n.setDouble("CombatDamage",combatDamage);
+        n.setTag("HelpCommander",helpCommander.writeToNBT());
+        n.setInteger("HelpMissingTicks",helpMissingTicks);
+        n.setBoolean("DispatchStolen",dispatchStolen);n.setBoolean("Detected",detected);n.setString("Target",targetId);n.setString("FailureReason",failureReason);n.setLong("NextPickpocket",nextPickpocketAt);n.setLong("AcceptedMillis",acceptedMillis);n.setTag("BattleEvidence",battleEvidence.copy());
         n.setString("ServedFaction",faction);n.setInteger("Dimension",dimension);n.setInteger("Revision",revision);n.setInteger("Retries",retries);n.setInteger("MissingTicks",missingTicks);
         n.setDouble("X",x);n.setDouble("Y",y);n.setDouble("Z",z);n.setDouble("DestinationX",destinationX);n.setDouble("DestinationZ",destinationZ);
         n.setTag("DestinationStructure",destinationProof.copy());n.setString("Place",place);n.setString("EnemyFaction",enemyFaction);n.setString("CivilianClass",civilianClass);
@@ -75,6 +94,13 @@ public final class KOMEKnightCommission {
         if(n==null || !n.hasKey("Token"))return null;
         try {
             KOMEKnightCommission a=new KOMEKnightCommission(Type.valueOf(n.getString("Type")),KOMEProgressionNpcRef.readFromNBT(n.getCompoundTag("Liege")),n.getString("Token"));
+            a.tier=Math.max(0,Math.min(3,n.getInteger("Tier")));a.combatHits=Math.max(0,n.getInteger("CombatHits"));
+            a.combatDamage=Math.max(0,n.getDouble("CombatDamage"));if(!Double.isFinite(a.combatDamage))return null;
+            a.helpCommander=KOMEProgressionNpcRef.readFromNBT(n.getCompoundTag("HelpCommander"));
+            a.helpMissingTicks=Math.max(0,n.getInteger("HelpMissingTicks"));
+            if(n.hasKey("Phase"))a.phase=Phase.valueOf(n.getString("Phase"));if(n.hasKey("Complication"))a.complication=Complication.valueOf(n.getString("Complication"));
+            a.complicationTriggered=n.getBoolean("ComplicationTriggered");a.dispatchStolen=n.getBoolean("DispatchStolen");a.detected=n.getBoolean("Detected");a.targetId=n.getString("Target");a.failureReason=n.getString("FailureReason");a.nextPickpocketAt=n.getLong("NextPickpocket");a.acceptedMillis=n.getLong("AcceptedMillis");
+            NBTTagCompound battle=n.getCompoundTag("BattleEvidence");for(Object key:battle.func_150296_c())a.battleEvidence.setTag((String)key,battle.getTag((String)key).copy());
             if(!n.getString("ServedFaction").isEmpty()&&!KOMEProgressionRelationshipLifecycle.sameFaction(n.getString("ServedFaction"),a.faction))return null;
             a.stage=Stage.valueOf(n.getString("Stage"));a.dimension=n.getInteger("Dimension");a.revision=Math.max(0,n.getInteger("Revision"));a.retries=Math.max(0,n.getInteger("Retries"));a.missingTicks=Math.max(0,n.getInteger("MissingTicks"));
             a.x=n.getDouble("X");a.y=n.getDouble("Y");a.z=n.getDouble("Z");a.destinationX=n.getDouble("DestinationX");a.destinationZ=n.getDouble("DestinationZ");

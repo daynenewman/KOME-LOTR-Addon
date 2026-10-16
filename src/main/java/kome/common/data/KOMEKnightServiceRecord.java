@@ -11,6 +11,9 @@ public final class KOMEKnightServiceRecord {
     public synchronized void rememberPrince(KOMEProgressionNpcRef ref){if(ref==null||!ref.isSet())return;knownPrinces.put(ref.entityUuid,ref);while(knownPrinces.size()>8)knownPrinces.remove(knownPrinces.keySet().iterator().next());}
     public synchronized void forgetPrince(String id){knownPrinces.remove(id);}
     private KOMEKnightCommission assignment;
+    private boolean testing;
+    public synchronized boolean testing(){return testing;}
+    synchronized void testing(boolean value){testing=value;}
     private long technicalReassignmentAfter;
     private final EnumSet<KOMEKnightCommission.Type> completed=EnumSet.noneOf(KOMEKnightCommission.Type.class);
     private final List<KOMEKnightCommission> history=new ArrayList<KOMEKnightCommission>();
@@ -26,9 +29,12 @@ public final class KOMEKnightServiceRecord {
     }
     private boolean recorded(String token) { for(KOMEKnightCommission a:history)if(a.token.equals(token))return true;return false; }
     synchronized boolean reportInvasion(KOMELordshipTrial t,KOMEProgressionNpcRef clicked){
+        return reportInvasion(t,clicked,KOMEProgressionNpcRef.EMPTY);
+    }
+    synchronized boolean reportInvasion(KOMELordshipTrial t,KOMEProgressionNpcRef clicked,KOMEProgressionNpcRef deceased){
         if(t==null||!t.ordinaryService||!t.nativeInvasion||!t.nativeVictory||!t.ready()||t.playerDied
             ||!t.objective.participated||t.objective.adminForced||recorded(t.objective.token)
-            ||!t.objective.liege.hasSameIdentity(clicked)||!t.objective.faction.equals(clicked.factionKey))return false;
+            ||!t.objective.liege.hasSameIdentity(clicked)&&!t.objective.liege.hasSameIdentity(deceased)||!t.objective.faction.equals(clicked.factionKey))return false;
         NBTTagCompound n=t.objective.writeToNBT();n.setString("Type","NATIVE_INVASION");
         KOMEKnightCommission a=KOMEKnightCommission.readFromNBT(n);if(a==null)return false;
         a.stage=KOMEKnightCommission.Stage.REPORTED;completed.add(a.type);history.add(a);t.objective.stage=KOMEKnightCommission.Stage.REPORTED;return true;
@@ -61,14 +67,14 @@ public final class KOMEKnightServiceRecord {
     public synchronized void discardOffer() { if(assignment!=null&&assignment.stage==KOMEKnightCommission.Stage.OFFERED)assignment=null; }
     synchronized boolean discardTechnical(long now){if(assignment==null||!assignment.activationPending||now<technicalReassignmentAfter||now<assignment.activationRetryAt)return false;technicalReassignmentAfter=now+1200;assignment=null;return true;}
     synchronized void discardTestAssignment(){assignment=null;}
-    public synchronized void clearFailed() { if(assignment!=null&&assignment.stage==KOMEKnightCommission.Stage.FAILED){history.add(assignment);trimHistory();assignment=null;} }
+    public synchronized void clearFailed() { if(assignment!=null&&assignment.stage==KOMEKnightCommission.Stage.FAILED){if(!testing||!assignment.adminForced){history.add(assignment);trimHistory();}assignment=null;} }
     /** Failed attempts are bounded; successful reports retain their Liege and faction provenance. */
     private void trimHistory() { while(history.size()>32){int remove=-1;for(int i=0;i<history.size();i++)if(history.get(i).stage==KOMEKnightCommission.Stage.FAILED){remove=i;break;}if(remove<0)break;history.remove(remove);} }
-    public synchronized void reset() { assignment=null;technicalReassignmentAfter=0;completed.clear();history.clear();knownPrinces.clear(); }
+    public synchronized void reset() { assignment=null;testing=false;technicalReassignmentAfter=0;completed.clear();history.clear();knownPrinces.clear(); }
     void reconcileRank(KOMEProgressionRank rank){if(assignment!=null&&rank!=KOMEProgressionRank.KNIGHT){assignment.threatResolved=assignment.threatResolved||assignment.stage==KOMEKnightCommission.Stage.READY_TO_REPORT;assignment.stage=KOMEKnightCommission.Stage.FAILED;clearFailed();}}
-    public synchronized NBTTagCompound writeToNBT() { NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",1);n.setLong("TechnicalReassignmentAfter",technicalReassignmentAfter);NBTTagList known=new NBTTagList();for(KOMEProgressionNpcRef prince:knownPrinces.values())known.appendTag(prince.writeToNBT());n.setTag("KnownPrinces",known);if(assignment!=null)n.setTag("Assignment",assignment.writeToNBT());NBTTagList c=new NBTTagList();for(KOMEKnightCommission.Type type:completed){NBTTagCompound t=new NBTTagCompound();t.setString("Type",type.name());c.appendTag(t);}n.setTag("CompletedTypes",c);NBTTagList h=new NBTTagList();for(KOMEKnightCommission a:history)h.appendTag(a.writeToNBT());n.setTag("History",h);return n; }
+    public synchronized NBTTagCompound writeToNBT() { NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",1);n.setBoolean("Testing",testing);n.setLong("TechnicalReassignmentAfter",technicalReassignmentAfter);NBTTagList known=new NBTTagList();for(KOMEProgressionNpcRef prince:knownPrinces.values())known.appendTag(prince.writeToNBT());n.setTag("KnownPrinces",known);if(assignment!=null)n.setTag("Assignment",assignment.writeToNBT());NBTTagList c=new NBTTagList();for(KOMEKnightCommission.Type type:completed){NBTTagCompound t=new NBTTagCompound();t.setString("Type",type.name());c.appendTag(t);}n.setTag("CompletedTypes",c);NBTTagList h=new NBTTagList();for(KOMEKnightCommission a:history)h.appendTag(a.writeToNBT());n.setTag("History",h);return n; }
     public synchronized void readFromNBT(NBTTagCompound n) {
-        reset();if(n==null)return;technicalReassignmentAfter=n.getLong("TechnicalReassignmentAfter");NBTTagList known=n.getTagList("KnownPrinces",10);for(int i=0;i<Math.min(8,known.tagCount());i++)rememberPrince(KOMEProgressionNpcRef.readFromNBT(known.getCompoundTagAt(i)));
+        reset();if(n==null)return;testing=n.getBoolean("Testing");technicalReassignmentAfter=n.getLong("TechnicalReassignmentAfter");NBTTagList known=n.getTagList("KnownPrinces",10);for(int i=0;i<Math.min(8,known.tagCount());i++)rememberPrince(KOMEProgressionNpcRef.readFromNBT(known.getCompoundTagAt(i)));
         NBTTagList c=n.getTagList("CompletedTypes",10);for(int i=0;i<c.tagCount();i++)try{completed.add(KOMEKnightCommission.Type.valueOf(c.getCompoundTagAt(i).getString("Type")));}catch(IllegalArgumentException ignored){}
         NBTTagList h=n.getTagList("History",10);
         for(int i=0;i<h.tagCount();i++){KOMEKnightCommission a=KOMEKnightCommission.readFromNBT(h.getCompoundTagAt(i));

@@ -14,7 +14,7 @@ public class KOMEProgressionHardeningServiceTest {
         KOMEPlayerProgression p=new KOMEPlayerProgression();p.setCanonicalRank(KOMEProgressionRank.KNIGHT);
         for(int i=0;i<3;i++)report(p.getKnightService(),Type.values()[i],"rohan");
         assertTrue(KOMELordshipTrialService.prerequisites(p,2000,"rohan"));assertFalse(KOMELordshipTrialService.prerequisites(p,2000,"gondor"));
-        assertEquals(6,p.getKnightService().eligible(Arrays.asList(Type.values()),"gondor").size());
+        assertEquals(Type.values().length,p.getKnightService().eligible(Arrays.asList(Type.values()),"gondor").size());
         for(int i=0;i<3;i++)report(p.getKnightService(),Type.values()[i],"gondor");
         p.readFromNBT(p.writeToNBT());assertEquals(6,p.getKnightService().history().size());assertEquals(3,p.getKnightService().qualifyingTypes("gondor").size());assertEquals(3,p.getKnightService().qualifyingTypes("rohan").size());
         assertTrue(KOMELordshipTrialService.prerequisites(p,2000,"gondor"));assertFalse(KOMELordshipTrialService.prerequisites(p,1999,"gondor"));

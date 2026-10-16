@@ -121,6 +121,11 @@ public class KOMECommandKome extends KOMEPublicCommand {
         }
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
+        if(args.length>=2&&"progression".equalsIgnoreCase(args[0])&&"commission".equalsIgnoreCase(args[1])){
+            EntityPlayerMP player=getCommandSenderAsPlayer(sender);
+            for(String line:kome.common.data.KOMEProgressionDevelopment.commission(player,java.util.Arrays.copyOfRange(args,2,args.length)))sender.addChatMessage(new ChatComponentText(line));
+            return;
+        }
         if(args.length>=2&&"progression".equalsIgnoreCase(args[0])&&java.util.Arrays.asList("finishduty","resetduty","status","why").contains(args[1].toLowerCase(java.util.Locale.ROOT))){
             if(args.length!=2)throw new WrongUsageException("/kome progression <finishDuty|resetDuty|status|why>");
             EntityPlayerMP player=getCommandSenderAsPlayer(sender);if(player.worldObj==null||player.worldObj.isRemote)throw new WrongUsageException("A server-side player is required.");

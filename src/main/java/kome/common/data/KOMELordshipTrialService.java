@@ -38,8 +38,8 @@ public final class KOMELordshipTrialService {
     /** An ongoing/failed service remains discussable even if live alignment subsequently falls. */
     public static boolean eligible(EntityPlayer player,LOTREntityNPC npc) {
         if(!KOMECurrentLiege.valid(player,npc))return false;
-        KOMELordshipTrial t=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getLordship().assignment();
-        return t!=null&&t.ordinaryService&&t.objective.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc));
+        KOMEPlayerProgression p=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());KOMELordshipTrial t=p.getLordship().assignment();
+        return t!=null&&t.ordinaryService&&(t.objective.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))||t.ready()&&t.objective.liege.hasSameIdentity(p.getSerfKnightProgression().getDeceasedLiege()));
     }
     public static KOMELordshipTrial prepare(EntityPlayerMP player,LOTREntityNPC lord){
         return eligible(player,lord)?KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getLordship().assignment():null;
@@ -82,8 +82,9 @@ public final class KOMELordshipTrialService {
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().archive();speech(player,liege,t,"retry");changed(data,player,p);return true;}
         if(t.ready()){
             if(!t.ordinaryService)return false;
+            if(p.getKnightService().testing()&&a.adminForced){cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().discardTestAssignment();speech(player,liege,t,"reported");changed(data,player,p);return true;}
             a.reportedAt=player.worldObj.getTotalWorldTime();
-            if(p.getKnightService().reportInvasion(t,KOMEProgressionNpcRankService.referenceOf(liege))){
+            if(p.getKnightService().reportInvasion(t,KOMEProgressionNpcRankService.referenceOf(liege),p.getSerfKnightProgression().getDeceasedLiege())){
                 cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().archive();
                 KOMEProgressionServiceRewards.commission(player,a);KOMEServicePromotionService.report(player,liege);changed(data,player,p);
             }return true;
@@ -91,7 +92,7 @@ public final class KOMELordshipTrialService {
         if(a.stage==Stage.OFFERED){
             LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
             if(!t.ordinaryService||p.getKnightService().assignment()!=null||!KOMECurrentLiege.valid(player,liege))return false;
-            t.authority=KOMEProgressionNpcRankService.referenceOf(liege);a.stage=Stage.ACTIVE;a.acceptedAt=player.worldObj.getTotalWorldTime();
+            t.authority=KOMEProgressionNpcRankService.referenceOf(liege);a.stage=Stage.ACTIVE;a.acceptedAt=player.worldObj.getTotalWorldTime();a.acceptedMillis=System.currentTimeMillis();
             for(int i=0;i<t.guardClasses.size();i++){
                 double[] site=KOMEKnightCommissionService.safeSite(player.worldObj,(int)liege.posX+i*2,(int)liege.posZ+3);
                 LOTREntityNPC guard=site==null?null:KOMEKnightCommissionService.spawn(player,a,t.guardClasses.get(i),Role.GUARD,site,MARKER);
@@ -213,10 +214,14 @@ public final class KOMELordshipTrialService {
         cleanupObjective(player.worldObj,player.getUniqueID(),t);changed(data,player,data.getProgression(player.getUniqueID()));
     }
     public static boolean noteDamage(KOMEWorldData data,UUID owner,String target) {
+        return noteDamage(data,owner,target,3F);
+    }
+    public static boolean noteDamage(KOMEWorldData data,UUID owner,String target,float damage) {
+        if(!Float.isFinite(damage)||damage<=0)return false;
         KOMEPlayerProgression p=data.progressions.get(owner);KOMELordshipTrial t=p==null?null:p.getLordship().assignment();
         if(t==null||t.objective.stage!=Stage.ACTIVE)return false;
         for(Actor actor:t.objective.actors)if(actor.role==Role.ENEMY&&!actor.dead&&actor.id.equals(target)){
-            t.objective.participated=true;data.markDirty();return true;}
+            t.objective.participated=true;t.objective.combatHits++;t.objective.combatDamage=Math.min(10000,t.objective.combatDamage+damage);data.markDirty();return true;}
         return false;
     }
     public static void npcDeath(KOMEWorldData data,World world,String id) {

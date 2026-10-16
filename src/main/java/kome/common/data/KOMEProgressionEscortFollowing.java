@@ -24,7 +24,7 @@ public final class KOMEProgressionEscortFollowing {
         if(marker==null)return false;
         KOMEPlayerProgression p=world.progressions.get(marker.owner);
         KOMEKnightCommission a=p==null?null:p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
-        if(!KOMEProgressionEncounterMarker.ESCORT.equals(marker.kind)&&(a==null||a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT
+        if(!KOMEKnightFieldService.follower(world,npc)&&!KOMEProgressionEncounterMarker.ESCORT.equals(marker.kind)&&(a==null||a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT
                 ||a.protectedActor()==null||!a.protectedActor().id.equals(npc.getUniqueID().toString())))return false;
         disable(npc);
         if(player.isSneaking()&&!npc.hiredNPCInfo.isHalted()){
@@ -42,7 +42,7 @@ public final class KOMEProgressionEscortFollowing {
         KOMEPlayerProgression p=marker==null?null:world.progressions.get(marker.owner);
         KOMEKnightCommission a=p==null?null:p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
         if(marker==null||!KOMEProgressionEncounterMarker.ESCORT.equals(marker.kind)
-                &&(a==null||a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT||a.protectedActor()==null
+                &&!KOMEKnightFieldService.follower(world,npc)&&(a==null||a.type!=KOMEKnightCommission.Type.DANGEROUS_ESCORT||a.protectedActor()==null
                 ||!a.protectedActor().id.equals(npc.getUniqueID().toString())))return;
         disable(npc);
         net.minecraft.entity.player.EntityPlayer owner=npc.hiredNPCInfo.getHiringPlayer();
@@ -65,14 +65,14 @@ public final class KOMEProgressionEscortFollowing {
     }
     public static void reconcile(KOMEWorldData world,LOTREntityNPC npc) {
         KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);
-        boolean escort=false;
+        boolean escort=KOMEKnightFieldService.follower(world,npc);
         if(marker!=null&&KOMESerfKnightEscortService.isActiveEscort(world,npc)) {
             KOMEPlayerProgression p=world.progressions.get(marker.owner);
             if(KOMEProgressionEncounterMarker.ESCORT.equals(marker.kind))escort=true;
             else if(p!=null){
                 KOMEKnightCommission a=p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
                 KOMEKnightCommission.Actor charge=a==null?null:a.protectedActor();
-                escort=a!=null&&a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT
+                escort=escort||a!=null&&a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT
                     &&a.stage==KOMEKnightCommission.Stage.ACTIVE&&charge!=null&&charge.id.equals(npc.getUniqueID().toString());
             }
         }

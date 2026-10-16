@@ -504,6 +504,8 @@ public class KOMEEvents {
         if (event.target instanceof LOTREntityNPC) {
             LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
             KOMEWorldData commissionWorld=KOMEWorldData.get(player.worldObj);
+            if(KOMEKnightEspionage.interact(player,offerNpc)){event.setCanceled(true);return;}
+            if(KOMEKnightHelpService.interact(player,offerNpc)){event.setCanceled(true);return;}
             KOMEPlayerProgression immediate=commissionWorld.getProgression(player.getUniqueID());
             if(offerNpc.isEntityAlive()&&player.getDistanceSqToEntity(offerNpc)<=64
                 &&lotr.common.LOTRLevelData.getData(player).getPledgeFaction()==offerNpc.getFaction()
@@ -746,8 +748,9 @@ public class KOMEEvents {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.entityLiving));
-        if(!event.isCanceled()){KOMEKnightCommissionService.noteDamage(data,KOMEReflection.getEntityUUID(source),KOMEReflection.getEntityUUID(event.entityLiving).toString());
-            KOMELordshipTrialService.noteDamage(data,KOMEReflection.getEntityUUID(source),KOMEReflection.getEntityUUID(event.entityLiving).toString());}
+        if(!event.isCanceled()){KOMEKnightCommissionService.noteDamage(data,KOMEReflection.getEntityUUID(source),KOMEReflection.getEntityUUID(event.entityLiving).toString(),Math.min(event.ammount,event.entityLiving.getHealth()));
+            if(source instanceof EntityPlayerMP)KOMEKnightBattlefieldService.damage(data,(EntityPlayerMP)source,(LOTREntityNPC)event.entityLiving,event.ammount);
+            KOMELordshipTrialService.noteDamage(data,KOMEReflection.getEntityUUID(source),KOMEReflection.getEntityUUID(event.entityLiving).toString(),Math.min(event.ammount,event.entityLiving.getHealth()));}
         KOMESerfKnightDefenseService.notePlayerParticipation(
             data,
             KOMEReflection.getEntityUUID(source),
@@ -761,6 +764,7 @@ public class KOMEEvents {
         }
         if (event.entityLiving instanceof LOTREntityNPC && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
             LOTREntityNPC attacker = (LOTREntityNPC) event.entityLiving;
+            if(event.target instanceof EntityPlayerMP&&KOMEKnightEspionage.interceptTarget(attacker,(EntityPlayerMP)event.target))return;
             if (KOMEHaltedUnitProtection.isProtected(attacker)) {
                 KOMEHaltedUnitProtection.applyInactiveState(attacker);
                 return;
@@ -781,6 +785,7 @@ public class KOMEEvents {
         }
 
         LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+        if(KOMEProgressionEncounterMarker.testing(npc)){event.drops.clear();return;}
         KOMEProgressionEncounterMarker.Marker commissionMarker=KOMEProgressionEncounterMarker.read(npc);
         if(KOMEObjectiveInvasionBridge.nativeInvader(KOMEWorldData.get(npc.worldObj),npc))return;
         if (KOMECourierRecipientSpawner.isActiveGeneratedRecipient(npc)||commissionMarker!=null&&(KOMEKnightCommissionService.MARKER.equals(commissionMarker.kind)||KOMELordshipTrialService.MARKER.equals(commissionMarker.kind))) {
@@ -792,10 +797,13 @@ public class KOMEEvents {
     /** Observe an uncancelled native death after protection handlers have run. */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onCourierRecipientDeath(LivingDeathEvent event) {
-        if(!event.isCanceled()&&event.entityLiving instanceof EntityPlayer&&!event.entityLiving.worldObj.isRemote)
+        if(!event.isCanceled()&&event.entityLiving instanceof EntityPlayer&&!event.entityLiving.worldObj.isRemote){
+            KOMEKnightCommissionService.playerDeath((EntityPlayer)event.entityLiving);
             KOMEObjectiveInvasionBridge.playerDeath((EntityPlayer)event.entityLiving);
+        }
             if(!event.isCanceled()&&event.entityLiving instanceof LOTREntityNPC&&!event.entityLiving.worldObj.isRemote) {
               LOTREntityNPC npc=(LOTREntityNPC)event.entityLiving;
+              KOMEKnightBattlefieldService.death(KOMEWorldData.get(npc.worldObj),npc.getUniqueID());
               KOMESerfKnightDefenseService.handleNpcDeath(KOMEWorldData.get(npc.worldObj),npc.getUniqueID().toString(),npc.worldObj);
               KOMEProgressionRulerService.noteDeath(KOMEWorldData.get(npc.worldObj),npc);
               KOMEProgressionNpcSuccessionService.invalidatePrinceDeath(KOMEWorldData.get(npc.worldObj),npc.getUniqueID());
@@ -873,8 +881,8 @@ public class KOMEEvents {
                 boolean relationshipDeath=masterDeath||liegeDeath;
                 boolean failedEncounter=state.getTrialAssignment()!=null
                     &&state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.FAILED;
-                if(relationshipDeath||failedEncounter)
-                    KOMEProgressionEncounterCleanup.cleanup(KOMEReflection.getWorld(npc),playerId,progression);
+                if(liegeDeath&&(killer==null||!killer.equals(playerId)))KOMEProgressionEncounterCleanup.lostSuperior(KOMEReflection.getWorld(npc),playerId,progression);
+                else if(relationshipDeath||failedEncounter)KOMEProgressionEncounterCleanup.cleanup(KOMEReflection.getWorld(npc),playerId,progression);
 
                 KOMERelationshipDeathNotice.Role noticeRole = masterDeath
                     ? KOMERelationshipDeathNotice.Role.MASTER

@@ -1,0 +1,33 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+allprojects { afterEvaluate {
+    tasks.register('compileKnightFieldProbe', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source = project.fileTree('tools/progression-pass5/java') { include '**/*.java' }
+        classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+        destinationDirectory.set(layout.buildDirectory.dir('pass5/probe-classes'))
+        sourceCompatibility = '8'; targetCompatibility = '8'
+    }
+    tasks.register('knightFieldProbeJar', Jar) {
+        dependsOn tasks.named('compileKnightFieldProbe')
+        from layout.buildDirectory.dir('pass5/probe-classes')
+        archiveFileName.set('knight-field-probe.jar')
+        destinationDirectory.set(layout.buildDirectory.dir('pass5'))
+    }
+    tasks.named('runServer') {
+        dependsOn tasks.named('knightFieldProbeJar')
+        workingDir = project.file('outputs/progression-pass5/forge-' + System.currentTimeMillis())
+        timeout.set(java.time.Duration.ofMinutes(4))
+        doFirst {
+            workingDir.mkdirs()
+            project.copy { from layout.buildDirectory.file('pass5/knight-field-probe.jar'); into new File(workingDir,'mods') }
+            new File(workingDir,'eula.txt').text = 'eula=true\n'
+            new File(workingDir,'server.properties').text = 'server-port=0\nlevel-name=disposable\nonline-mode=false\nview-distance=2\nmax-tick-time=120000\n'
+        }
+        doLast {
+            File proof = new File(workingDir,'knight-native.txt')
+            if (!proof.exists() || !proof.text.contains('PASS checks=') || proof.text.contains('FAIL '))
+                throw new GradleException('Native Knight evidence missing or failed: ' + proof)
+        }
+    }
+} }

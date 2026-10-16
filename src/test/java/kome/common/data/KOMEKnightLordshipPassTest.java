@@ -32,6 +32,7 @@ public class KOMEKnightLordshipPassTest {
             for(Stage stage:Stage.values()){a.stage=stage;assertFalse(type+" "+stage,KOMEProgressionTrackerSnapshot.commission(a).hasNumericProgress());}
             a.stage=Stage.ACTIVE;a.encounterCreated=true;
             if(type==Type.RELIEF){a.goods.add(new Goods("minecraft:bread",0,32));a.goods.get(0).delivered=12;assertEquals("12/32",KOMEProgressionTrackerSnapshot.commission(a).progress);}
+            else if(type==Type.WAR_PLANS){assertFalse(KOMEProgressionTrackerSnapshot.commission(a).hasNumericProgress());assertTrue(KOMEProgressionTrackerSnapshot.commission(a).objective.contains("officer"));}
             else {a.actors.add(new Actor(UUID.randomUUID().toString(),"Enemy",Role.ENEMY,0,65,0));assertTrue(KOMEProgressionTrackerSnapshot.commission(a).hasNumericProgress());a.threatResolved=true;assertFalse(KOMEProgressionTrackerSnapshot.commission(a).hasNumericProgress());}
         }
     }}

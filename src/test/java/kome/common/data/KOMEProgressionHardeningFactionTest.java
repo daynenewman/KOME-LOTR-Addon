@@ -53,7 +53,7 @@ public class KOMEProgressionHardeningFactionTest {
             KOMEProgressionGameplayFixture.record(f.s.f.world,(int)liege.posX+800,(int)liege.posZ,faction.codeName());
             List<LOTRInvasions> regional=KOMEProgressionRegionalEnemies.choices(f.s.f.world,faction,0,0);
             if(!regional.isEmpty())KOMEProgressionGameplayFixture.border(f.s.f.world,regional.get(0).invasionFaction);
-            for(Type type:Type.values()){
+            for(Type type:EnumSet.range(Type.SETTLEMENT_DEFENSE,Type.NATIVE_INVASION)){
                 KOMEKnightCommission a=KOMEKnightCommissionService.generate(f.s.f.player,liege,type);if(a==null)continue;types.add(type);
                 assertEquals(faction,KOMEProgressionFactionResolver.resolve(a.faction));assertTrue(KOMEKnightCommissionLocations.usable(f.s.f.world,faction,a.destinationX,a.destinationZ));
                 assertEquals(a.writeToNBT(),KOMEKnightCommission.readFromNBT(a.writeToNBT()).writeToNBT());

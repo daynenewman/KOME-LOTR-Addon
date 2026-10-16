@@ -6,7 +6,7 @@ import net.minecraft.item.ItemStack;
 /** Real quest property remains identifiable equipment, but is not a recipe/trade input. */
 public final class KOMEQuestPropertyUseGuard {
     private KOMEQuestPropertyUseGuard(){}
-    public static boolean bound(ItemStack stack){return KOMEKnightCommissionService.taggedProperty(stack)||KOMESerfKnightRecoveryService.isRecoveryTagged(stack);}
+    public static boolean bound(ItemStack stack){return KOMEKnightCommissionService.taggedProperty(stack)||KOMESerfKnightRecoveryService.isRecoveryTagged(stack)||KOMEKnightEspionage.bound(stack);}
     public static boolean boundRecipe(InventoryCrafting grid){
         if(grid==null)return false;for(int i=0;i<grid.getSizeInventory();i++)if(bound(grid.getStackInSlot(i)))return true;return false;
     }
