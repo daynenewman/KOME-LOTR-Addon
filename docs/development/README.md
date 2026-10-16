@@ -6,6 +6,7 @@
 - [Start prompt and Windows launch commands](OVERNIGHT_START_PROMPT.md)
 - [Setup evidence and limitations](OVERNIGHT_SETUP_REPORT.md)
 - [Manual acceptance workflow, latest checklist and returned-result processing](../testing/README.md)
+- [First gameplay feedback, patrol repair and six Master-duty findings](FIRST_GAMEPLAY_REPAIR_REPORT.md)
 
 Start code investigations at the [repository routing index](../routing/INDEX.md).
 These guides supplement it; they do not replace the system guides or project README.

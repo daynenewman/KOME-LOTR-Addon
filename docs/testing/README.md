@@ -81,13 +81,21 @@ On receipt, Codex should:
    original failure and any still-unavailable tests visible. Update current
    status; automated success must not close a pending manual defect.
 
-## Current checklist evidence map
+## Checklist evidence map
 
-The October 16 checklist compares Pass 4 `243aa4f` with Pass 5 `4b9b92c`, then
+The first October 16 checklist compared Pass 4 `243aa4f` with Pass 5 `4b9b92c`, then
 checks the current `5091843` worktree, including the uncommitted language recovery.
 The [Pass 5 report](../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt) describes
 implementation boundaries; the [repair report](../PROGRESSION_LANGUAGE_INTEGRATION_REPAIR.md)
-explains the preserved newer operations. Neither is a completed human checklist.
+explains the preserved newer operations. Those reports are implementation evidence.
+The first returned human results are preserved in [history](PLAYTEST_HISTORY.md)
+and its linked archive. The current checklist follows repair `547553a` / `f2df9ec`
+plus the inherited language work; [the focused repair report](../development/FIRST_GAMEPLAY_REPAIR_REPORT.md)
+maps the patrol cause, all six Master duties, test coverage and remaining uncertainty.
+New [patrol lifecycle tests](../../src/test/java/kome/common/data/KOMEPatrolFollowerLifecycleTest.java)
+cover occupied placement, update stability, controls, save and cleanup. The
+[Master status projection test](../../src/test/java/kome/common/data/KOMEMasterDutyPresentationTest.java)
+checks implemented duty instructions, preserved report state and nonmutation.
 
 | Behavior / checklist area | Current code and meaningful regression coverage |
 | --- | --- |

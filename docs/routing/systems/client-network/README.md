@@ -1,5 +1,15 @@
 # Client presentation and networking
 
+The first-feedback repair (**f2df9ec**) changes only the Master menu's displayed
+ordinary escort/recovery/defense instructions in
+[KOMEPacketSerfdomMasterAction](../../../../src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java).
+Existing saved objective text replaces the misleading “details pending” placeholder;
+message fields, action IDs, completion authority and g14 compatibility remain.
+[Projection tests](../../../../src/test/java/kome/common/data/KOMEMasterDutyPresentationTest.java)
+verify current instructions and report state without granting credit. See
+[the repair report](../../../development/FIRST_GAMEPLAY_REPAIR_REPORT.md) for
+automated evidence and the still-pending repaired-build client acceptance.
+
 Pass 3/dev sync current matching-artifact version: `1.0.10-service-g14`.
 The existing Rank page, tracker, relationship actions and native offer shells now
 publish pledge-based Serf standing and direct three-service promotions. Recommendation

@@ -1,180 +1,116 @@
-# Latest gameplay acceptance — Pass 5 and language recovery
+# Latest gameplay acceptance — patrol repair and Master duties
 
-Prepared **2026-10-16**. **Manual status: awaiting testing; no answers selected.**
+Prepared **2026-10-16**. **This repaired build awaits Minecraft retesting.**
 
-- Source HEAD: `5091843fe0d8ae4734ce20ce244f786c2a0f1bdc`, branch
+- Repair source: `f2df9ecd3bd121ad6c865450771ffc7fdcd3fe5a` (patrol checkpoint `547553a`), on branch
   `elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system`.
-- Gameplay checkpoint: Pass 5 `4b9b92c`, compared with Pass 4 `243aa4f`.
-  HEAD also contains overnight tooling. The verified source **includes uncommitted
-  language recovery**: 34 production classes, 15 existing test classes and a new
-  combat/death test. Checking out HEAD alone does not reproduce that wording.
-- Version: **1.0.10-service-g14**. Verified jar:
-  `build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar` (18,637,319 bytes).
-  SHA-256: `e8cc7ef961cc15c874f30d3635e7d85b5568554db6181f3da18755448eeac1ec`.
-- Prior automated verification: Fast 84 passed; Full 4,148 passed, five skipped,
-  zero failures/errors. [Evidence and limits](../development/OVERNIGHT_SETUP_REPORT.md).
-  No new build was run for this documentation task. These are not manual passes.
+  The inherited uncommitted language recovery remains part of the verified source.
+  HEAD alone does not include that separate wording work.
+- Version **1.0.10-service-g14**, Minecraft **1.7.10**, Java 8, Forge **10.13.4.1614**,
+  **LOTR v36.15**, **geckolib-unofficial-1.7.10-1.0.4**.
+  Match client/server addon and dependencies when separate.
+- Verified jar: `build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar`,
+  SHA-256 `7c29222a8edc4571547f4e519dcfee660a51d733e199a6926100eacd6710af66`. The prior g14 jar is a different build.
+  This task did not install the new jar; verify the installed file before testing.
+- Final automated validation: **4,152 passed, five skipped**, zero failures/errors;
+  build and reobfuscation passed. [Report and duty findings](../development/FIRST_GAMEPLAY_REPAIR_REPORT.md).
+  Automated success does not pass any Result below.
+- Original feedback: **4 passed / 1 failed / 9 untested**; ratings fun 3/5,
+  difficulty 4/5, clarity 4/5. [Original answers](archive/20261016-service-g14-first-feedback.md)
+  remain in [history](PLAYTEST_HISTORY.md). The repaired build starts untested.
 
-Features: Liege assignment, actual protection combat, saved counterattack,
-temporary patrol followers, exercise isolation and updated objectives/navigation.
-Optional missions and recovery checks are in [extended sessions](PLAYTEST_EXTENDED.md).
-The [workflow](README.md) explains results; [history](PLAYTEST_HISTORY.md) retains them.
+The repair addresses occupied patrol placement and the repeated preparation loop.
+It also replaces the Master menu's misleading “details pending” text for implemented
+escort/recovery/defense with actual duty instructions. The nonspecific report of
+broken Master duties is still unresolved; the six conditional checks identify
+which stage needs repair. No new progression mechanics were added.
 
 ## Session record
 
-**Tester/date:**
+**Tester / actual play date:**
 
-**Installed jar/hash (client and server if separate):**
+**Installed client/server jar and hash:**
 
-**World (new disposable / disposable copy), faction and Liege:**
+**World (new disposable / disposable copy), faction, Master/Liege:**
 
-**Environment (singleplayer / dedicated), player count, operator status:**
+**Singleplayer / dedicated, player count, operator status:**
 
-**Blocking problem, if any:**
+**Blocking message or unavailable prerequisite:**
 
-Bold only Yes or No in each Result. Neither bolded, or an explicit Unavailable,
-means untested. Notes can be brief. If setup is unavailable, leave dependent tests
-untested and record the missing prerequisite; do not mark them No.
+Bold **Yes** or **No** only in Result. Neither bolded, or explicit Unavailable,
+means untested. Keep Notes brief: exact step, requested item/NPC, visible response,
+repeatability and optional screenshot/log. [Return-processing rules](README.md).
 
-## Shared setup — one disposable Knight and one Liege
+## Efficient session order
 
-1. Use Minecraft **1.7.10**, Java 8, Forge **10.13.4.1614**,
-   **LOTR v36.15** and **geckolib-unofficial-1.7.10-1.0.4**, with the matching g14
-   addon above. Client/server must match when separate. This task did not install
-   the jar. Check the actual runtime jar before testing; record any difference.
-2. Use a **fresh disposable world/profile** for the operator shortcut below.
-   Enable cheats/operator permission level 2. Play combat in Survival with armor,
-   a normal weapon and food; peaceful mode or invulnerability defeats the test.
-   Prepare equipment before accepting an exercise: attackers may arrive promptly.
-3. Pledge through the existing native LOTR faction interface to a supported
-   playable faction, preferably Rohan or Gondor. Find a living adult, unhired,
-   same-faction native military commander recognized as Lord or Prince. A native
-   Rohirrim Marshal or Gondorian Captain is a candidate; class/name alone does
-   not guarantee eligibility. Prefer a naturally generated regional seat. Do not
-   spawn/rename an arbitrary NPC to simulate legitimate regional admission.
-4. If you already have a genuine Knight and valid current Liege on a **disposable
-   copy**, keep that relationship and skip the force command. Otherwise, only on
-   the fresh test profile, stand within eight blocks with the intended commander
-   clearly in view and no competing nearby target, then run:
+**Knight session:** F01 → 08 → 09 → F02 → 10 → 12 → 13 → 14 → 11.
+Stay with one Liege. Do not travel to the patrol encounter site for the control
+tests. 14 uses a verified staff completion shortcut for report wording, so this
+session does not claim that the protection fight passed.
 
-   ```text
-   /kome progression relationship force knight
-   /kome progression status
-   /kome progression why
-   /kome progression commission list
-   ```
+**Serf session:** use a separate disposable profile and do whichever of M01–M06
+the Master actually assigns, in assignment order. Leave other types untested.
+Normally only three distinct duties are needed before Knight; Provisioning and
+Trade Assistance are alternatives. Do not force six types onto one character or
+repeatedly reset ranks. Additional types may need a later fresh profile.
 
-   Force changes rank/relationships and seeds test Master duties. It requires a
-   matching native pledge and suitable ranked NPC; it does not make an arbitrary
-   NPC valid. Confirm canonical rank `knight` and the intended Liege in status.
-   This shortcut tests field mechanics, **not earned Knight promotion or normal
-   recommendation/seat admission**. No verified shortcut guarantees a suitable
-   commander or terrain; if missing, use another disposable setup or mark unavailable.
-5. Have no active genuine assignment. The exercise command refuses to overwrite
-   one; finish it normally or use a different disposable profile. Do not reset it.
-   Record the book's existing **Service reported** entries before the exercises.
-6. Open the native LOTR menu using its configured key (see Minecraft Controls),
-   select **KOME Progression**, then **Service & Rank** (or **Ranks** outside
-   Knight standing). This is the book used below. For a Liege Quest, right-click
-   the Liege and select **Quest** in the native interaction menu. Do not select
-   Hire or Leave. Ordinary Talk alone is not a request for orders.
+### Knight setup — operator level 2
 
-**Efficient order:** 01 → 12 → 13 → 02 → 03 → 04 → 14 → 05 → 06 →
-07 → 08 → 09 → 10 → 11. Tests 12–14 use the same encounter, not extra trips.
-Stop after 11; it may leave a genuine commission active for your next session.
+1. Use a new disposable test world/profile, or a safely stopped disposable copy
+   with a valid earned Knight and current Liege. Prepare armor/food before
+   protection tests; use Survival and non-peaceful combat conditions.
+2. Pledge through the native faction interface to a supported playable faction,
+   preferably Rohan or Gondor. Keep an existing valid current Liege. If using a
+   fresh operator test character, stand within eight blocks of a living adult,
+   unhired, same-faction native commander of Lord/Prince standing, clearly targeted,
+   and run `/kome progression relationship force knight`.
+   A native Rohirrim Marshal/Gondorian Captain is a candidate, not guaranteed
+   eligible. This changes the test character's relationship/rank; it does not
+   prove natural promotion or regional recommendation admission.
+3. Check `/kome progression status`, `/kome progression why` and
+   `/kome progression commission status`. If an earlier **staff** exercise is
+   stuck, use `/kome progression commission reset`, then
+   `/kome progression commission end`. Genuine active work is protected: finish
+   it normally or use another disposable profile. Do not use `resetDuty`.
+4. Stand near the Liege on reasonably open ground with enough room for four NPCs.
+   Accept saved orders through right-click → **Quest**. Normal Talk alone does not
+   accept the commission. Open the native LOTR menu with its configured Controls
+   key, select **KOME Progression**, then **Service & Rank** (or **Ranks**).
+5. If patrol preparation still cannot succeed, the expected recovery is a clear
+   fresh-orders instruction, not flickering partial groups. Record that message
+   and the location; arrange a new staff exercise explicitly. An unprepared group
+   is not a passed stability test. Never edit actor data or valuable saves.
+
+### Natural Serf setup — six duty checks are conditional
+
+Use a separate new disposable character/world or an earned Serf copy. Pledge to
+a supported native faction and enter service through an eligible ordinary civilian
+Master's native offer/Accept interaction. He must be a living, adult, unhired,
+same-faction civilian/farmer in faction territory; meet native friendliness/trade
+requirements. A military Liege is not the ordinary Master setup.
+
+Right-click your current Master for work, or use **Request a duty** when his menu
+is open. Read the assigned duty in the book; requests choose feasible duties
+automatically. No verified command selects a particular Serf duty type. Operator
+`/kome progression status` and `/kome progression why` are read-only diagnostics;
+`/progression get` reads your standing without operator access.
+
+Before hand-in, note **Duties reported** in Ranks. Completion should record the
+duty; the third genuine type at 150 faction alignment may instead confer Knight
+and move this record into your service history. Note that recognition if it occurs.
+Do not use forced completion, forced credits or `finishDuty` for M01–M06.
+Unavailable duties are untested; an assigned duty failing despite its prerequisites
+is a No with the exact symptom. Do not infer that all six duties failed.
 
 ## A. Essential Gameplay
 
-### Test 01 — Receive the protection exercise
+### Test F01 — Stable patrol followers
 
-**Statement:** My Liege gives me the saved protection orders through Quest.
+**Statement:** Four temporary patrol soldiers remain available while my exercise is active.
 
-**Setup:** Shared setup; stand beside the current Liege with no active assignment.
+**Setup:** Knight setup below; beside the valid current Liege, with no active genuine assignment.
 
-**Steps:** Run `/kome progression commission start PROTECT_LIEGE 2`, then
-`/kome progression commission complication counterattack` **before** selecting
-Quest. Select Quest and read the assignment response. Do 12 and 13 now.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 02 — Protect the actual Liege
-
-**Statement:** The attackers threaten the same Liege who issued my orders.
-
-**Setup:** Test 01 accepted; current Liege alive and nearby.
-
-**Steps:** Close the book, stay near the Liege and observe the approaching enemies
-before engaging. Fight promptly to keep him alive; do not attack him yourself.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 03 — Counterattack
-
-**Statement:** A second group attacks after the first group is defeated.
-
-**Setup:** Protection exercise with the saved counterattack; Liege survives.
-
-**Steps:** Personally damage the assigned enemies and defeat the first group.
-Stay near the Liege and watch for the second group and its warning.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 04 — Combat completion
-
-**Statement:** Defeating both groups changes my objective to reporting to my Liege.
-
-**Setup:** Same protection exercise, including the second group.
-
-**Steps:** Personally contribute substantial real damage while protecting the
-Liege; defeat the remaining assigned attackers. Read the objective. Do 14 now.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 05 — Personal report
-
-**Statement:** Reporting to my Liege closes the completed exercise.
-
-**Setup:** Protection objective is ready to report; current Liege present.
-
-**Steps:** Right-click the Liege to report. If the ordinary interaction remains
-open, select Quest. Read his response; use `/kome progression commission status`
-to confirm no active commission remains. Do not start new orders yet.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 06 — Exercise credit isolation
-
-**Statement:** The exercise adds no earned entry to Service reported.
-
-**Setup:** Test 05 reported; retain the pre-exercise book record.
-
-**Steps:** Reopen Service & Rank and compare Service reported with the earlier
-record. An absent list means no earned entries, not a missing exercise reward.
-
-**Result:** Yes / No
-
-**Notes:**
-
-### Test 07 — Four temporary followers
-
-**Statement:** Accepting Lead the Patrol gives me four faction soldiers.
-
-**Setup:** Beside the same Liege; previous exercise closed, testing session retained.
-
-**Steps:** Run `/kome progression commission start FIELD_COMMAND 2`, then
-`/kome progression commission complication none` before selecting Quest.
-Accept through Quest and count the newly entrusted soldiers near the Liege.
-Stay here for the short control checks; no trip to the patrol site is required.
+**Steps:** Run `/kome progression commission start FIELD_COMMAND 2`, then `/kome progression commission complication none` before accepting through Quest. Count the soldiers for 60 seconds while remaining nearby. Record any repeated spawn/disappearance. This retests the original failed 07.
 
 **Result:** Yes / No
 
@@ -184,10 +120,9 @@ Stay here for the short control checks; no trip to the patrol site is required.
 
 **Statement:** A soldier I tell to wait stays where I left him.
 
-**Setup:** Test 07; safe open ground near the Liege, no combat.
+**Setup:** F01 stable; safe open ground, no combat.
 
-**Steps:** Sneak-right-click one following soldier once. After the wait response,
-walk about ten blocks over clear ground and observe that soldier.
+**Steps:** Sneak-right-click one following soldier once. After the wait response, walk about ten blocks over clear ground and observe that soldier.
 
 **Result:** Yes / No
 
@@ -199,8 +134,7 @@ walk about ten blocks over clear ground and observe that soldier.
 
 **Setup:** The soldier from 08 is still waiting.
 
-**Steps:** Return within interaction range; right-click him without sneaking.
-After the follow response, walk about ten blocks over clear ground.
+**Steps:** Return within interaction range; right-click him without sneaking. After the follow response, walk about ten blocks over clear ground.
 
 **Result:** Yes / No
 
@@ -210,41 +144,95 @@ After the follow response, walk about ten blocks over clear ground.
 
 **Statement:** Ending the exercise removes its temporary soldiers.
 
-**Setup:** Test patrol active; remain beside the Liege with all four soldiers loaded.
+**Setup:** After F02, with the patrol active and all four soldiers loaded beside the Liege.
 
-**Steps:** Run `/kome progression commission end`. Look for the four exercise
-soldiers. Use `/kome progression commission status` to check the session ended
-before continuing; the Liege and unrelated NPCs are not exercise soldiers.
+**Steps:** Run `/kome progression commission end`. Look for those four soldiers and check `/kome progression commission status` before continuing. Note any effect on the Liege or unrelated NPCs.
 
 **Result:** Yes / No
 
 **Notes:**
 
-### Test 11 — Ordinary assignment
+### Test M01 — Provisioning credit
 
-**Statement:** My Liege chooses a normal commission when I request new orders.
+**Statement:** My completed Provisioning duty is recorded as earned Master service.
 
-**Setup:** Exercise ended; Knight with current Liege and fewer than three genuine
-current-faction service types. No active assignment or testing session.
+**Setup:** Natural Serf setup below; Provisioning actually assigned; note the earlier Duties reported count.
 
-**Steps:** Select the Liege's Quest without a `commission start` command. Read
-the assigned objective; there should be no commission-type selection menu.
-If geography prevents a safe offer, note the message and leave this untested.
+**Steps:** Collect the exact requested foods and drink/vessel shown in the book. Right-click your current Master to deliver, or use Deliver provisions if his menu is open. Finish the listed quantities and check the service count/recognition. Record the requested item details and response if delivery fails.
 
 **Result:** Yes / No
 
 **Notes:**
 
-## B. GUI and Presentation — during the same protection encounter
+### Test M02 — Trade Assistance credit
 
-### Test 12 — Current orders in the book
+**Statement:** My completed Trade Assistance duty is recorded as earned Master service.
+
+**Setup:** Natural Serf setup; Trade Assistance actually assigned instead of Provisioning.
+
+**Steps:** Collect the exact listed materials, including their variants. Deliver to the current Master by right-click or Deliver materials. Finish the requirements and check the service count/recognition. Note the Master's occupation and any rejected item.
+
+**Result:** Yes / No
+
+**Notes:**
+
+### Test M03 — Courier return report
+
+**Statement:** Returning to my Master after delivering the letter records my Courier service.
+
+**Setup:** Natural Serf setup; Courier actually assigned; collect the physical letter issued by the Master.
+
+**Steps:** Read the letter/book and follow Show Me to the assigned correspondent. Select the assignment letter in your hand and right-click that named NPC. Return to your current Master and report (right-click or Report to Master). Check the service count/recognition. Note the exact stage if blocked.
+
+**Result:** Yes / No
+
+**Notes:**
+
+### Test M04 — Local Escort report
+
+**Statement:** Reporting after the traveler reaches the marked refuge records my Local Escort service.
+
+**Setup:** Natural Serf setup; Local Escort actually assigned, eligible independent adult same-faction charge within 48 blocks and a verified refuge 256–3,000 blocks away.
+
+**Steps:** Read the duty, interact with the Master if activation needs retry, and lead the bound traveler physically to the marked refuge. Keep close; normal interaction follows, sneak interaction waits. Once the traveler arrives, return to the Master and report. Check the service count/recognition.
+
+**Result:** Yes / No
+
+**Notes:**
+
+### Test M05 — Property Recovery hand-in
+
+**Statement:** Returning the assigned recovered item records my Property Recovery service.
+
+**Setup:** Natural Serf setup; Property Recovery actually assigned.
+
+**Steps:** Follow the search marker, find and pick up the assignment's item, then return to your current Master with that item selected in your hand and right-click. Check the service count/recognition. An ordinary duplicate item is not the assigned property.
+
+**Result:** Yes / No
+
+**Notes:**
+
+### Test M06 — Local Defense report
+
+**Statement:** Reporting the completed defense records my Local Defense service.
+
+**Setup:** Natural Serf setup; Local Defense actually assigned, protected NPC present and both assigned attackers active.
+
+**Steps:** Personally damage an assigned attacker, keep the protected NPC alive and defeat the assigned attackers. Return to the current Master and report. Check the service count/recognition. Record the protected NPC, personal hits and remaining targets if the objective stalls.
+
+**Result:** Yes / No
+
+**Notes:**
+
+## B. GUI and Presentation — previously passing regressions
+
+### Test 12 — Active protection orders
 
 **Statement:** Service & Rank shows the protection objective I just accepted.
 
-**Setup:** Immediately after 01, before finishing the battle.
+**Setup:** After patrol cleanup, beside the same Liege with no assignment.
 
-**Steps:** Open KOME Progression → Service & Rank. Read the active order and
-compare it with the Liege's protection instructions. Close promptly during combat.
+**Steps:** Run `/kome progression commission start PROTECT_LIEGE 2`, then `/kome progression commission complication none` before selecting Quest. Accept, open KOME Progression → Service & Rank and read the active order. Check promptly; this is still a live attack.
 
 **Result:** Yes / No
 
@@ -254,41 +242,70 @@ compare it with the Liege's protection instructions. Close promptly during comba
 
 **Statement:** Show Me centers the map on my current protection objective.
 
-**Setup:** Book open with the active protection objective from 12.
+**Setup:** The active protection order from 12; keep the Liege alive.
 
-**Steps:** Select Show Me, observe the highlighted location, then close the map.
-Do not remain in the map while enemies attack the Liege.
+**Steps:** Select Show Me, observe the highlighted location and close the map promptly. Continue with 14. Do not remain in the map while attackers threaten the Liege.
 
 **Result:** Yes / No
 
 **Notes:**
 
-### Test 14 — Return wording
+### Test 14 — Liege named in report instructions
 
 **Statement:** The reporting instruction identifies my current Liege by name.
 
-**Setup:** After 04, before personally reporting in 05.
+**Setup:** The staff protection exercise from 12–13, still active.
 
-**Steps:** Open Service & Rank and read the reporting instruction. Compare the
-named recipient with the Liege who issued these orders.
+**Steps:** For this GUI-only check, run `/kome progression finishDuty`, then open Service & Rank and compare the named report recipient with the issuing Liege. This staff shortcut accepts no combat or earned progression. End the exercise with `/kome progression commission end` before 11.
 
 **Result:** Yes / No
 
 **Notes:**
 
-## Availability and boundaries
+## C. Persistence and Recovery
 
-All 14 results start untested. This short session does not accept natural
-promotion, every mission, death/reload, GUI scales or multiplayer; use the
-extended checklist for those. A technical retry/safe-site rejection is not a
-successful mission: record the message and the blocked tests.
+### Test F02 — Patrol survives relogging
 
-Implemented partial content: rescue has one survivor; patrol investigation is
-encounter discovery; raid is a native NPC field post, not a generated fortress;
-protection is an assigned attack, not an ambient assassination system. Go for Help
-needs another real available regional commander. Natural terrain/pathfinding,
-stealth approachability, balance, fresh seat generation and multiplayer still need
-human acceptance. Fangorn lacks a suitable native Liege; Fangorn/Half-troll Master
-availability is unsupported. Proposed Rank-page staff-exercise notice, expanded
-clue chains, fort discovery, new Lord-to-Prince royal service, warrants, fiefs and
-specialist rewards are not implemented by this pass and have no acceptance tests here.
+**Statement:** Rejoining the same world leaves my active patrol with four stable followers.
+
+**Setup:** After 08–09, before 10; all four soldiers alive, safe and loaded.
+
+**Steps:** Record `/kome progression commission status`, leave and rejoin the disposable world/server, and observe the patrol for another 60 seconds. Compare its count and note any duplicates. This checks relogging; a dedicated server restart remains optional extended coverage.
+
+**Result:** Yes / No
+
+**Notes:**
+
+## D. Regression Testing — previously passing ordinary assignment
+
+### Test 11 — Normal commission assignment
+
+**Statement:** My Liege chooses a normal commission when I request new orders.
+
+**Setup:** All exercises ended; Knight with current Liege, no active assignment, testing session false and fewer than three genuine current-faction service types.
+
+**Steps:** Select the Liege's Quest without a commission start command. Read the automatically assigned objective; no commission-type selection menu is expected. If legitimate geography prevents an offer, record the message and mark unavailable. Leave genuine orders intact.
+
+**Result:** Yes / No
+
+**Notes:**
+
+## E. Multiplayer and Edge Cases — optional
+
+Use [extended coverage](PLAYTEST_EXTENDED.md) for dedicated server restart,
+two-player permissions/ownership, migration, death and battle evidence. These
+need their stated disposable environments and are not required for the short
+first retest.
+
+## Acceptance limits
+
+All 15 Results above are blank. Old 08–14 retain their original expectations;
+F01 expands the original failed 07 into sustained stability, and F02/M01–M06 are
+new checks. Old passes are historical observations, not passes on this jar.
+
+The code fix and automated patrol tests are verified; natural NPC AI/pathfinding,
+the repaired runtime behavior and individual Master adventures still need a player.
+Fangorn lacks a suitable native Liege; Fangorn/Half-troll Master availability is
+unsupported. Missing eligible NPCs, safe geography or assignment types must be
+reported as unavailable. Proposed features and royal-service redesign are outside
+this checklist.

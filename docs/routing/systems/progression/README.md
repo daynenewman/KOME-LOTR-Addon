@@ -2,6 +2,20 @@
 
 [Index](../../INDEX.md)
 
+## First gameplay feedback repair — 2026-10-16
+
+Checkpoints **547553a** / **f2df9ec** repair occupied FIELD_COMMAND guard placement
+and the partial-group update retry loop. Pending failed patrol preparation waits
+for fresh orders; valid followers retain existing owner/token roles, native
+follow/wait, saved identity and scoped end/death cleanup. Master-menu descriptions
+for ordinary escort/recovery/defense now use implemented saved instructions rather
+than “details pending”; physical Master-duty completion rules are unchanged.
+See [cause, six-duty findings and validation](../../../development/FIRST_GAMEPLAY_REPAIR_REPORT.md),
+[patrol lifecycle tests](../../../../src/test/java/kome/common/data/KOMEPatrolFollowerLifecycleTest.java)
+and [Master projection tests](../../../../src/test/java/kome/common/data/KOMEMasterDutyPresentationTest.java).
+The first player report has four passes, one failure and nine untested essentials;
+the repaired build still awaits [manual retesting](../../../testing/PLAYTEST_LATEST.md).
+
 Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and legacy objective compatibility. Character race/appearance is a separate integrated system.
 
 Pass 3 (2026-10-14) supersedes the historical trial/promotion paths below.
