@@ -24,7 +24,9 @@ public final class KOMESerfKnightRecoveryService {
         if(player==null||progression==null||liege==null||player.worldObj.isRemote)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED)return false;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED
+                ||!assignment.isValidFor(state.getTrialId(),state.objectiveSuperior())
+                ||!assignment.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         NBTTagCompound data=(NBTTagCompound)assignment.data.copy();
         if(data.getBoolean(DATA_SITE_CREATED)) return false;
         if(!data.hasKey("RecoveryItem",10)){
@@ -42,6 +44,7 @@ public final class KOMESerfKnightRecoveryService {
         KOMEWorldData worldData=KOMEWorldData.get(player.worldObj); worldData.markDirty();
         EntityItem dropped=new EntityItem(player.worldObj,site.x+0.5D,site.y+0.2D,site.z+0.5D,assignedStack(assignment,player.getUniqueID()));
         dropped.delayBeforeCanPickup=0; dropped.lifespan=Integer.MAX_VALUE;
+        dropped.motionX=0;dropped.motionZ=0;
         if(!KOMEProgressionItemDrops.spawn(player.worldObj,dropped)) { KOMEProgressionEncounterCleanup.activationFailed(worldData,player.worldObj,state); return false; }
         data.setString(DATA_OBJECT,dropped.getUniqueID().toString());
         state.updateTrialAssignment(state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); worldData.markDirty();
@@ -53,7 +56,11 @@ public final class KOMESerfKnightRecoveryService {
         if(player==null||stack==null||player.worldObj.isRemote)return;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj); KOMEPlayerProgression progression=world.getProgression(player.getUniqueID());
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(isAssignedTo(stack,assignment,player.getUniqueID())&&!assignment.data.getBoolean(DATA_RETRIEVED)) {
+        // Forge's pre-pickup event also fires when a full inventory rejects the item.
+        if(isRecovery(assignment)&&assignment.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                &&assignment.isValidFor(state.getTrialId(),state.objectiveSuperior())
+                &&isAssignedTo(stack,assignment,player.getUniqueID())&&findAssignedStack(player,assignment)>=0
+                &&!assignment.data.getBoolean(DATA_RETRIEVED)) {
             NBTTagCompound data=(NBTTagCompound)assignment.data.copy(); data.setBoolean(DATA_RETRIEVED,true);
             state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); world.markDirty();
         }
@@ -64,7 +71,8 @@ public final class KOMESerfKnightRecoveryService {
         if(player==null||player.worldObj.isRemote)return;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj); KOMEPlayerProgression progression=world.getProgression(player.getUniqueID());
         KOMESerfKnightTrialAssignment assignment=progression.getSerfKnightProgression().getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE)return;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                ||!assignment.isValidFor(progression.getSerfKnightProgression().getTrialId(),progression.getSerfKnightProgression().objectiveSuperior()))return;
         int slot=findAssignedStack(player,assignment);
         if(slot>=0){ if(!assignment.data.getBoolean(DATA_RETRIEVED)) onPickup(player,player.inventory.mainInventory[slot]); return; }
         if(!assignment.data.getBoolean(DATA_RETRIEVED)) ensureRecoveryObject(player,progression,assignment);
@@ -74,7 +82,9 @@ public final class KOMESerfKnightRecoveryService {
     public static boolean deliver(EntityPlayerMP player,KOMEPlayerProgression progression,LOTREntityNPC liege) {
         if(player==null||progression==null||liege==null)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!state.objectiveSuperior().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                ||!assignment.isValidFor(state.getTrialId(),state.objectiveSuperior())
+                ||!assignment.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         if(!assignment.data.getBoolean(DATA_RETRIEVED)&&!isAssignedTo(player.getCurrentEquippedItem(),assignment,player.getUniqueID()))return false;
         int slot=findAssignedStack(player,assignment);
         if(slot<0){
@@ -122,9 +132,10 @@ public final class KOMESerfKnightRecoveryService {
         int spawnY=y;
         if(spawnY<=1||spawnY>=player.worldObj.getActualHeight()-2||!player.worldObj.isAirBlock(x,spawnY,z))
             spawnY=player.worldObj.getTopSolidOrLiquidBlock(x,z);
-        if(spawnY<=1||spawnY>=player.worldObj.getActualHeight()-2||!player.worldObj.isAirBlock(x,spawnY,z))return;
+        if(!safeSite(player.worldObj,x,spawnY,z))return;
         EntityItem replacement=new EntityItem(player.worldObj,x+0.5D,spawnY+0.2D,z+0.5D,assignedStack(assignment,player.getUniqueID()));
         replacement.delayBeforeCanPickup=0; replacement.lifespan=Integer.MAX_VALUE;
+        replacement.motionX=0;replacement.motionZ=0;
         if(!KOMEProgressionItemDrops.spawn(player.worldObj,replacement))return;
         NBTTagCompound data=(NBTTagCompound)assignment.data.copy();
         data.setInteger(DATA_Y,spawnY); data.setString(DATA_OBJECT,replacement.getUniqueID().toString());
@@ -147,7 +158,7 @@ public final class KOMESerfKnightRecoveryService {
         double angle=((hash&0x7fffffff)%6283)/1000D;
         double markerX=x+Math.cos(angle)*radius, markerZ=z+Math.sin(angle)*radius;
         return new KOMEVisualMarker(KOMEVisualMarker.Role.RECOVERY_SEARCH, "",
-            "Recover the lost item", "", assignment.data.getInteger(DATA_DIMENSION),
+            "Recover the lost item", "Search within 40 blocks", assignment.data.getInteger(DATA_DIMENSION),
             markerX, 0.0D, markerZ);
     }
 
@@ -282,8 +293,20 @@ public final class KOMESerfKnightRecoveryService {
             int x=(int)Math.floor(liege.posX+Math.cos(angle)*distance), z=(int)Math.floor(liege.posZ+Math.sin(angle)*distance);
             if(!KOMEKnightCommissionService.loadedAround(world,x,z))continue;
             int y=world.getTopSolidOrLiquidBlock(x,z);
-            if(y>1&&y<world.getActualHeight()-2&&world.getBlock(x,y-1,z).getMaterial().isSolid()&&world.isAirBlock(x,y,z)&&world.isAirBlock(x,y+1,z)&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.lava&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.flowing_lava){Site candidate=new Site(x,y,z);if(variety.penalty(origin,x,z)==0)return candidate;if(fallback==null||variety.penalty(origin,x,z)<variety.penalty(origin,fallback.x,fallback.z))fallback=candidate;}
+            if(safeSite(world,x,y,z)){Site candidate=new Site(x,y,z);if(variety.penalty(origin,x,z)==0)return candidate;if(fallback==null||variety.penalty(origin,x,z)<variety.penalty(origin,fallback.x,fallback.z))fallback=candidate;}
         } return fallback;
+    }
+    /** A clear, supported approach also keeps a dropped item away from ledges and hazards. */
+    static boolean safeSite(World world,int x,int y,int z) {
+        if(y<=1||y>=world.getActualHeight()-2)return false;
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++) {
+            net.minecraft.block.Block support=world.getBlock(x+dx,y-1,z+dz);
+            if(support==net.minecraft.init.Blocks.cactus||!support.getMaterial().isSolid()
+                    ||support.isLeaves(world,x+dx,y-1,z+dz)
+                    ||!support.isSideSolid(world,x+dx,y-1,z+dz,net.minecraftforge.common.util.ForgeDirection.UP)
+                    ||!world.isAirBlock(x+dx,y,z+dz)||!world.isAirBlock(x+dx,y+1,z+dz))return false;
+        }
+        return world.func_147461_a(net.minecraft.util.AxisAlignedBB.getBoundingBox(x,y,z,x+1,y+2,z+1)).isEmpty();
     }
     private static final class Site { final int x,y,z; Site(int x,int y,int z){this.x=x;this.y=y;this.z=z;} }
 }
