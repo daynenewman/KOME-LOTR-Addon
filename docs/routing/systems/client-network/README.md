@@ -1,5 +1,12 @@
 # Client presentation and networking
 
+Phase 1 **cdbc051** uses matching **1.0.11-commoner-g15** artifacts. The canonical
+Commoner key is new; g14 clients/servers are rejected by the exact-version fence.
+Packet IDs/layouts, viewer/revision/dimension guards and military messages remain.
+The rank page shows Commoner -> Knight -> Lord -> Prince; tracker allegiance uses
+actual native pledge, which never promotes. Earlier g14 sections describe previous
+checkpoints. [Full evidence and remaining Phase 1 work](../../../development/PROGRESSION_PHASE1_REPORT.md).
+
 October 17 book polish (**be12f0f**) routes Knight presentation through the existing
 measured rank-content path. Current work, promotion and privileges share scissoring,
 scroll extent and row hit testing; duplicate Knight summary/faction text is omitted.
@@ -18,7 +25,7 @@ verify current instructions and report state without granting credit. See
 [the repair report](../../../development/FIRST_GAMEPLAY_REPAIR_REPORT.md) for
 automated evidence and the still-pending repaired-build client acceptance.
 
-Pass 3/dev sync current matching-artifact version: `1.0.10-service-g14`.
+Pass 3/dev sync historical matching-artifact version: `1.0.10-service-g14`.
 The existing Rank page, tracker, relationship actions and native offer shells now
 publish pledge-based Serf standing and direct three-service promotions. Recommendation
 and mentor context comes from server progression history. Rank-derived ability rows

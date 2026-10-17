@@ -1,84 +1,70 @@
 # Current development status
 
-Recorded **2026-10-17** after progression stabilization. Automated completion is
-verified; the new build awaits Minecraft acceptance.
+Recorded **2026-10-17**. **Progression Phase 1 is partial:** the Commoner/allegiance
+foundation is verified automatically; the new birth-alignment award is pending a
+calculation decision. Minecraft acceptance remains outstanding.
 
-## Completed scope
+## Delivered checkpoint
 
-- **Priority 1 - Master access:** `1ca850d` exposes validated Master Quest offers in
-  native trader/smith/farmer menus. Discovery and acceptance share native friendliness,
-  trade, rank, pledge and territory checks. Eight native roles across three origin
-  states are covered. Unsupported civilian occupations were not made eligible.
-- **Priority 2 - Recovery and relationships:** `cd07aef` confirms actual inventory
-  possession, binds recovery to its issuing Master and checks clear supported sites.
-  Master departure cancels unfinished ordinary objectives; completed departed service
-  and original duty issuers are saved separately from new service. No new cooldown.
-- **Priority 3 - Book polish:** `be12f0f` removes repeated Knight context and uses
-  measured shared content for work, promotion and privileges. Long headings wrap;
-  scroll/input/footer measurements agree. `39f19a9` completes integrated wording/
-  marker regression corrections. Parchment, tabs, tooltips and Show Me remain.
-- **Priority 4 - Investigation:** current progression places no buildings. The
-  reported intersection's origin remains unconfirmed; native restrictions and a
-  non-destructive follow-up plan are documented. No generation change was justified.
-- **Priority 5 - Backlog:** [prioritized proposals](PROGRESSION_BACKLOG.md) cover all
-  requested future ideas, dependencies and balancing. No larger mechanic was added.
+- **cdbc051**: Commoner -> Knight -> Lord -> Prince. Native allegiance is independent
+  of rank; pledge observation grants no promotion. King remains a political office.
+- Legacy `wanderer`/`serf` rank keys migrate to `commoner`, retaining the original
+  starting key. Earned higher ranks, service history, duties and relationships are
+  preserved by disposable NBT fixture checks. Native alignment is not rewritten.
+- The book displays canonical rank names and actual allegiance status. Master
+  service remains available to eligible Commoners. Existing duties, commissions,
+  patrols, recommendations, military checks, navigation and Show Me are retained.
+- Current source/display changes, migration limits and decisions are described in
+  [the Phase 1 report](PROGRESSION_PHASE1_REPORT.md). The supplied approved scope is
+  saved in [design documentation](../design/progression/PHASE1_APPROVED_SCOPE.md).
+  The separately referenced full redesign document has not been located.
 
-[Detailed causes, files, checkpoints and evidence](PROGRESSION_STABILIZATION_REPORT.md).
+## Remaining Phase 1 decision
 
-## Tested executable state
+Character creation currently raises alignment to the native pledge minimum.
+The owner was asked whether +100 replaces that grant or is added afterward.
+Adding afterward can give 200 from zero where the minimum is 100. Replacing it
+also needs a rule for a faction whose native pledge minimum exceeds +100.
+**No new birth-bonus code or retroactive award was added.** Existing completion,
+recreation and configurable automatic-allegiance behavior remain. One-time birth
+award persistence and exploit/migration tests are still required before declaring
+Phase 1 complete. Follow the report's resumable implementation plan after the answer.
 
-- Branch: `elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system`.
-- Source checkpoint: **39f19a9**, including `1ca850d`, `cd07aef` and `be12f0f`, plus
-  the preserved inherited language recovery and its untracked combat-lifecycle test.
-  **HEAD alone does not contain those inherited inputs.** Documentation commits after
-  this checkpoint do not change the tested executable source.
-- Final command: `scripts/kome-validate.ps1 -Mode Full` -> `test build reobfJar`,
-  offline, no daemon, max-workers=2, shared heavy-validation mutex.
-- **4,169 passed / 5 skipped / 0 failures / 0 errors**, 401 suites, 4,174 total.
-  Two Windows symlink fixtures and three optional original/build waypoint-jar checks
-  remain skipped. These are not gameplay passes.
-- Evidence: `outputs/overnight-validation/20261017-093401-380-Full-96bbeab9/`.
-  Before/after validation input SHA-256 matched:
-  `fbe0440249c53d3c041d00492e90ffe478555c890fc52daca987b189d1618af2`.
-- Jar: `build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar`, **18,639,829 bytes**,
-  SHA-256 **64a9d95c8b89a376d899c0fb77b39e2cc11b7a5598630dbccb2b02d5d66b7dd3**.
-  Version remains g14; use the hash to distinguish this build. Built, not installed.
-- Focused checks: resumed baseline 50, Recovery checkpoint 104, book checkpoint 31,
-  integrated correction 56 tests; counts overlap and must not be summed as unique.
-  Exact commands/counts and failure diagnosis are in the report and evidence summaries.
-- Documentation QA: 32 documents, 866 local links, 1,130 symbol references and 48
-  exact test selectors passed using the PowerShell equivalent of the routing
-  checker (Python unavailable on PATH). Fourteen latest answers remain blank;
-  whitespace checks passed. Evidence: `outputs/stabilization/documentation-checks.json`.
+## Verified executable
 
-## Preservation
+- Source: **cdbc051 plus preserved inherited language edits and its untracked
+  combat-lifecycle test**. HEAD alone does not reproduce this jar.
+- Final command: `scripts/kome-validate.ps1 -Mode Full` -> `test build reobfJar`.
+  Offline, no daemon, max-workers=2, shared heavy-validation mutex.
+- **4,174 passed / 5 skipped / zero failures/errors**, 402 suites, 4,179 total.
+  Skips: two Windows symlink fixtures and three optional original/build waypoint
+  jar checks. Focused runs: baseline 102; foundation 83; affected regressions 135.
+  Counts overlap; exact evidence and failure diagnosis are in the report.
+- Final evidence: `outputs/overnight-validation/20261017-174018-495-Full-84e8381e`.
+  Input SHA before/after: `e487c3304b7c5779169077322e04db4041534a08fb6350fce02fb289a435f62c`.
+- Jar: `build/libs/KOME-LOTR-Addon-1.0.11-commoner-g15.jar`, **18,640,038 bytes**.
+  SHA-256: `16d41e488869c68fa3ef1b14f21feb9f36b19ebe1823a0a6eb2b3015afb8992f`.
+  Matching g15 client/server artifacts required; g14 rejects the new rank key.
+  Built, not installed. No actual Minecraft acceptance is inferred.
 
-Original overnight baseline `fc60f53`; resume began at `1ca850d` with unfinished
-Master-history work and separate language changes. Fresh source/Git backup:
-`outputs/overnight-backups/20261017-091558-351-aef34bf4`, **6,793 hashed files**,
-exit 0 and COMPLETE.json. Initial assignment backup:
-`outputs/overnight-backups/20261016-233750-020-94f2c944`.
-Failed intervening snapshots are not recovery points. Backups exclude worlds.
+## Preservation and next action
 
-Inherited language work remains unstaged and separate from implementation commits.
-One primary worktree and the original three stashes are retained. Hash comparison
-verified 2,228 pre-existing files unchanged outside the explicit change list.
-No push, PR, jar installation, original-world write or machine security change.
+Started at **eec1766**, empty index, 50 inherited modified paths and two inherited
+untracked files. Verified backup:
+`outputs/overnight-backups/20261017-172432-201-1c7c6930` (6,870 hashed files,
+COMPLETE.json, exit 0). Assignment-only staging keeps inherited language work
+separate. Original worktree and three stashes retained; no push, PR, installation,
+original-world writes or destructive Git operation.
 
-## Manual evidence and next action
+Next implementation action: settle the birth calculation, then implement its
+once-only persisted award and focused creation tests before another Full pass.
+Meanwhile [14 blank gameplay questions](../testing/PLAYTEST_LATEST.md) exercise
+the implemented foundation efficiently on disposable profiles/copies. Historical
+11/2/2 feedback and the g14 stabilization checklist are preserved in
+[history](../testing/PLAYTEST_HISTORY.md). Patrol, rank navigation and commissions
+were reported working previously; they still require acceptance on this g15 jar.
 
-Latest user summary: **11 passed / 2 failed / 2 untested**; patrol behavior appears
-successful, rank navigation/normal commissions and Dorwinion recruitment are working.
-Runtime hash, environment and individual answer sheet were not supplied. Preserve
-that observation separately from this new build in [history](../testing/PLAYTEST_HISTORY.md)
-and [the summary archive](../testing/archive/20261016-service-g14-second-feedback-summary.md).
-The earlier 4/1/9 session remains historical evidence.
-
-**Next action:** follow [the 14-question latest checklist](../testing/PLAYTEST_LATEST.md)
-on disposable profiles/worlds: recruitment first, one normal Recovery duty, then a
-separate leave/rejoin profile and existing Knight regression/book checks. All new
-answers are blank. [30 optional checks](../testing/PLAYTEST_EXTENDED.md) remain untested.
-Connected-client appearance, natural terrain/pathfinding, generated-world density,
-actual earned promotion and multiplayer acceptance are still pending. The original
-missing item's precise cause and screenshot intersection origin remain unconfirmed.
-The proposed staff-exercise notice and future gameplay backlog are not implemented.
+Phase 2 remains deferred: revised Master pool/letter handoff, new commission rules,
+royal objectives, conquest changes, equipment/crafting and specialty advancements.
+The [prior stabilization report](PROGRESSION_STABILIZATION_REPORT.md) retains earlier
+repair and terrain-investigation evidence.

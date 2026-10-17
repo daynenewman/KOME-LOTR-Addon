@@ -1,5 +1,13 @@
 # Save/load across strategic and integrated state
 
+Progression Phase 1 **cdbc051** migrates old starting keys to Commoner inside
+`KOMEPlayerProgression`, retaining `LegacyStartingRank` and versioning that nested
+foundation. Valid Knight/Lord/Prince ranks, achievements, duties, relationships and
+service recognition retain their existing contracts. Native player allegiance and
+alignment remain separate; no retroactive birth award is made. Disposable NBT
+fixtures verify round trips; actual Minecraft cold-save acceptance remains pending.
+[Migration details and remaining work](../../development/PROGRESSION_PHASE1_REPORT.md).
+
 [Index](../INDEX.md) · [Runtime/state guide](../systems/runtime-state/README.md)
 
 1. Trigger: domain mutations dirty [KOMEWorldData](../../../src/main/java/kome/common/data/KOMEWorldData.java); normal Minecraft `MapStorage` saving calls `writeToNBT`. Server lookup `get` loads/creates `KOME_ServerRules`; server START subsequently invokes `initializeIntegratedWorld`.

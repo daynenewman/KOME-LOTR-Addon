@@ -1,130 +1,109 @@
-# Latest gameplay acceptance - Master access and Recovery
+# Latest gameplay acceptance - Commoner and allegiance foundation
 
-Prepared 2026-10-17 after book checkpoint `be12f0f`, Recovery `cd07aef` and Master access `1ca850d`.
-Final tested source: **39f19a9** plus preserved uncommitted language recovery and
-its combat-lifecycle test; HEAD alone does not reproduce the jar.
-Jar: `build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar` (18,639,829 bytes).
-SHA-256: `64a9d95c8b89a376d899c0fb77b39e2cc11b7a5598630dbccb2b02d5d66b7dd3`.
-Built, not installed. Match this exact hash when preparing client/server testing.
+Prepared 2026-10-17. **Partial Phase 1 checkpoint cdbc051**, plus preserved inherited
+language edits and its combat-lifecycle test; HEAD alone is not the jar input.
+Jar: `build/libs/KOME-LOTR-Addon-1.0.11-commoner-g15.jar` (18,640,038 bytes).
+SHA-256: `16d41e488869c68fa3ef1b14f21feb9f36b19ebe1823a0a6eb2b3015afb8992f`.
+Built, not installed. Use matching g15 client/server artifacts.
 Minecraft 1.7.10, Forge 10.13.4.1614, Java 8, LOTR v36.15,
-geckolib-unofficial-1.7.10-1.0.4; addon 1.0.10-service-g14 on matching client/server.
-Full `test build reobfJar`: **4,169 passed, five skipped**, no failures/errors.
-No Minecraft acceptance is inferred from automated results.
-[Report](../development/PROGRESSION_STABILIZATION_REPORT.md) / [history](PLAYTEST_HISTORY.md).
+geckolib-unofficial-1.7.10-1.0.4. Full test/build/reobfuscation: 4,174 pass,
+five skipped, zero failures/errors. These are automated results only.
+[Report](../development/PROGRESSION_PHASE1_REPORT.md) / [history](PLAYTEST_HISTORY.md).
 
 **Tester / play date:**
 **Installed jar/hash:**
-**Disposable world/copy, faction, NPC names:**
+**Disposable world/copies, faction, NPC names:**
 **Singleplayer/dedicated, player count, operator status:**
 
-Use disposable profiles/worlds. Bold only Yes or No in Result; leave unavailable
-setups unselected and explain in Notes. Record exact failed steps and messages.
-Use a pledged Serf in faction territory. Native trade/alignment rules still apply.
-Ordinary combat soldiers, Fangorn and Half-troll Master roles are unsupported.
-Use the duty the Master assigns normally; no staff-forced duty counts as earned service.
+Use one fresh unaffiliated character in a disposable world for A/B/D. Pledge later
+using normal native rules; choosing a birth faction is not required for these tests.
+Rohan or Dorwinion offers a shared setup. Use a living adult supported civilian
+in its own faction territory with native trade/friendliness eligibility.
+For C, use separate disposable copies of actual g14 saves and record the old rank,
+Master/duty and higher-rank state before opening the copies with g15. Do not use
+valuable originals. Missing profiles/duties remain untested with a note.
+For E reuse the copied Knight profile and its current Liege.
 
-## A - Recruitment (one faction/profile, then optional alternate factions)
+Bold only Yes or No in each Result. No new +100 birth bonus is implemented in
+this checkpoint, so no question below assumes that pending behavior. Genuine
+earned progression and staff exercises must be recorded separately.
 
-### R01 - Orc or Uruk trader
-A living adult, friendly, trade-eligible same-faction civilian trader with a service
-indicator has a usable Quest interaction that opens the service offer.
+## A - One new character, then native pledge
+
+### C01 - Initial standing
+After finishing creation with no birth faction, does the progression book show Commoner?
 **Result:** Yes / No
 **Notes:**
 
-### R02 - Elf smith
-A friendly, trade-eligible same-faction Elf smith with a service offer has a usable
-Quest interaction alongside the ordinary native controls.
+### C02 - Pledge does not promote
+After a normal native faction pledge, does the character remain Commoner?
 **Result:** Yes / No
 **Notes:**
 
-### R03 - Native resident and later spawn
-Supported same-faction civilians at a native home and later-spawned supported
-civilians use the same Master admission rules in faction territory.
-**Result:** Yes / No
-**Notes:** Record faction, occupation and origins; unavailable origins remain untested.
-
-### R04 - Dorwinion regression
-Accepting a valid Dorwinion Master offer still establishes service and permits a normal duty.
+### C03 - Reload
+After saving, quitting and rejoining, is that pledge retained with Commoner standing?
 **Result:** Yes / No
 **Notes:**
 
-## B - Recovery (stay with one Master until R09)
+## B - Stay with one supported Master
 
-For R05-R08, wait for a normal Property Recovery duty. Leave these untested if another
-duty is assigned. Show Me marks an approximate search area; search within 40 blocks.
-
-### R05 - Physical item
-The assigned Recovery item exists on accessible ground within the marked search area.
+### C04 - Native service offer
+Can the pledged Commoner accept a valid civilian's Quest offer and enter Master service?
 **Result:** Yes / No
-**Notes:** Describe terrain, item and map location if missing.
+**Notes:** Record faction, occupation and natural/later-spawned origin.
 
-### R06 - Full inventory
-With a full inventory, touching the item leaves the search objective active until the
-item actually enters your inventory after you make room.
+### C05 - Ordinary assignment
+Can that Master assign a normal duty that appears in the book?
 **Result:** Yes / No
-**Notes:**
+**Notes:** Record the duty; do not force it with staff commands.
 
-### R07 - Reload
-Saving/reloading during the search preserves the duty and its single assigned item.
+### C06 - Service is distinct from rank
+After reporting the first ordinary duty while below three promotion credits, does the player remain Commoner?
 **Result:** Yes / No
-**Notes:**
+**Notes:** This does not test a forced or genuine third-duty promotion.
 
-### R08 - Correct handover
-Holding the recovered item and returning to its issuing Master completes the duty once.
+## C - Existing-save copies
+
+### C07 - Starting-rank migration
+Does a copied former Serf save now display Commoner after loading and another save/reload?
 **Result:** Yes / No
-**Notes:**
+**Notes:** A former Wanderer copy may also be checked; record which was available.
 
-### R09 - Leave during Recovery
-On a separate disposable Serf profile with unfinished Recovery, leaving Master service
-removes that old duty before you enter another Master's service.
+### C08 - Existing Master duty
+Is the copied character's pre-existing active duty still assigned to its original Master?
 **Result:** Yes / No
-**Notes:** Use the Ranks-page Leave Master service control; do not erase the world.
+**Notes:** Compare the recorded Master and duty; unavailable active duties remain untested.
 
-## C - Relationship persistence
-
-### R10 - New service survives reload
-After R09, joining another eligible Master and reloading does not restore the old Recovery duty.
+### C09 - Earned higher standing
+Does an existing Knight, Lord or Prince retain its earned rank after loading and save/reload?
 **Result:** Yes / No
-**Notes:**
+**Notes:** Record every rank actually checked; do not imply unavailable ranks passed.
 
-## D - Protected Knight regressions (separate Knight profile)
+## D - Book and map, reusing the above characters
 
-Use an already-earned disposable Knight with a current Liege. For an operator-only
-exercise profile, pledge normally, target a living adult unhired same-faction native
-Lord/Prince commander within eight blocks, and run `/kome progression relationship force knight`.
-This changes the disposable character and proves no earned promotion. Stand near the
-current Liege; `/kome progression commission start protect_liege 1` prepares a staff
-exercise, then accept through Quest. Genuine active work is protected: finish it or
-use another profile. `/kome progression commission reset` and then `end` clean staff
-work only. Use a non-peaceful difficulty and enough open ground for four followers.
-Run L11 on an earned profile outside the staff testing session. Exercise outcomes do
-not prove earned progression. [Optional setup details](PLAYTEST_EXTENDED.md).
-
-### F01 - Patrol stability
-An accepted protection exercise keeps its prepared patrol soldiers present without repeated spawning/disappearing.
+### C10 - Clear rank ladder
+Does Service & Rank show Commoner -> Knight -> Lord -> Prince with the current canonical rank clearly identified?
 **Result:** Yes / No
-**Notes:**
+**Notes:** Check available Commoner and higher-rank pages; King is not a ladder rank.
 
-### L11 - Normal commission assignment
-The current Liege's Quest interaction still issues one normal saved commission.
+### C11 - Scroll and controls
+With a long Master/Liege name, can you scroll through assignment, requirements and privileges without text covering controls or borders?
 **Result:** Yes / No
-**Notes:**
+**Notes:** Check top, middle and bottom positions, navigation and a privilege tooltip.
 
-## E - Book readability (reuse the Serf and Knight profiles above)
-
-### B01 - Clear current work
-At Serf and Knight standing, the Ranks / Service & Rank page shows one current
-objective, separate promotion requirements and privileges, without repeating a faction summary.
+### C12 - Show Me
+Does Show Me still focus the current duty's relevant Master or objective on the map?
 **Result:** Yes / No
-**Notes:** Check idle service and an active duty/commission; unavailable states remain untested.
+**Notes:** For Recovery, the marker is approximate; record the duty tested.
 
-### B02 - Scroll, names and controls
-With a long NPC name/objective, scrolling to the top, middle and bottom keeps text
-inside the parchment content area and clear of Show Me / Leave service controls.
+## E - Existing Knight regression, same copied Knight and Liege
+
+### C13 - Patrol stability
+If a normal field-command patrol is assigned, do its soldiers remain present and follow/wait normally?
 **Result:** Yes / No
-**Notes:** Check privilege tooltips, tabs and Show Me still respond; include GUI scale if a problem appears.
+**Notes:** Leave untested if a different commission is assigned; do not force a patrol.
 
-## Optional deeper coverage
-
-[Extended checks](PLAYTEST_EXTENDED.md) retain navigation, Show Me, promotion,
-persistence, multiplayer and other mission coverage; unavailable setups are untested.
+### C14 - Normal commission reporting
+Can you complete and report a normally assigned Knight commission to the current Liege?
+**Result:** Yes / No
+**Notes:** Record type and visible completion; this is not proof of the deferred redesign.

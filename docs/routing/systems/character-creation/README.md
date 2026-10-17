@@ -7,16 +7,23 @@ Owns the integrated Character Creation stage flow, starting faction/location, ra
 Pass 3: `StartingFactionApplication.tryApply` calls
 `KOMECanonicalRankService.recognizePledge` only after the native pledge is confirmed.
 A cultural/race selection or starting waypoint alone grants no standing. The
-unaffiliated choice remains Wanderer. Login/late native pledge reconciliation
+unaffiliated choice and pledged starting characters remain Commoner. Login/late native pledge reconciliation
 belongs to the [progression route](../progression/README.md), and never creates a
 pledge or demotes an existing higher rank. Creation-time recognition is idempotent.
 
 Pass 2 reads existing persisted `startingWaypoint` plus
-`startingWaypointApplied` for Serf-or-higher return eligibility. Character
+`startingWaypointApplied` for Commoner-or-higher return eligibility. Character
 creation selection/application is unchanged; missing starts (including native
 Wanderer creation without a faction waypoint) receive no invented destination.
 The [waypoint route](../waypoints/README.md) owns request/final native travel
 checks. No second saved start or rank ledger is created.
+
+Phase 1 **cdbc051** changes rank recognition only. Starting faction finalization
+still raises alignment to the native pledge minimum and respects the existing
+automatic-allegiance option. The proposed once-only +100 birth award is not yet
+implemented: replace-versus-add calculation is pending. Existing applied/complete
+flags and recreation guards remain; old characters receive no new retroactive
+award. See [decision and remaining tests](../../../development/PROGRESSION_PHASE1_REPORT.md).
 
 October 11: `KOMEElvenFootGlow` additionally recognizes the native Elf NPC
 hierarchy and excludes Tormented Elves; players still use synchronized completed

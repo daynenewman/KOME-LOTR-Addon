@@ -1,5 +1,12 @@
 # Runtime, persistence, configuration, and diagnostics
 
+Phase 1 **cdbc051** adds a nested progression migration: `wanderer`/`serf` read as
+`commoner`, with `RankFoundationVersion=1` and original `LegacyStartingRank` saved
+additively. Higher rank keys, service/history NBT and native alignment/pledge storage
+are preserved. No root-schema bump or birth award is introduced. Matching wire
+identity is now g15; earlier g14 notes are historical. See
+[migration fixtures and evidence](../../../development/PROGRESSION_PHASE1_REPORT.md).
+
 [Index](../../INDEX.md) · [Save/load flow](../../flows/save-load.md)
 
 Owns addon startup, server lifecycle, canonical strategic storage, validated configuration, and administrative diagnostics. Domain services own their rules; this guide locates shared infrastructure.

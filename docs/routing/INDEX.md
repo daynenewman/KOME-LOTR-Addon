@@ -1,5 +1,12 @@
 # KOME task routing
 
+Latest progression foundation: [Phase 1 checkpoint](../development/PROGRESSION_PHASE1_REPORT.md)
+uses Commoner -> Knight -> Lord -> Prince. Pledging never promotes. Legacy starting
+keys migrate without erasing earned progress; matching artifacts are
+`1.0.11-commoner-g15`. Earlier Pass 2/3/g14 sections below are historical where they
+describe pledge-to-Serf or starting-rank permissions. Birth +100 remains pending
+its calculation decision; Phase 1 and Minecraft acceptance are not complete.
+
 1. Pick the closest symptom below; read that guide and the linked flow if applicable.
 2. Inspect the named entry point and its tests in your checkout. Follow related guides across authority, storage, and presentation boundaries.
 3. Search beyond the map if callers, symptoms, or current code disagree. Update affected routes with behavior changes; this is a navigation aid, not an exhaustive audit.

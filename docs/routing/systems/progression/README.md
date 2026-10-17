@@ -1,5 +1,25 @@
 # Progression, rank, NPC relationships, and quests
 
+## Phase 1 Commoner foundation - October 17
+
+Checkpoint **cdbc051** separates native allegiance from rank. Active ranks are
+Commoner -> Knight -> Lord -> Prince; King remains an office. Pledge observation
+records historical allegiance without promotion. Eligible Commoners retain normal
+Master service; later service mechanics await their approved phases. Book rank
+names/ladder are canonical, while higher identity titles retain faction flavor.
+`KOMEPlayerProgression` reads `wanderer`/`serf` as `commoner`, saves additive
+`RankFoundationVersion`/`LegacyStartingRank`, and retains valid higher ranks,
+relationships, duties, achievements and service recognition. Missing progression
+records still fail closed for abilities. New Build submissions and verified-start
+return use Commoner; Knight/Lord/Crown authority remains separate.
+
+Matching artifacts: `1.0.11-commoner-g15`; g14 is rejected because its rank decoder
+cannot read Commoner. Packet IDs/layouts are retained. Birth bonus implementation
+is pending its calculation decision; no retroactive award is granted. See
+[scope and migration evidence](../../../development/PROGRESSION_PHASE1_REPORT.md),
+[foundation tests](../../../../src/test/java/kome/common/data/KOMECommonerFoundationTest.java)
+and [pending Minecraft checklist](../../../testing/PLAYTEST_LATEST.md).
+
 ## October 17 stabilization
 
 Master-menu access is checkpointed at **1ca850d**; Recovery/relationship reliability
@@ -48,8 +68,8 @@ Owns canonical rank and permission unlocks, NPC role/relationship authority, Ser
 Pass 3 (2026-10-14) supersedes the historical trial/promotion paths below.
 [Implementation and evidence](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
 `KOMECanonicalRankService.recognizePledge` reads committed native allegiance;
-creation, the native setter bridge, login and tick observation reconcile Wanderer
-to Serf once. Master selection requires Serf and an ordinary native civilian
+creation, the native setter bridge, login and tick observation preserve rank.
+Master selection requires Commoner and an ordinary native civilian
 (including farmer-only hire traders) in native faction territory. No seat is
 required for ordinary service. Three distinct reported, non-forced duties and
 150 alignment earn Knight from the current Master. Three distinct current-faction
@@ -87,7 +107,7 @@ Lord-to-Prince checklist remains explicitly labelled legacy/pending redesign;
 existing Lord/Prince ranks and higher relationships remain compatible.
 
 The existing Rank page, tracker and map point final reports at the current superior.
-Pass 2 privileges remain derived from canonical rank, with g14 matching artifacts
+Pass 2 privileges remain derived from canonical rank, now with g15 matching artifacts
 and unchanged strategic resource/office checks. Headless authority, save/load,
 native bytecode and layout tests are distinct from pending Minecraft acceptance.
 
@@ -97,7 +117,7 @@ native icon keys and dependencies. `KOMEProgressionAbilityPolicy` reads current
 canonical rank without creating records or storing unlock flags. Read-only
 outcomes distinguish rank locks, unavailable context and action-specific checks.
 Campaign hiring and the book share `recruitmentAuthorityDenial`. New Build
-intents require Serf; new Join Battle entry Knight; new company transfers and
+intents require Commoner; new Join Battle entry Knight; new company transfers and
 command delegation Lord. Existing legal company control and registered battle
 participation are maintained after correction. The g9 projection carries bounded
 ability rows in packet 9, with existing connection/revision/dimension fences.
