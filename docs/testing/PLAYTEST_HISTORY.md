@@ -1,5 +1,11 @@
 # Manual gameplay acceptance history
 
+Latest update (2026-10-17): the user reports **11 passed / 2 failed / 2 untested**
+and successful patrol behavior; individual answers/runtime identity are unavailable.
+That summary is archived below. The new stabilization build starts with **14
+essential and 30 optional checks untested**. Earlier totals below describe their
+own dated builds; they are not the current acceptance inventory.
+
 Only player-observed results belong in the manual counts. Keep previous attempts,
 failures and later retests. Automated JUnit/Gradle/native-fixture results are
 separate evidence and must not turn untested items into passes.
@@ -63,4 +69,11 @@ For each session record:
 When actual results arrive, replace the pending total summary with a clearly
 dated per-build summary derived from those attempts; preserve the original
 prepared rows and all failures. A later automated pass is not a successful manual
-retest. A new implementation gets its own pending inventory and checklist identity.
+  retest. A new implementation gets its own pending inventory and checklist identity.
+
+## October 16 summary and October 17 stabilization
+
+| Build / source | Session | Manual date | Passed | Failed | Untested | Evidence / next action |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| Runtime hash/source not supplied; user describes repaired g14 gameplay | Second owner summary; patrol appears successful; recruitment/Recovery/UI/structure symptoms in approved brief | Actual date unavailable; received 2026-10-16 | 11 | 2 | 2 | [Preserved summary](archive/20261016-service-g14-second-feedback-summary.md). No individual answers or screenshot origin inferred; no new per-ID retest attributed. |
+| 1.0.10-service-g14; executable `39f19a9` plus inherited language recovery; jar SHA starts `64a9d95c8b89` | Master access, Recovery, relationship changes, book polish; [14 essential](PLAYTEST_LATEST.md) and [30 optional](PLAYTEST_EXTENDED.md) | Awaiting manual testing; prepared 2026-10-17 | 0 | 0 | 44 | [Implementation/evidence](../development/PROGRESSION_STABILIZATION_REPORT.md). Full 4,169 pass / five skip is automated only; follow recruitment then one normal Recovery, separate leave/rejoin profile, Knight/book regressions. |

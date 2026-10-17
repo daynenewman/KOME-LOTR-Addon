@@ -1,5 +1,13 @@
 # Client presentation and networking
 
+October 17 book polish (**be12f0f**) routes Knight presentation through the existing
+measured rank-content path. Current work, promotion and privileges share scissoring,
+scroll extent and row hit testing; duplicate Knight summary/faction text is omitted.
+The ladder highlights current standing once, headings wrap, and Show Me alone also
+reserves footer space. No packet shape or authority changes. Long-text measurement,
+scroll/footer/input regressions use `KOMEProgressionBookLayoutTest`; actual Minecraft
+appearance remains pending in [the latest checklist](../../../testing/PLAYTEST_LATEST.md).
+
 The first-feedback repair (**f2df9ec**) changes only the Master menu's displayed
 ordinary escort/recovery/defense instructions in
 [KOMEPacketSerfdomMasterAction](../../../../src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java).

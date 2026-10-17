@@ -1,6 +1,33 @@
 # Progression, rank, NPC relationships, and quests
 
+## October 17 stabilization
+
+Master-menu access is checkpointed at **1ca850d**; Recovery/relationship reliability
+at **cd07aef**. Ordinary trader and smith menus expose the existing Quest action;
+offer discovery and acceptance share the native trade/friendliness validator.
+`KOMESerfKnightRecoveryService` confirms inventory possession, validates the saved
+issuer and uses clear supported 3x3 sites. Its approximate map marker explains the
+40-block search area. `KOMESerfKnightProgression` retires ordinary objectives on
+Master departure/death, saves per-duty issuers and archives completed departed
+service separately from new service. Existing NBT keys/IDs and death credit rules
+remain; the new history fields are additive. No switching cooldown is introduced.
+See [the stabilization report](../../../development/PROGRESSION_STABILIZATION_REPORT.md)
+and [physical/relationship regressions](../../../../src/test/java/kome/common/data/KOMEMasterRecoveryReliabilityTest.java).
+Automated verification is separate from pending Minecraft acceptance.
+
 [Index](../../INDEX.md)
+
+## Overnight stabilization — October 16
+
+Master discovery now shares `KOMESerfdomMasterService.validateMasterSelection` with
+acceptance. `KOMEProgressionEligibility` and the existing eligibility packet expose
+Master offers to `KOMELiegeQuestButtonOverlay` on native trader/smith/farmer screens.
+`KOMEPacketRelationshipAction` opens a validated prospective Master offer; the
+existing UUID-bound acceptance packet establishes the relationship. Native trading
+requirements apply to indicators as well as acceptance. No new seat prerequisite.
+See [session report](../../../development/PROGRESSION_STABILIZATION_REPORT.md) and
+[native-role regression coverage](../../../../src/test/java/kome/common/data/KOMEMasterRecruitmentCompatibilityTest.java).
+Automated fixtures are separate from pending Minecraft acceptance.
 
 ## First gameplay feedback repair — 2026-10-16
 

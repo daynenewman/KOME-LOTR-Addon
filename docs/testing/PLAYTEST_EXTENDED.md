@@ -1,17 +1,13 @@
 # Optional gameplay acceptance sessions
 
-Updated **2026-10-16**; all optional results **untested**. Repair source
-`f2df9ecd3bd121ad6c865450771ffc7fdcd3fe5a` (patrol `547553a`) plus the inherited
-uncommitted language recovery; based on gameplay Pass 5 `4b9b92c` over Pass 4
-`243aa4f`. Version **1.0.10-service-g14**. [Repair and duty findings](../development/FIRST_GAMEPLAY_REPAIR_REPORT.md).
-Use the exact jar/hash and Minecraft **1.7.10 / Java 8 / Forge 10.13.4.1614 /
-LOTR v36.15 / geckolib-unofficial-1.7.10-1.0.4** environment recorded in
-[the essential checklist](PLAYTEST_LATEST.md). Separate clients/servers must match.
-Jar: `build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar`; SHA-256
-`7c29222a8edc4571547f4e519dcfee660a51d733e199a6926100eacd6710af66`.
-Final Full verification: 4,152 passed, five skips, zero failures/errors, including
-build/reobfuscation. These are automated results, not manual acceptance. Original
-essential feedback is archived in history; no optional answers were returned.
+Updated **2026-10-17** for stabilization source **39f19a9** plus preserved inherited
+language recovery. All 30 optional answers remain untested. Earlier build details
+are retained in [history](PLAYTEST_HISTORY.md) and [the prior repair report](../development/FIRST_GAMEPLAY_REPAIR_REPORT.md).
+Use the exact jar/hash, native dependencies and environment in
+[the latest essential checklist](PLAYTEST_LATEST.md). New jar SHA-256:
+`64a9d95c8b89a376d899c0fb77b39e2cc11b7a5598630dbccb2b02d5d66b7dd3`.
+Full verification: **4,169 passed, five skipped**, zero failures/errors; build and
+reobfuscation passed. This is automated evidence, not manual acceptance.
 
 Run only the sessions relevant to your time and available setup. This is a menu
 of optional coverage, not a requirement to perform all 30 tests after every pass.
