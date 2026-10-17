@@ -157,7 +157,7 @@ public class KOMEVisualLocationServiceTest {
         for (KOMEVisualMarker marker : markers) if (marker.role == KOMEVisualMarker.Role.RECOVERY_SEARCH) search = marker;
         assertNotNull(search);
         assertEquals("Recover the lost item", search.title);
-        assertEquals("", search.subtitle);
+        assertEquals("Search within 40 blocks", search.subtitle);
         double dx = search.x - 160.0D, dz = search.z - 220.0D;
         double distance = Math.sqrt(dx * dx + dz * dz);
         assertTrue(distance >= 23.9D && distance <= 39.1D);
