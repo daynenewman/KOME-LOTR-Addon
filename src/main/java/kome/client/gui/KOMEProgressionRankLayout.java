@@ -9,6 +9,12 @@ final class KOMEProgressionRankLayout {
     static final int CHILD_HEIGHT = 20;
 
     private KOMEProgressionRankLayout() {}
+    static int standingHeight(String current,String faction) {
+        for(String title:kome.common.data.KOMEFactionProgressionTitles.ladder(faction))if(title.equals(current))return 0;
+        return 14;
+    }
+    static int headingHeight(int lines) { return 4+10*Math.max(0,lines); }
+    static int activityHeight(int titleLines,int objectiveLines) { return 27+10*(titleLines+objectiveLines); }
     static int abilityHeight(List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> rows) {
         boolean current=false,next=false;
         for(kome.common.data.KOMEProgressionAbilityPolicy.Outcome row:rows){if(row.rankUnlocked)current=true;else next=true;}

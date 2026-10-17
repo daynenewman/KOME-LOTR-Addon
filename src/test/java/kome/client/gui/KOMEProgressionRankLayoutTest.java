@@ -7,6 +7,12 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEProgressionRankLayoutTest {
+    @Test public void ladderStandingDoesNotConsumeAnotherBodyRowAtAnyFactionRank() {
+        for(String faction:new String[]{"rohan","mordor","isengard","highelves","woodelf","dorwinion",""})
+            for(String title:kome.common.data.KOMEFactionProgressionTitles.ladder(faction))
+                assertEquals(title,0,KOMEProgressionRankLayout.standingHeight(title,faction));
+        assertEquals(14,KOMEProgressionRankLayout.standingHeight("Wanderer","rohan"));
+    }
     @Test public void collapsedDutiesUseOneTopLevelRowAndExpandedDutiesShiftFollowingRows() {
         KOMEProgressionRankSummary.Requirement duties=duties();
         KOMEProgressionRankSummary.Requirement trial=new KOMEProgressionRankSummary.Requirement(

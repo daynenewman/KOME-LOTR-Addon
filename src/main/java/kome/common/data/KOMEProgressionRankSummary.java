@@ -91,8 +91,9 @@ public final class KOMEProgressionRankSummary {
             requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,150,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=150));
             heading="Master service";title=state.getSerfdomMaster().isSet()?state.getSerfdomMaster().displayName:"Seek a Master";
             String active=state.getActiveAssignmentKind();
-            objective=!state.getSerfdomMaster().isSet()?"Enter service with a Master. Three duties earn Knight standing.":credits>=3?"Report to your Master. Your service is complete; Knight standing requires 150 faction alignment.":
-                "Speak with your ordinary same-faction Master for your next duty. Three reported duties and 150 faction alignment earn Knight standing here.";
+            objective=!state.getSerfdomMaster().isSet()?"Find a friendly civilian in your faction's territory.":credits>=3?
+                (pledgedFactionAlignment>=150?"Service complete; report to your Master.":"Improve your faction alignment, then report to your Master."):
+                "Ask your Master for a duty.";
             if("provisioning".equals(active)){heading="Current Duty";title="Provisions";objective=provisioningObjective(state);}
             else if("profession".equals(active)){heading="Current Duty";title="Trade Assistance";objective=professionObjective(state);}
             else if("courier".equals(active)){heading="Current Duty";title="Courier Service";objective=courierObjective(state);}
@@ -108,7 +109,7 @@ public final class KOMEProgressionRankSummary {
             KOMEServiceRecognition.Record introduction=null;
             for(KOMEServiceRecognition.Record r:progression.getServiceRecognition().records())if(r.conferred==rank&&KOMEProgressionRelationshipLifecycle.sameFaction(r.faction,factionKey))introduction=r;
             title=lord.isSet()?lord.displayName:introduction==null?"Regional service":introduction.invalidated?"Recommendation expired":introduction.redeemed?"Introduction used":"Your recommendation";
-            objective=!lord.isSet()?(introduction==null?"Seek advice about sponsored regional service; no earned recommendation is recorded.":introduction.invalidated?"Your former faction's letter remains a keepsake. It cannot sponsor service under a new pledge.":introduction.redeemed?"Your introduction has been used. Saved service survives the legitimate loss of a Liege.":"When ready, take your recommendation to a Lord or Prince at a verified native regional seat. Recover a lost copy with /progression recommendation."):credits>=3?"Report to your Liege. Your service is complete; Lord standing requires 2000 faction alignment.":"Three commissions earn Lord standing from this Liege on their final report. Required faction alignment: 2000.";
+            objective=!lord.isSet()?(introduction==null?"Seek advice about sponsored regional service; no earned recommendation is recorded.":introduction.invalidated?"Your former faction's letter remains a keepsake. It cannot sponsor service under a new pledge.":introduction.redeemed?"Your introduction has been used. Saved service survives the legitimate loss of a Liege.":"When ready, take your recommendation to a Lord or Prince at a verified native regional seat. Recover a lost copy with /progression recommendation."):credits>=3?(pledgedFactionAlignment>=2000?"Report to your Liege for promotion.":"Improve your faction alignment, then report to your Liege."):"Ask your Liege for a commission.";
             KOMEKnightCommission a=progression.getKnightService().assignment();KOMELordshipTrial invasion=progression.getLordship().assignment();
             if(a!=null){heading="Current commission";title=KOMEKnightCommissionPresentation.title(a.type);objective=KOMEKnightCommissionPresentation.details(a);}
             else if(invasion!=null&&invasion.ordinaryService){heading="Current commission";title="Repel an Invasion";objective=KOMELordshipTrialPresentation.objective(invasion);}
