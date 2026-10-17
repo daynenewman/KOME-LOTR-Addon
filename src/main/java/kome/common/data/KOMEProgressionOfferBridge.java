@@ -162,7 +162,7 @@ public final class KOMEProgressionOfferBridge {
         LOTRMiniQuest current = npc.questInfo.getOfferFor(player);
         boolean ownsQuest=KOMELiegeProgressionInteraction.ownsQuest(player,npc);
         KOMEProgressionEligibility result=KOMEProgressionEligibility.evaluate(player,npc);eligible=result.enabled;
-        boolean passiveOffer = ownsQuest||eligible && isStandingTrialOffer(current);
+        boolean passiveOffer = ownsQuest||eligible && (isStandingTrialOffer(current)||current instanceof KOMESerfdomOfferQuest);
         boolean offering = current != null && (isStandingTrialOffer(current)
             ? eligible : npc.questInfo.canOfferQuestsTo(player));
         int color = current == null ? 0xFFFFFF : current.getQuestColor();
@@ -220,7 +220,7 @@ public final class KOMEProgressionOfferBridge {
         if (!(player instanceof EntityPlayerMP) || !canOffer(info, player)) return false;
         LOTREntityNPC npc = npc(info);
         LOTRMiniQuest offer = info.getOfferFor(player);
-        if (npc == null || offer == null) return false;
+        if (npc == null || offer == null || player.worldObj!=npc.worldObj || player.getDistanceSqToEntity(npc)>64.0D) return false;
         return sendOffer(info, (EntityPlayerMP) player, npc, offer);
     }
 
@@ -391,11 +391,9 @@ public final class KOMEProgressionOfferBridge {
             && KOMESerfKnightService.canSelectReplacement(progression.getSerfKnightProgression(), KOMESerfKnightService.calendarDayNow());
     }
     private static boolean eligibleNpc(EntityPlayer player, LOTREntityNPC npc) {
-        if (npc == null || npc.worldObj!=player.worldObj||!npc.isEntityAlive() || npc.isChild() || !KOMESerfdomMasterService.ordinaryMaster(npc)) return false;
-        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        return pledge != null && pledge == npc.getFaction()
-            &&KOMEProgressionServiceLocation.factionTerritory(npc)
-            && KOMEProgressionNpcRankService.effectiveRank(KOMEWorldData.get(npc.worldObj), npc) == KOMEProgressionNpcRank.UNRANKED;
+        return player instanceof EntityPlayerMP && npc != null
+            && KOMESerfdomMasterService.validateMasterSelection((EntityPlayerMP)player,
+                KOMEWorldData.get(player.worldObj),npc,false).success;
     }
     private static String storyFor(LOTREntityNPC npc) {
         String type = npc.getClass().getSimpleName().toLowerCase();

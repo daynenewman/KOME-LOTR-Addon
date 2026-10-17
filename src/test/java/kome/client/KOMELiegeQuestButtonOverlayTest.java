@@ -14,6 +14,26 @@ import static org.junit.Assert.*;
 public class KOMELiegeQuestButtonOverlayTest {
     private static final int QUEST_BUTTON_ID = 26020;
 
+    @Test public void traderAndSmithQuestUsesSpareRowAndPreservesNativeControls() {
+        for(boolean smith:new boolean[]{false,true}) {
+            lotr.client.gui.LOTRGuiTradeInteract gui=new lotr.client.gui.LOTRGuiTradeInteract(null);
+            gui.width=320;gui.height=240;int y=gui.height/5*3;
+            List<GuiButton> buttons=new ArrayList<GuiButton>();
+            buttons.add(new GuiButton(0,smith?60:95,y,60,20,"Talk"));
+            buttons.add(new GuiButton(1,smith?130:165,y,60,20,"Trade"));
+            buttons.add(new GuiButton(2,95,y+25,60,20,"Exchange"));
+            if(smith)buttons.add(new GuiButton(3,200,y,60,20,"Smith"));
+            List<GuiButton> nativeButtons=new ArrayList<GuiButton>(buttons);
+            KOMELiegeQuestButtonOverlay.syncQuestButton(gui,buttons,true);
+            KOMELiegeQuestButtonOverlay.syncQuestButton(gui,buttons,true);
+            assertEquals(nativeButtons.size()+1,buttons.size());GuiButton quest=find(buttons,QUEST_BUTTON_ID);
+            for(GuiButton nativeButton:nativeButtons)assertTrue(quest.xPosition>=nativeButton.xPosition+nativeButton.width
+                ||quest.xPosition+quest.width<=nativeButton.xPosition||quest.yPosition>=nativeButton.yPosition+nativeButton.height
+                ||quest.yPosition+quest.height<=nativeButton.yPosition);
+            KOMELiegeQuestButtonOverlay.syncQuestButton(gui,buttons,false);assertEquals(nativeButtons,buttons);
+        }
+    }
+
     @Test
     public void eligibleNativeOfferGuiGetsQuestAndReopenGetsItAgain() {
         LOTRGuiUnitTradeInteract firstGui = gui();

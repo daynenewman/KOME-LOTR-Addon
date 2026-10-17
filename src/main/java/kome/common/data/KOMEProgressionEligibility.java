@@ -14,7 +14,16 @@ public final class KOMEProgressionEligibility {
         if(player==null||npc==null||player.worldObj==null||player.worldObj.isRemote||npc.worldObj!=player.worldObj)return new KOMEProgressionEligibility(false,false,"");
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());KOMESerfKnightProgression s=p.getSerfKnightProgression();
         KOMEProgressionNpcRank rank=KOMEProgressionNpcRankService.effectiveRank(data,npc);
-        if(rank==KOMEProgressionNpcRank.UNRANKED)return new KOMEProgressionEligibility(false,false,"");
+        if(rank==KOMEProgressionNpcRank.UNRANKED){
+            if(!(player instanceof net.minecraft.entity.player.EntityPlayerMP)||!KOMESerfdomMasterService.ordinaryMaster(npc)
+                    ||p.getCanonicalRank()!=KOMEProgressionRank.SERF||s.getSerfdomMaster().isSet())return new KOMEProgressionEligibility(false,false,"");
+            KOMESerfdomMasterService.Result selection=KOMESerfdomMasterService.validateMasterSelection(
+                (net.minecraft.entity.player.EntityPlayerMP)player,data,npc,false);
+            if(!selection.success)return no(selection.reason);
+            boolean offered=npc.questInfo!=null&&npc.questInfo.getOfferFor(player) instanceof KOMESerfdomOfferQuest
+                &&KOMEProgressionOfferBridge.canOffer(npc.questInfo,player);
+            return offered?new KOMEProgressionEligibility(true,true,""):no("Finish or decline this NPC's current quest before seeking service.");
+        }
         if(!npc.isEntityAlive()||npc.isChild()||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive)return no("This lord cannot receive your service.");
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         if(pledge==null)return no("You must first pledge to a faction.");

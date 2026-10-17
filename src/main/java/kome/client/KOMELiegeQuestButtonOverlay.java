@@ -8,6 +8,7 @@ import kome.common.data.KOMELiegeOfferQuest;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketRelationshipAction;
 import lotr.client.gui.LOTRGuiTradeUnitTradeInteract;
+import lotr.client.gui.LOTRGuiTradeInteract;
 import lotr.client.gui.LOTRGuiUnitTradeInteract;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.quest.LOTRMiniQuest;
@@ -101,6 +102,12 @@ public final class KOMELiegeQuestButtonOverlay {
             hire.width = 60;
             buttons.add(new GuiButton(
                 QUEST_BUTTON_ID, center + 5, y, 60, 20, "Quest"));
+            return;
+        }
+        if (gui instanceof LOTRGuiTradeInteract) {
+            // Use the spare half of the exchange row, including smiths' wider first row.
+            buttons.add(new GuiButton(QUEST_BUTTON_ID, gui.width/2+5,
+                gui.height/5*3+25,60,20,"Quest"));
         }
     }
 
@@ -115,7 +122,8 @@ public final class KOMELiegeQuestButtonOverlay {
 
         KOMEPacketHandler.network.sendToServer(new KOMEPacketRelationshipAction(
             npc.getEntityId(),
-            KOMEPacketRelationshipAction.LIEGE,
+            kome.common.data.KOMESerfdomMasterService.ordinaryMaster(npc)
+                ?KOMEPacketRelationshipAction.MASTER:KOMEPacketRelationshipAction.LIEGE,
             KOMEPacketRelationshipAction.SERVICE));
         // The authoritative action updates this same progression view; geographic status exposes Show Me.
         for(kome.common.data.KOMEVisualMarker marker:KOMEVisualMarkerClientState.markers())
@@ -138,7 +146,7 @@ public final class KOMELiegeQuestButtonOverlay {
 
     private static LOTREntityNPC npc(GuiScreen gui) {
         if (!(gui instanceof LOTRGuiUnitTradeInteract)
-                && !(gui instanceof LOTRGuiTradeUnitTradeInteract)) {
+                && !(gui instanceof LOTRGuiTradeInteract)) {
             return null;
         }
 

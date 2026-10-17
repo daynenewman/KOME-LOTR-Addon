@@ -30,7 +30,10 @@ public class KOMEPacketRelationshipAction implements IMessage {
             KOMESerfKnightProgression s=progression.getSerfKnightProgression();
             boolean exact=m.relationship==MASTER?s.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n)):s.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n));
             boolean prospectiveTrialRequest=m.relationship==LIEGE&&m.action==SERVICE&&KOMEProgressionOfferBridge.canRequestLiegeOfferFrom(p,n);
-            if(!exact&&!prospectiveTrialRequest){p.addChatMessage(new ChatComponentText("That is not your current relationship NPC."));return null;}
+            boolean prospectiveMasterRequest=m.relationship==MASTER&&m.action==SERVICE&&n.questInfo!=null
+                &&n.questInfo.getOfferFor(p) instanceof KOMESerfdomOfferQuest&&KOMEProgressionOfferBridge.canOffer(n.questInfo,p);
+            if(!exact&&!prospectiveTrialRequest&&!prospectiveMasterRequest){p.addChatMessage(new ChatComponentText("That is not your current relationship NPC."));return null;}
+            if(prospectiveMasterRequest){KOMEProgressionOfferBridge.handleInteraction(n.questInfo,p);return null;}
             if(m.action==LEAVE){
                 KOMEProgressionEncounterCleanup.cleanup(p,progression);
                 KOMESerfKnightService.Result result=m.relationship==MASTER?KOMESerfKnightService.leaveSerfdomMaster(s):KOMESerfKnightService.leaveLiege(progression);
