@@ -49,7 +49,7 @@ public class KOMEProgressionCleanupClientTest {
             proxy.acceptProgressionData(packet(id,"prince",100L,0),first.handler);assertEquals(0,queue.pendingTasks());
             FMLNetworkEvent.ClientConnectedToServerEvent second=KOMEAccessFixture.clientConnected();
             proxy.onClientConnect(second);
-            proxy.acceptProgressionData(packet(id,"serf",1L,0),second.handler);queue.drain();assertRank(id,"serf");
+            proxy.acceptProgressionData(packet(id,"commoner",1L,0),second.handler);queue.drain();assertRank(id,"commoner");
             proxy.acceptProgressionData(packet(id,"lord",22L,0),first.handler);assertEquals(0,queue.pendingTasks());
             proxy.acceptProgressionData(packet(id,"lord",2L,0),second.handler);
             proxy.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(world));

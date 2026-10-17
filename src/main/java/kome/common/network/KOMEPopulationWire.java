@@ -12,7 +12,8 @@ public final class KOMEPopulationWire {
     // Rally retains its g11 payloads on 67/68; g12 source-scoped query semantics are preserved.
     // KOM-84 correlations on Join Battle IDs 53-58 and embedded views remain unchanged.
     // Both prior service-g10 and integration-g13 artifacts are incompatible.
-    public static final String VERSION = "1.0.10-service-g14";
+    // g15 adds the canonical Commoner key; g14 readers do not understand it.
+    public static final String VERSION = "1.0.11-commoner-g15";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;

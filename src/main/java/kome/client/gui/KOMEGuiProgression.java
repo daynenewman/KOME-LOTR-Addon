@@ -222,7 +222,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     static String displayNameForGroup(String group, String factionKey) {
         if ("baseline".equals(group)) return "Permissions";
-        if ("wanderer".equals(group)) return "Wanderer";
+        if ("wanderer".equals(group)) return "Origins";
         if ("serf".equals(group)) return KOMEFactionProgressionTitles.title(factionKey, kome.common.data.KOMEProgressionRank.SERF);
         if ("knight".equals(group)) return KOMEFactionProgressionTitles.title(factionKey, kome.common.data.KOMEProgressionRank.KNIGHT);
         if ("lord".equals(group)) return KOMEFactionProgressionTitles.title(factionKey, kome.common.data.KOMEProgressionRank.LORD);

@@ -93,8 +93,8 @@ public class KOMEProgressionTitlesTest {
         KOMEPlayerProgression progression = complete(data, player, "prince_king");
 
         assertEquals(KOMEProgressionRank.WANDERER, progression.getCanonicalRank());
-        assertEquals("Wanderer", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
-        assertEquals("Wanderer", KOMEServerRecordBuilder.getRank(data, player, progression, FACTION));
+        assertEquals("Commoner", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
+        assertEquals("Commoner", KOMEServerRecordBuilder.getRank(data, player, progression, FACTION));
     }
 
     @Test

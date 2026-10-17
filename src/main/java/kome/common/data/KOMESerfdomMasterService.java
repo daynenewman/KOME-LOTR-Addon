@@ -13,7 +13,7 @@ public final class KOMESerfdomMasterService {
     private KOMESerfdomMasterService() { }
     private static Result ok(){return new Result(true,"",false);} private static Result entered(){return new Result(true,"",true);} private static Result reject(String value){return new Result(false,value,false);}
     public static Result validateMasterSelection(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
-        if(playerRank != KOMEProgressionRank.SERF) return reject("Pledge allegiance to attain Serf standing before choosing a Master.");
+        if(playerRank != KOMEProgressionRank.COMMONER) return reject("Only Commoners may enter Master service.");
         if(!validNpc || npcRank != KOMEProgressionNpcRank.UNRANKED) return reject("That NPC is not an eligible Master.");
         if(pledgeKey == null || KOMEProgressionFactionResolver.resolve(pledgeKey)==null || !KOMEProgressionFactionResolver.resolve(pledgeKey).isPlayableAlignmentFaction()) return reject("You must first pledge yourself to this faction.");
         if(npcFactionKey == null || !KOMEProgressionFactionResolver.matches(npcFactionKey,KOMEProgressionFactionResolver.resolve(pledgeKey))) return reject("You have sworn yourself elsewhere.");

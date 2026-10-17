@@ -158,7 +158,7 @@ public final class KOMEFactionTitleClientBridge {
             String title=safe(ownRankTitle);
 
             return title.length()==0
-                ?"Wanderer"
+                ?"Commoner"
                 :title;
         }
 

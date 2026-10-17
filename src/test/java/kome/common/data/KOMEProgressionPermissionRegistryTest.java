@@ -10,7 +10,7 @@ public class KOMEProgressionPermissionRegistryTest {
     @Test public void canonicalRankRatherThanPreviousAchievementGroupControlsTierAccess() {
         KOMEPlayerProgression progression = new KOMEPlayerProgression();
         KOMEProgressionAchievement serf = KOMEProgressionAchievement.forID("serf.quest_seeker");
-        assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, serf));
+        assertTrue(KOMEProgressionPermissionRegistry.canComplete(progression, serf));
         progression.setCanonicalRank(KOMEProgressionRank.SERF);
         assertTrue(KOMEProgressionPermissionRegistry.canComplete(progression, serf));
         assertFalse("Optional Wanderer advancements are not rank authority",

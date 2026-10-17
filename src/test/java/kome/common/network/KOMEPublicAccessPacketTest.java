@@ -354,7 +354,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.10-service-g14"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.11-commoner-g15"));
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
@@ -429,11 +429,11 @@ public class KOMEPublicAccessPacketTest {
             0L, KOMETileTestResources.dimension(), KOMETileTestResources.x(), 64D, KOMETileTestResources.z());
     }
 
-    @Test public void wandererCannotForgeSerfBuildEligibilityOrUseHistoricalFlags() {
-        f.data.getProgression(f.player.id).grant("baseline.grow_population");
+    @Test public void missingProgressionRecordIsDeniedAndCommonerBuildEligibilityNeedsNoHistoricalFlag() {
         assertFalse(tilePacket().canSubmitBuilds);
-        rejectWithoutMutation(validCreation(),"Requires Serf standing.");
-        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
+        rejectWithoutMutation(validCreation(),"Requires Commoner standing.");
+        assertEquals(KOMEProgressionRank.COMMONER,f.data.getProgression(f.player.id).getCanonicalRank());
+        assertFalse(f.data.getProgression(f.player.id).isCompleted(KOMEProgressionAchievement.forID("baseline.grow_population")));
         assertTrue(tilePacket().canSubmitBuilds);
     }
 

@@ -135,7 +135,11 @@ public class KOMEProgressionRankAbilitiesTest {
             assertFalse(row.abilityId.startsWith("baseline."));
         }
         KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.WANDERER);
-        for(Outcome row:KOMEProgressionAbilityPolicy.project(f.data,f.player))assertEquals(KOMEProgressionRank.SERF,Ability.forId(row.abilityId).minimumRank);
+        for(Outcome row:KOMEProgressionAbilityPolicy.project(f.data,f.player)) {
+            KOMEProgressionRank floor=Ability.forId(row.abilityId).minimumRank;
+            assertTrue(floor==KOMEProgressionRank.COMMONER||floor==KOMEProgressionRank.KNIGHT);
+            assertEquals(floor==KOMEProgressionRank.COMMONER,row.rankUnlocked);
+        }
     }
     @Test public void standardEquipmentDoesNotPretendToUnlockExceptionalMaterials() throws Exception {
         KOMEAccessFixture f=new KOMEAccessFixture();f.pledge(LOTRFaction.GONDOR);
@@ -150,18 +154,18 @@ public class KOMEProgressionRankAbilitiesTest {
         assertNull(KOMEWaypointAccessService.originalStartingWaypoint(f.player));
         assertEquals(Availability.UNAVAILABLE,row(f,Ability.START_RETURN).availability);
     }
-    @Test public void startingReturnRequiresExactSavedAppliedWaypointAndRank() throws Exception {
+    @Test public void commonerStartingReturnRequiresExactSavedAppliedWaypoint() throws Exception {
         KOMEAccessFixture f=new KOMEAccessFixture();f.pledge(LOTRFaction.GONDOR);
         PlayerRaceData.setStartingWaypointCodeName(f.player,LOTRWaypoint.MINAS_TIRITH.getCodeName());
         assertNull(KOMEWaypointAccessService.originalStartingWaypoint(f.player));
         PlayerRaceData.setStartingWaypointApplied(f.player,true);
         assertSame(LOTRWaypoint.MINAS_TIRITH,KOMEWaypointAccessService.originalStartingWaypoint(f.player));
         assertFalse(KOMEWaypointAccessService.hasTravelPermission(f.player,LOTRWaypoint.MINAS_TIRITH));
-        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
+        assertEquals(KOMEProgressionRank.COMMONER,f.data.getProgression(f.player.id).getCanonicalRank());
         assertTrue(KOMEWaypointAccessService.hasTravelPermission(f.player,LOTRWaypoint.MINAS_TIRITH));
         assertFalse(KOMEWaypointAccessService.hasTravelPermission(f.player,LOTRWaypoint.EDORAS));
         KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.WANDERER);
-        assertFalse(KOMEWaypointAccessService.hasTravelPermission(f.player,LOTRWaypoint.MINAS_TIRITH));
+        assertTrue(KOMEWaypointAccessService.hasTravelPermission(f.player,LOTRWaypoint.MINAS_TIRITH));
     }
     @Test public void abilityPacketRoundTripCopyAndProtocolFence() {
         KOMEPacketProgressionData source=new KOMEPacketProgressionData("Name",Collections.emptyList());

@@ -24,7 +24,7 @@ public class KOMEPacketProgressionData implements IMessage {
         return this;
     }
     public java.util.UUID playerId = new java.util.UUID(0L, 0L);
-    public String canonicalRankKey = "wanderer";
+    public String canonicalRankKey = "commoner";
     public long revision;
     public int dimension;
     public boolean progressionEnabled = true;

@@ -15,7 +15,7 @@ public class KOMEProgressionUxInteractionTest {
     @Test public void wandererGuidanceIsDerivedAndSurvivesReload()throws Exception {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
             s.p.setCanonicalRank(KOMEProgressionRank.WANDERER);s.state.reset();
-            assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).objective);
+            assertEquals("Serve a Master to earn Knight standing",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).objective);
             s.p.readFromNBT(s.p.writeToNBT());assertTrue(KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).visible);
             KOMEProgressionServiceLocationTest.territory(s.f);assertTrue(KOMECanonicalRankService.recognizePledge(s.f.player,false));assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
             assertFalse(KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).objective.contains("Find a Master"));

@@ -272,7 +272,7 @@ public final class KOMEProgressionOfferBridge {
         EntityPlayerMP mp = (EntityPlayerMP) player;
         KOMEWorldData data = KOMEWorldData.get(mp.worldObj);
         KOMEPlayerProgression progression = data.getProgression(mp.getUniqueID());
-        boolean entered = progression.getCanonicalRank() == KOMEProgressionRank.WANDERER;
+        boolean entered = false; // Accepting service establishes a relationship, not a rank.
         KOMESerfdomMasterService.Result result = KOMESerfdomMasterService.serve(mp, data, npc);
         if (!result.success) {KOMEProgressionNpcSpeech.say(mp,npc,result.reason);return true;}
         info.clearPlayerSpecificOffer(mp);
@@ -386,7 +386,6 @@ public final class KOMEProgressionOfferBridge {
         KOMEWorldData data = KOMEWorldData.get(player.worldObj);
         KOMEPlayerProgression progression = data.getProgression(player.getUniqueID());
         KOMEProgressionRank rank = progression.getCanonicalRank();
-        if (rank == KOMEProgressionRank.WANDERER) return false;
         return rank == KOMEProgressionRank.SERF && !progression.getSerfKnightProgression().getSerfdomMaster().isSet()
             && KOMESerfKnightService.canSelectReplacement(progression.getSerfKnightProgression(), KOMESerfKnightService.calendarDayNow());
     }

@@ -57,7 +57,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "wanderer.expert_traveler", hasAchievement(lotrData, LOTRAchievement.travel10));
         changed += grantIf(progression, "wanderer.dangerous_business", hasAchievement(lotrData, LOTRAchievement.travel20));
         changed += grantIf(progression, "wanderer.travel_30km", hasAchievement(lotrData, LOTRAchievement.travel30));
-        changed += grantIf(progression, "wanderer.find_serf_lord", progression.getCanonicalRank().order>=KOMEProgressionRank.SERF.order);
+        changed += grantIf(progression, "wanderer.find_serf_lord", lotrData.getPledgeFaction()!=null);
 
         LOTRFaction pledge = lotrData.getPledgeFaction();
         String serviceFaction=pledge==null?"":pledge.codeName();

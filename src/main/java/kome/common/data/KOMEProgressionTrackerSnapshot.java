@@ -55,7 +55,9 @@ public final class KOMEProgressionTrackerSnapshot {
     public static KOMEProgressionTrackerSnapshot project(
             EntityPlayerMP player,
             KOMEPlayerProgression progression) {
-        if(progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.WANDERER)
+        if(player!=null&&progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.COMMONER
+                &&LOTRLevelData.getData(player).getPledgeFaction()==null
+                &&!progression.getSerfKnightProgression().hasMasterRelationship())
             return shown("progression","Pledge to a faction","",0F);
         if(player!=null&&progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT){
             LOTRFaction faction=LOTRLevelData.getData(player).getPledgeFaction();String key=faction==null?"":faction.codeName();

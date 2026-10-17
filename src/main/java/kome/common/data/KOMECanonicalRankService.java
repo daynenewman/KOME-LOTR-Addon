@@ -6,7 +6,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 /** Controlled mutation boundary for revised player-rank authority. */
 public final class KOMECanonicalRankService {
     private KOMECanonicalRankService() { }
-    /** Reads committed native allegiance; observation/reconciliation never creates a pledge. */
+    /** Reads committed native allegiance; observation never changes rank or creates a pledge. */
     public static boolean recognizePledge(EntityPlayerMP player, boolean earned) {
         if(player==null||player.worldObj.isRemote)return false;
         lotr.common.fac.LOTRFaction faction=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
@@ -14,7 +14,6 @@ public final class KOMECanonicalRankService {
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);
         synchronized(data){
             if(!recognizeCommittedPledge(data,player.getUniqueID(),faction.codeName()))return false;
-            if(earned)KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.WANDERER,false);
             KOMEProgressionAutoCompleter.syncPlayer(player,data.getProgression(player.getUniqueID()));
             KOMEProgressionTitles.updatePlayerTitle(player);return true;
         }
@@ -23,9 +22,10 @@ public final class KOMECanonicalRankService {
         lotr.common.fac.LOTRFaction faction=KOMEProgressionFactionResolver.resolve(factionKey);
         if(data==null||owner==null||faction==null||!faction.isPlayableAlignmentFaction())return false;
         KOMEPlayerProgression p=data.getProgression(owner);
-        if(p.getCanonicalRank()!=KOMEProgressionRank.WANDERER)return false;
-        setCanonicalRank(data,owner,KOMEProgressionRank.SERF);
-        p.grant("wanderer.find_serf_lord");KOMEProgressionAutoCompleter.applyUnlocks(p);return true;
+        if(p.getCanonicalRank()!=KOMEProgressionRank.COMMONER)return false;
+        // Preserve the historical allegiance achievement without treating allegiance as promotion.
+        if(!p.grant("wanderer.find_serf_lord"))return false;
+        KOMEProgressionAutoCompleter.applyUnlocks(p);data.markDirty();return true;
     }
     public static boolean setCanonicalRank(KOMEWorldData data, UUID playerId, KOMEProgressionRank rank) {
         if (data == null || playerId == null || rank == null) return false;
@@ -36,7 +36,7 @@ public final class KOMECanonicalRankService {
         return true;
     }
 
-    /** Staff structural override: active Serf encounters never survive an incompatible rank change. */
+    /** Staff structural override: active Master encounters never survive an incompatible rank change. */
     public static boolean overrideCanonicalRank(
             KOMEWorldData data,
             EntityPlayerMP player,
@@ -65,11 +65,6 @@ public final class KOMECanonicalRankService {
             KOMEProgressionRank rank) {
         setOverrideMarker(
             progression,
-            "wanderer.find_serf_lord",
-            rank.order>=KOMEProgressionRank.SERF.order);
-
-        setOverrideMarker(
-            progression,
             "serf.title_knight",
             rank.order>=KOMEProgressionRank.KNIGHT.order);
 
@@ -91,7 +86,7 @@ public final class KOMECanonicalRankService {
         if(completed) progression.grant(id);
         else progression.revoke(id);
     }
-    /** Retired Master-driven transition. Only confirmed native pledge observation can grant Serf. */
+    /** Retired transition; allegiance and Master selection do not confer a rank. */
     @Deprecated
     public static boolean enterSerfdom(KOMEWorldData data,UUID playerId){return false;}
 }

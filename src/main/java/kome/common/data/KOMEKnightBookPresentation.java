@@ -20,5 +20,5 @@ public final class KOMEKnightBookPresentation {
         }
         return text;
     }
-    public static boolean isKnight(String title,String faction){return KOMEFactionProgressionTitles.title(faction,KOMEProgressionRank.KNIGHT).equals(title);}
+    public static boolean isKnight(String title,String faction){return "Knight".equals(title)||KOMEFactionProgressionTitles.title(faction,KOMEProgressionRank.KNIGHT).equals(title);}
 }

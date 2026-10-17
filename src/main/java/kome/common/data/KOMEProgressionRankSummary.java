@@ -6,7 +6,7 @@ import java.util.List;
 
 /** Server-authored, presentation-safe state for the Ranks page of the progression book. */
 public final class KOMEProgressionRankSummary {
-    public static final String[] LADDER = {"Serf", "Knight", "Lord", "Prince"};
+    public static final String[] LADDER = {"Commoner", "Knight", "Lord", "Prince"};
     public static final KOMEProgressionRankSummary EMPTY = new KOMEProgressionRankSummary(
         "", "", "", Collections.<Requirement>emptyList(), "", "", "");
 
@@ -82,9 +82,7 @@ public final class KOMEProgressionRankSummary {
         List<Requirement> requirements = new ArrayList<Requirement>();
         String heading = "", title = "", objective = "";
 
-        if(rank==KOMEProgressionRank.WANDERER){
-            heading="Allegiance";title="Pledge to a faction";objective="A legitimate faction pledge earns Serf standing.";
-        } else if(rank==KOMEProgressionRank.SERF){
+        if(rank==KOMEProgressionRank.COMMONER){
             KOMESerfKnightProgression state=progression.getSerfKnightProgression();
             int credits=KOMEServicePromotionService.duties(state);
             requirements.add(new Requirement("Reported service",credits,3,credits>=3));
@@ -100,6 +98,9 @@ public final class KOMEProgressionRankSummary {
             else if(state.ordinaryObjective()){
                 heading="Current Duty";title=KOMESerfKnightDutyType.forKey(state.getTrialId()).displayName;
                 objective=state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Master.":trialObjective(state,KOMESerfKnightTrial.forId(state.getTrialId())).replace("Liege","Master").replace("trial","duty");
+            }
+            if(KOMEProgressionFactionResolver.resolve(factionKey)==null&&!state.getSerfdomMaster().isSet()) {
+                heading="Allegiance";title="Unpledged";objective="Pledge to a faction to seek service.";
             }
         } else if(rank==KOMEProgressionRank.KNIGHT){
             int credits=progression.getKnightService().qualifyingTypes(factionKey).size();
@@ -144,9 +145,9 @@ public final class KOMEProgressionRankSummary {
             }
         }
 
-        String currentName = KOMEFactionProgressionTitles.title(factionKey, rank);
+        String currentName = rank.displayName;
         if(rank.order<=KOMEProgressionRank.KNIGHT.order&&KOMEProgressionFactionResolver.missingNativeLiege(factionKey))objective+="\n"+KOMEKnightCommissionPresentation.unavailableLiege();
-        String nextName = next == null ? "" : KOMEFactionProgressionTitles.title(factionKey, next);
+        String nextName = next == null ? "" : next.displayName;
         String promotion = next == null ? "Highest Rank" : "Requirements for " + nextName;
         if (rank == KOMEProgressionRank.LORD) {
             promotion = "Legacy Prince checklist";

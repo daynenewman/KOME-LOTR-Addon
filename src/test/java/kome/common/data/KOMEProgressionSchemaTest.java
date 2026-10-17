@@ -8,9 +8,10 @@ import static org.junit.Assert.*;
 
 public class KOMEProgressionSchemaTest {
     @Test public void ranksArePermanentOrderedAndStrictlyKeyed() {
-        assertEquals(5, KOMEProgressionRank.values().length);
-        assertTrue(KOMEProgressionRank.WANDERER.order < KOMEProgressionRank.SERF.order);
-        assertTrue(KOMEProgressionRank.SERF.order < KOMEProgressionRank.KNIGHT.order);
+        assertEquals(4, KOMEProgressionRank.values().length);
+        assertSame(KOMEProgressionRank.COMMONER, KOMEProgressionRank.forKey("wanderer"));
+        assertSame(KOMEProgressionRank.COMMONER, KOMEProgressionRank.forKey("serf"));
+        assertTrue(KOMEProgressionRank.COMMONER.order < KOMEProgressionRank.KNIGHT.order);
         assertTrue(KOMEProgressionRank.KNIGHT.order < KOMEProgressionRank.LORD.order);
         assertTrue(KOMEProgressionRank.LORD.order < KOMEProgressionRank.PRINCE.order);
         assertEquals(KOMEProgressionRank.KNIGHT, KOMEProgressionRank.forKey("knight"));

@@ -251,7 +251,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             if (args.length != 3) throw new WrongUsageException(getCommandUsage(sender));
             EntityPlayerMP player = getPlayer(sender, args[1]);
             KOMEProgressionRank rank = KOMEProgressionRank.forKey(args[2]);
-            if (rank == null) throw new WrongUsageException("Unknown canonical rank. Use wanderer, serf, knight, lord, or prince.");
+            if (rank == null) throw new WrongUsageException("Unknown canonical rank. Use commoner, knight, lord, or prince.");
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             UUID playerId=KOMEReflection.getEntityUUID(player);
             boolean changed = KOMECanonicalRankService.overrideCanonicalRank(data, player, rank);
@@ -402,7 +402,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             return getListOfStringsFromIterableMatchingLastWord(args, ids);
         }
-        if (args.length == 3 && "setrank".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "wanderer", "serf", "knight", "lord", "prince");
+        if (args.length == 3 && "setrank".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "commoner", "knight", "lord", "prince");
         if (args.length == 3 && "reroll".equalsIgnoreCase(args[0])) {
             List ids = new ArrayList();
             for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.ALL) {

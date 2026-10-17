@@ -157,15 +157,10 @@ public class KOMEProgressionLifecycleAuditTest {
         assertFalse(state.getSerfdomMaster().isSet());
         assertFalse(state.hasActiveAssignment());
 
-        assertTrue(
-            progression.isCompleted(
-                KOMEProgressionAchievement.forID(
-                    "baseline.hunting")));
-
-        assertTrue(
-            progression.isCompleted(
-                KOMEProgressionAchievement.forID(
-                    "baseline.farming")));
+        assertFalse("Staff rank alone must not invent historical allegiance",
+            progression.isCompleted(KOMEProgressionAchievement.forID("wanderer.find_serf_lord")));
+        assertFalse(progression.isCompleted(KOMEProgressionAchievement.forID("baseline.hunting")));
+        assertFalse(progression.isCompleted(KOMEProgressionAchievement.forID("baseline.farming")));
 
         assertTrue(
             progression.isCompleted(

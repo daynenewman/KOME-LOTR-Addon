@@ -17,9 +17,9 @@ public class KOMEProgressionHierarchyCorrectionsTest {
         assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
         assertFalse(KOMEProgressionTrackerSnapshot.project(f.player,p).hasNumericProgress());
         f.pledge(LOTRFaction.ROHAN);
-        assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
+        assertEquals("Serve a Master to earn Knight standing",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
         KOMEPlayerProgression loaded=new KOMEPlayerProgression();loaded.readFromNBT(p.writeToNBT());
-        assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,loaded).objective);
+        assertEquals("Serve a Master to earn Knight standing",KOMEProgressionTrackerSnapshot.project(f.player,loaded).objective);
         assertEquals(0F,KOMEProgressionTrackerSnapshot.project(f.player,loaded).completion,0F);
     }
     @Test public void masterPledgeChecksRejectNoneWrongFactionAndStaleAliases(){

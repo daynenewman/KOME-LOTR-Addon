@@ -23,7 +23,8 @@ public class KOMEProgressionServiceLocationTest {
             s.state.reset();assertFalse(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
             territory(s.f);assertTrue(KOMESerfdomMasterService.ordinaryMaster(s.master));assertFalse(KOMEProgressionServiceLocation.regional(s.master));
             assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);assertEquals(KOMEProgressionRank.SERF,s.p.getCanonicalRank());
-            s.state.reset();s.p.setCanonicalRank(KOMEProgressionRank.WANDERER);assertFalse(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
+            s.state.reset();s.p.setCanonicalRank(KOMEProgressionRank.COMMONER);assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
+            s.state.reset();s.f.pledge(null);assertFalse(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
         }
     }
     /** Fixture models the native generator callback and its native home assignment. */

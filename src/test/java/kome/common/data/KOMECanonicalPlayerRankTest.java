@@ -19,7 +19,7 @@ public class KOMECanonicalPlayerRankTest {
         assertEquals(KOMEProgressionRank.WANDERER, restored.getCanonicalRank());
         assertTrue(restored.isCompleted(KOMEProgressionAchievement.forID("knight.craftsman")));
         KOMEWorldData data = new KOMEWorldData("ranks"); UUID id = UUID.randomUUID();
-        assertTrue(KOMECanonicalRankService.setCanonicalRank(data, id, KOMEProgressionRank.SERF));
+        assertFalse(KOMECanonicalRankService.setCanonicalRank(data, id, KOMEProgressionRank.COMMONER));
         NBTTagCompound saved = data.getProgression(id).writeToNBT();
         KOMEPlayerProgression loaded = new KOMEPlayerProgression(); loaded.readFromNBT(saved);
         assertEquals(KOMEProgressionRank.SERF, loaded.getCanonicalRank());
@@ -38,7 +38,7 @@ public class KOMECanonicalPlayerRankTest {
         KOMEPlayerProgression progression = data.getProgression(id);
         KOMEProgressionNpcRef master = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Master", "rohan", 0, 1, 2, 3);
         assertTrue(KOMESerfKnightService.setSerfdomMaster(progression.getSerfKnightProgression(), master).success);
-        assertTrue(KOMECanonicalRankService.setCanonicalRank(data, id, KOMEProgressionRank.SERF));
+        assertFalse(KOMECanonicalRankService.setCanonicalRank(data, id, KOMEProgressionRank.COMMONER));
         assertTrue(KOMECanonicalRankService.setCanonicalRank(data, id, KOMEProgressionRank.KNIGHT));
         assertEquals(KOMEProgressionRank.KNIGHT, progression.getCanonicalRank());
         assertEquals(master.entityUuid, progression.getSerfKnightProgression().getSerfdomMaster().entityUuid);
@@ -47,19 +47,19 @@ public class KOMECanonicalPlayerRankTest {
     }
 
     @Test public void masterSelectionAllowsWandererAndSerfButRejectsHigherRanksAndInvalidNpc() {
-        assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertTrue(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.COMMONER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertTrue(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.SERF,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         for(KOMEProgressionRank rank:new KOMEProgressionRank[]{KOMEProgressionRank.KNIGHT,KOMEProgressionRank.LORD,KOMEProgressionRank.PRINCE}) assertFalse(KOMESerfdomMasterService.validateMasterSelection(rank,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         for(KOMEProgressionNpcRank rank:new KOMEProgressionNpcRank[]{KOMEProgressionNpcRank.LORD,KOMEProgressionNpcRank.PRINCE,KOMEProgressionNpcRank.KING}) assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","rohan",rank,true).success);
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","gondor",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,false).success);
-        assertFalse(KOMESerfdomMasterService.validateCurrentMasterInteraction(KOMEProgressionRank.WANDERER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertTrue(KOMESerfdomMasterService.validateCurrentMasterInteraction(KOMEProgressionRank.COMMONER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertTrue(KOMESerfdomMasterService.validateCurrentMasterInteraction(KOMEProgressionRank.SERF,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
     }
 
     @Test public void serfdomRoutingUsesFullEligibilityAndGuiHasNoLocalHighlightAuthority() throws Exception {
-        assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertTrue(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.COMMONER,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         String gui = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java")), StandardCharsets.UTF_8);
         assertFalse(gui.contains("KOMEEntityHighlightOverlay"));
         assertFalse(gui.contains("Highlight master"));
@@ -93,12 +93,30 @@ public class KOMECanonicalPlayerRankTest {
         assertTrue(KOMESerfKnightService.leaveSerfdomMaster(player.getSerfKnightProgression()).success);assertEquals(KOMEProgressionRank.SERF,player.getCanonicalRank());KOMEProgressionNpcRef replacement=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Replacement","rohan",0,0,0,0);assertTrue(KOMESerfKnightService.setSerfdomMaster(player.getSerfKnightProgression(),replacement).success);assertEquals(KOMEProgressionRank.SERF,player.getCanonicalRank());assertTrue(KOMESerfKnightService.handleNpcDeath(player.getSerfKnightProgression(),replacement.entityUuid,false,20L));assertEquals(KOMEProgressionRank.SERF,player.getCanonicalRank());
     }
 
-    @Test public void pledgeAchievementAloneNeverPromotesAndWandererCannotPerformDuties() {
-        KOMEWorldData data=new KOMEWorldData("entry-security");UUID id=UUID.randomUUID();KOMEPlayerProgression player=data.getProgression(id);player.grant("serf.pledge");assertEquals(KOMEProgressionRank.WANDERER,player.getCanonicalRank());KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Malformed","rohan",0,0,0,0);assertTrue(KOMESerfKnightService.setSerfdomMaster(player.getSerfKnightProgression(),master).success);assertFalse(KOMESerfdomMasterService.requestDuty(player,master,10L,new NBTTagCompound(),new java.util.Random(1L)).success);player.getSerfKnightProgression().assignDuty(KOMESerfKnightDutyType.PROVISIONING,new NBTTagCompound());assertFalse(KOMESerfKnightService.completeDuty(player,KOMESerfKnightDutyType.PROVISIONING).success);assertFalse(player.getSerfKnightProgression().getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted());
+    @Test public void pledgeAchievementNeverPromotesAndCommonerDutiesRequireCurrentMaster() {
+        KOMEWorldData data=new KOMEWorldData("entry-security"); UUID id=UUID.randomUUID();
+        KOMEPlayerProgression player=data.getProgression(id); player.grant("serf.pledge");
+        assertEquals(KOMEProgressionRank.COMMONER,player.getCanonicalRank());
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,0,0);
+        KOMEProgressionNpcRef other=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Other","rohan",0,0,0,0);
+        assertTrue(KOMESerfKnightService.setSerfdomMaster(player.getSerfKnightProgression(),master).success);
+        assertFalse(KOMESerfdomMasterService.requestDuty(player,other,10L,new NBTTagCompound(),new java.util.Random(1L)).success);
+        assertTrue(KOMESerfdomMasterService.requestDuty(player,master,10L,new NBTTagCompound(),new java.util.Random(1L)).success);
+        KOMESerfKnightDutyType duty=KOMESerfKnightDutyType.forKey(player.getSerfKnightProgression().getActiveAssignmentKind());
+        assertTrue(KOMESerfKnightService.completeDuty(player,duty).success);
+        assertEquals(KOMEProgressionRank.COMMONER,player.getCanonicalRank());
     }
 
-    @Test public void summaryDistinguishesPledgeEntryAndPermanentSerfReplacementGuidance() {
-        KOMEPlayerProgression player=new KOMEPlayerProgression();String unpledged=KOMEProgressionSummary.text(player,"");assertTrue(unpledged.contains("Pledge: None"));assertTrue(unpledged.contains("Pledge to a faction"));String pledged=KOMEProgressionSummary.text(player,"Rohan");assertTrue(pledged.contains("Pledge: Rohan"));assertTrue(pledged.contains("Pledge to a faction"));player.setCanonicalRank(KOMEProgressionRank.SERF);String serf=KOMEProgressionSummary.text(player,"Rohan");assertTrue(serf.contains("Rank: Eorling-at-Arms"));assertTrue(serf.contains("Master service: Seek a Master"));assertTrue(serf.contains("Seek a Master"));assertFalse(serf.contains("Sneak-right-click"));
+    @Test public void summaryDistinguishesUnpledgedCommonerAndMasterService() {
+        KOMEPlayerProgression player=new KOMEPlayerProgression();
+        String unpledged=KOMEProgressionSummary.text(player,"");
+        assertTrue(unpledged.contains("Rank: Commoner")); assertTrue(unpledged.contains("Pledge: None"));
+        assertTrue(unpledged.contains("Pledge to a faction"));
+        String pledged=KOMEProgressionSummary.text(player,"Rohan");
+        assertTrue(pledged.contains("Rank: Commoner")); assertTrue(pledged.contains("Pledge: Rohan"));
+        assertFalse(pledged.contains("Pledge to a faction"));
+        assertTrue(pledged.contains("Master service: Seek a Master"));
+        assertFalse(pledged.contains("Sneak-right-click"));
     }
 
     @Test public void factionSelectionPledgeReconciliationRespectsCanonicalRankWithoutKomeEvent() throws Exception {
@@ -111,16 +129,15 @@ public class KOMECanonicalPlayerRankTest {
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
 
-        // The faction pledge is a Wanderer-level completion. The historical Serf pledge marker
-        // must respect canonical rank authority and cannot complete before entering Serfdom.
-        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        // Historical pledge markers record allegiance; neither promotes a Commoner.
+        assertEquals(2, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
-        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
-        assertTrue(KOMEProgressionSummary.text(player, "Gondor").contains("Pledge to a faction"));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertFalse(KOMEProgressionSummary.text(player, "Gondor").contains("Pledge to a faction"));
 
         player.setCanonicalRank(KOMEProgressionRank.SERF);
-        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
         assertFalse(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, null));
@@ -146,11 +163,12 @@ public class KOMECanonicalPlayerRankTest {
         assertFalse(source.contains("lotrcharactercreation"));
     }
 
-    @Test public void firstBookReconciliationCompletesTheBaselinePledgeBeforeSerfPrerequisites() {
+    @Test public void firstBookReconciliationRecordsAllegianceWithoutPromotion() {
         KOMEPlayerProgression player = new KOMEPlayerProgression();
-        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertEquals(2, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
-        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertEquals(KOMEProgressionRank.COMMONER,player.getCanonicalRank());
     }
 
     @Test public void wrongMasterFactionCompletesOnlyTheGeneralFactionCommitmentDuty() {

@@ -5,7 +5,7 @@ public final class KOMEProgressionIdentity {
     private KOMEProgressionIdentity() {}
     public static String suffix(String faction,KOMEProgressionRank rank) {
         lotr.common.fac.LOTRFaction nativeFaction=KOMEProgressionFactionResolver.resolve(faction);
-        if(nativeFaction==null)return ", Wanderer of the Lands";
+        if(nativeFaction==null)return ", "+(rank==null?KOMEProgressionRank.COMMONER:rank).displayName+" of the Lands";
         return ", "+standing(faction,rank);
     }
     public static String standing(String faction,KOMEProgressionRank rank){

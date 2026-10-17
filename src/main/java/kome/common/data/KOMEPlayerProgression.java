@@ -33,7 +33,8 @@ public class KOMEPlayerProgression {
     /** One-shot relationship-death notices that survive logout/server restart until delivered. */
     private final List<KOMERelationshipDeathNotice> pendingRelationshipDeathNotices = new ArrayList<KOMERelationshipDeathNotice>();
     /** Revised-progression authority; intentionally independent of legacy achievement groups. */
-    private KOMEProgressionRank canonicalRank = KOMEProgressionRank.WANDERER;
+    private KOMEProgressionRank canonicalRank = KOMEProgressionRank.COMMONER;
+    private String legacyStartingRank = "";
     private String offerPledge="";
     private long offerPledgeRevision;
     public long observeOfferPledge(String faction){
@@ -72,7 +73,8 @@ public class KOMEPlayerProgression {
         knightService.reset();
         lordship.reset();
         pendingRelationshipDeathNotices.clear();
-        canonicalRank = KOMEProgressionRank.WANDERER;
+        canonicalRank = KOMEProgressionRank.COMMONER;
+        legacyStartingRank = "";
         pledgedLordID = "";
         pledgedLordName = "";
         pledgedLordFaction = "";
@@ -188,7 +190,7 @@ public class KOMEPlayerProgression {
     /** Canonical Serf-to-Knight state, deliberately separate from the legacy pledged-lord fields. */
     public KOMESerfKnightProgression getSerfKnightProgression() { return serfKnightProgression; }
     public KOMEProgressionRank getCanonicalRank() { return canonicalRank; }
-    void setCanonicalRank(KOMEProgressionRank rank) { canonicalRank = rank == null ? KOMEProgressionRank.WANDERER : rank; }
+    void setCanonicalRank(KOMEProgressionRank rank) { canonicalRank = rank == null ? KOMEProgressionRank.COMMONER : rank; }
 
     public ItemStack getOffering(int slot) {
         return slot >= 0 && slot < offerings.length ? offerings[slot] : null;
@@ -288,7 +290,10 @@ public class KOMEPlayerProgression {
         pledgedLordY = nbt.getDouble("PledgedLordY");
         pledgedLordZ = nbt.getDouble("PledgedLordZ");
         KOMEProgressionRank loadedRank = KOMEProgressionRank.forKey(nbt.getString("CanonicalRank"));
-        canonicalRank = loadedRank == null ? KOMEProgressionRank.WANDERER : loadedRank;
+        canonicalRank = loadedRank == null ? KOMEProgressionRank.COMMONER : loadedRank;
+        legacyStartingRank=nbt.getString("LegacyStartingRank");
+        String previousKey=nbt.getString("CanonicalRank").trim().toLowerCase(java.util.Locale.ROOT);
+        if(legacyStartingRank.isEmpty()&&("wanderer".equals(previousKey)||"serf".equals(previousKey)))legacyStartingRank=previousKey;
         lordship.readFromNBT(nbt.hasKey("Lordship",10) ? nbt.getCompoundTag("Lordship") : null);
         lordship.reconcileRank(canonicalRank);
         knightService.readFromNBT(nbt.hasKey("KnightService",10) ? nbt.getCompoundTag("KnightService") : null);
@@ -344,6 +349,8 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordY", pledgedLordY);
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
         nbt.setString("CanonicalRank", canonicalRank.key);
+        nbt.setInteger("RankFoundationVersion",1);
+        if(!legacyStartingRank.isEmpty())nbt.setString("LegacyStartingRank",legacyStartingRank);
         nbt.setTag("ServiceRecognition", serviceRecognition.write());
         nbt.setTag("Lordship", lordship.writeToNBT());
         nbt.setTag("KnightService", knightService.writeToNBT());

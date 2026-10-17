@@ -24,7 +24,7 @@ public class KOMEProgressionNpcRankTest {
         assertEquals(KOMEProgressionNpcRank.LORD, KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(KOMEProgressionRank.KNIGHT));
         assertEquals(KOMEProgressionNpcRank.PRINCE, KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(KOMEProgressionRank.LORD));
         assertEquals(KOMEProgressionNpcRank.KING, KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(KOMEProgressionRank.PRINCE));
-        assertNull(KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(KOMEProgressionRank.WANDERER));
+        assertEquals(KOMEProgressionNpcRank.UNRANKED, KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(KOMEProgressionRank.COMMONER));
     }
 
     @Test public void effectiveRanksAndKingUniquenessUseExplicitAuthorityOnly() {

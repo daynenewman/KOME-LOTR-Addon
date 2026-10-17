@@ -8,11 +8,11 @@ import static org.junit.Assert.*;
 
 public class KOMEProgressionRankSummaryTest {
     @Test public void ladderAndCanonicalSerfRequirementsAreProjectedInOrder() {
-        assertArrayEquals(new String[]{"Serf","Knight","Lord","Prince"},KOMEProgressionRankSummary.LADDER);
+        assertArrayEquals(new String[]{"Commoner","Knight","Lord","Prince"},KOMEProgressionRankSummary.LADDER);
         KOMEPlayerProgression player=serf();KOMESerfKnightProgression state=player.getSerfKnightProgression();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master")).success);completeDuty(state,KOMESerfKnightDutyType.PROVISIONING);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,149D);
-        assertEquals("Serf",summary.currentRank);assertEquals("Knight",summary.nextRank);assertEquals(2,summary.requirements.size());
+        assertEquals("Commoner",summary.currentRank);assertEquals("Knight",summary.nextRank);assertEquals(2,summary.requirements.size());
         assertRequirement(summary,0,"Reported service",1,3,false);assertRequirement(summary,1,"Faction Alignment",149,150,false);
         for(KOMEProgressionRankSummary.Requirement r:summary.requirements){assertFalse(r.label.contains("Trial"));assertFalse(r.label.contains("Gift"));}
     }
@@ -22,9 +22,9 @@ public class KOMEProgressionRankSummaryTest {
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,149D,"ROHAN");
         assertEquals(KOMEProgressionRank.SERF,player.getCanonicalRank());
         assertEquals("rohan",KOMEAlliance.normalizeFactionKey(summary.factionKey));
-        assertEquals("Eorling-at-Arms",summary.currentRank);
-        assertEquals("Rider of Rohan",summary.nextRank);
-        assertEquals("Requirements for Rider of Rohan",summary.promotionTitle);
+        assertEquals("Commoner",summary.currentRank);
+        assertEquals("Knight",summary.nextRank);
+        assertEquals("Requirements for Knight",summary.promotionTitle);
     }
 
     @Test public void noAssignmentHasNoFakePanelAndActiveDutyIsHumanReadable() {
@@ -86,7 +86,7 @@ public class KOMEProgressionRankSummaryTest {
     @Test public void lordRankProjectsOnlyQuotaAndHighestStandingRequirements() {
         KOMEPlayerProgression player=new KOMEPlayerProgression();player.setCanonicalRank(KOMEProgressionRank.LORD);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,2500D,"rohan");
-        assertEquals("Captain",summary.currentRank);assertEquals("Marshal",summary.nextRank);assertEquals(3,summary.requirements.size());
+        assertEquals("Lord",summary.currentRank);assertEquals("Prince",summary.nextRank);assertEquals(3,summary.requirements.size());
         assertEquals("Rank Quotas",summary.requirements.get(0).label);assertEquals(3,summary.requirements.get(0).required);
         assertEquals("Highest Standing",summary.requirements.get(1).label);assertEquals(2,summary.requirements.get(1).required);
         assertEquals("Reach Highest Rank",summary.requirements.get(2).label);

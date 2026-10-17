@@ -7,9 +7,9 @@ import static org.junit.Assert.*;
 public class KOMEFactionProgressionTitlesTest {
     @Test
     public void rohanUsesFactionSpecificProgressionTitles() {
-        assertEquals("Wanderer",
+        assertEquals("Commoner",
             KOMEFactionProgressionTitles.title("rohan", KOMEProgressionRank.WANDERER));
-        assertEquals("Eorling-at-Arms",
+        assertEquals("Commoner",
             KOMEFactionProgressionTitles.title("rohan", KOMEProgressionRank.SERF));
         assertEquals("Rider of Rohan",
             KOMEFactionProgressionTitles.title("rohan", KOMEProgressionRank.KNIGHT));
@@ -22,7 +22,7 @@ public class KOMEFactionProgressionTitlesTest {
     @Test
     public void gondorUsesFactionSpecificProgressionTitles() {
         assertArrayEquals(
-            new String[] {"Gondorian-at-Arms", "Knight", "Captain", "Lord"},
+            new String[] {"Commoner", "Knight", "Lord", "Prince"},
             KOMEFactionProgressionTitles.ladder("gondor"));
     }
 
@@ -59,7 +59,7 @@ public class KOMEFactionProgressionTitlesTest {
     @Test
     public void unknownFactionFallsBackToCanonicalNames() {
         assertEquals(
-            "Serf",
+            "Commoner",
             KOMEFactionProgressionTitles.title(
                 "unknown_faction",
                 KOMEProgressionRank.SERF));
@@ -74,7 +74,7 @@ public class KOMEFactionProgressionTitlesTest {
     @Test
     public void nullRankSafelyFallsBackToWanderer() {
         assertEquals(
-            "Wanderer",
+            "Commoner",
             KOMEFactionProgressionTitles.title("rohan", null));
     }
 }

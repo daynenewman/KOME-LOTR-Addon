@@ -156,7 +156,7 @@ public class KOMEProgressionAchievement {
         a(list, "wanderer.smoke_drink", "wanderer", "Advancement", "Well, If You Insist", "Legacy self-reported random task. Retained as history; ordinary consumption follows native rules.");
         a(list, "wanderer.dangerous_business", "wanderer", "Quota", "Dangerous Business", "Explore 20 regions of Middle-earth.");
         a(list, "wanderer.travel_30km", "wanderer", "Quota", "30 km Traveler", "Travel a total of 30 km in game across all travel modes.");
-        a(list, "wanderer.find_serf_lord", "wanderer", "Allegiance", "Pledge Allegiance", "A successfully committed native faction pledge grants Serf standing.");
+        a(list, "wanderer.find_serf_lord", "wanderer", "Allegiance", "Pledge Allegiance", "A faction pledge establishes allegiance without changing your rank.");
         a(list, "wanderer.place_weapon_holder", "wanderer", "Entering Service", "Place Weapon Holder", "Legacy historical record. It is not a current promotion requirement.");
         a(list, "wanderer.hoe_agreement", "wanderer", "Entering Service", "Hoe Agreement", "Legacy historical record. It is not a current promotion requirement.");
 

@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Player-facing faction-specific names for the permanent KOME progression ranks.
  *
- * Canonical save ranks remain WANDERER / SERF / KNIGHT / LORD / PRINCE.
+ * Canonical save ranks are COMMONER / KNIGHT / LORD / PRINCE.
  * This class is presentation-only and must never be used as save-state authority.
  */
 public final class KOMEFactionProgressionTitles {
@@ -99,7 +99,7 @@ public final class KOMEFactionProgressionTitles {
             ? KOMEProgressionRank.WANDERER
             : rank;
 
-        if (canonical == KOMEProgressionRank.WANDERER) {
+        if (canonical == KOMEProgressionRank.COMMONER) {
             return canonical.displayName;
         }
 
@@ -109,8 +109,6 @@ public final class KOMEFactionProgressionTitles {
         }
 
         switch (canonical) {
-            case SERF:
-                return titles.tierOne;
             case KNIGHT:
                 return titles.tierTwo;
             case LORD:
@@ -124,10 +122,7 @@ public final class KOMEFactionProgressionTitles {
 
     public static String[] ladder(String factionKey) {
         return new String[] {
-            title(factionKey, KOMEProgressionRank.SERF),
-            title(factionKey, KOMEProgressionRank.KNIGHT),
-            title(factionKey, KOMEProgressionRank.LORD),
-            title(factionKey, KOMEProgressionRank.PRINCE)
+            "Commoner", "Knight", "Lord", "Prince"
         };
     }
 

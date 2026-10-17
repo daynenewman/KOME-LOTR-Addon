@@ -37,7 +37,8 @@ public final class KOMEProgressionAbilityPolicy {
         return progression==null?KOMEProgressionRank.WANDERER:progression.getCanonicalRank();
     }
     public static boolean unlocked(KOMEWorldData data, UUID actor, Ability ability) {
-        return actor!=null && ability!=null && rank(data,actor).order>=ability.minimumRank.order;
+        return actor!=null && ability!=null && data!=null && data.progressions.containsKey(actor)
+            &&rank(data,actor).order>=ability.minimumRank.order;
     }
     public static String rankDenial(KOMEWorldData data, UUID actor, Ability ability) {
         return unlocked(data,actor,ability)?"":"Requires "+ability.minimumRank.displayName+" standing.";

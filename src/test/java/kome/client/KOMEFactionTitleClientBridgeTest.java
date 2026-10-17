@@ -36,7 +36,7 @@ public class KOMEFactionTitleClientBridgeTest {
                 KOMEDiplomacyRelation.ALLIES));
 
         assertEquals(
-            "Wanderer",
+            "Commoner",
             KOMEFactionTitleClientBridge.project(
                 "rohan",
                 "rohan",

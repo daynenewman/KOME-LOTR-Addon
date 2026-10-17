@@ -28,7 +28,6 @@ public final class KOMEProgressionEligibility {
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         if(pledge==null)return no("You must first pledge to a faction.");
         if(pledge!=npc.getFaction())return no("You have sworn yourself to another faction.");
-        if(p.getCanonicalRank()==KOMEProgressionRank.WANDERER)return no("Pledge allegiance to enter Serf standing.");
         if(p.getCanonicalRank()==KOMEProgressionRank.SERF)return no("Your Master confers Knight standing after three reported duties. Seek higher service after that promotion.");
         if(!KOMEProgressionLiegePolicy.accepts(data,p.getCanonicalRank(),rank,pledge.codeName(),npc.getFaction().codeName()))return no("This superior cannot receive service at your current standing.");
         if(KOMELiegeProgressionInteraction.ownsQuest(player,npc)){

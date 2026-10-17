@@ -87,7 +87,7 @@ public class KOMEProgressionCleanupProjectionTest {
             KOMEPacketProgressionData first = latest(s); assertEquals("rohan", KOMEAlliance.normalizeFactionKey(first.rankSummary.factionKey));
             s.f.pledge(LOTRFaction.GONDOR); KOMEProgressionAutoCompleter.runForPlayer(s.f.player, false);
             KOMEPacketProgressionData changed = latest(s); assertTrue(changed.revision > first.revision);
-            assertEquals("gondor", KOMEAlliance.normalizeFactionKey(changed.rankSummary.factionKey)); assertEquals("wanderer", changed.canonicalRankKey);
+            assertEquals("gondor", KOMEAlliance.normalizeFactionKey(changed.rankSummary.factionKey)); assertEquals("commoner", changed.canonicalRankKey);
             assertTrue(KOMECanonicalRankService.overrideCanonicalRank(s.f.data,s.f.player,KOMEProgressionRank.LORD));
             KOMEProgressionAutoCompleter.runForPlayer(s.f.player,false);
             KOMEPacketProgressionData corrected = latest(s); assertEquals("lord",corrected.canonicalRankKey);
