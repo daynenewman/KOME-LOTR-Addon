@@ -29,6 +29,14 @@ public class KOMEClientProxy extends KOMECommonProxy {
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
+    private KOMEUnitMapMarkerPublisher unitMarkers;
+    private synchronized KOMEUnitMapMarkerPublisher unitMarkers() {
+        if(unitMarkers==null)unitMarkers=new KOMEUnitMapMarkerPublisher(clientTasks,markers->{
+            KOMEClientData.INSTANCE.unitMapMarkers.clear();
+            KOMEClientData.INSTANCE.unitMapMarkers.addAll(markers);
+        });
+        return unitMarkers;
+    }
     private KOMECompanyDestinationClientState destinationOptions;
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
@@ -53,6 +61,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(tacticalInput);
         KOMEClientConfig clientConfig = new KOMEClientConfig(new java.io.File(
             cpw.mods.fml.common.Loader.instance().getConfigDir(), "kome-client.cfg"));
+        KOMEConquestMapOverlay.applyMapPreferences(clientConfig.mapPreferences());
         currentTileHud = new KOMECurrentTileHud(net.minecraft.client.Minecraft.getMinecraft(), clientConfig);
         cpw.mods.fml.client.registry.ClientRegistry.registerKeyBinding(currentTileHud.toggle);
         ((net.minecraft.client.resources.IReloadableResourceManager)
@@ -88,6 +97,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        unitMarkers().start(event == null ? null : event.handler);
         destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
@@ -101,6 +111,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        unitMarkers().start(null);
         destinationOptions().start(null);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
@@ -112,6 +123,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            unitMarkers().invalidateWorld();
+            KOMEClientData.INSTANCE.unitMapMarkers.clear();
             destinationOptions().close();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
@@ -151,6 +164,10 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);
+    }
+
+    @Override public void acceptUnitMapMarkers(java.util.List<kome.common.data.KOMEUnitMapMarker> markers,Object connection) {
+        unitMarkers().accept(markers,connection);
     }
 
     @Override

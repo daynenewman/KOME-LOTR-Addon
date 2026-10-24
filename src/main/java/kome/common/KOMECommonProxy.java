@@ -54,6 +54,10 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Client publication is unavailable on the dedicated server");
     }
 
+    public void acceptUnitMapMarkers(java.util.List<kome.common.data.KOMEUnitMapMarker> markers,Object connection) {
+        throw new IllegalStateException("Client marker publication is unavailable on the dedicated server");
+    }
+
     public void acceptConquestSnapshotChunk(
             kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
         throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");

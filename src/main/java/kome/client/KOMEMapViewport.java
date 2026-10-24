@@ -19,5 +19,8 @@ final class KOMEMapViewport {
     double screenY(double mapY) { return (top + bottom) / 2 + (mapY - posY) * zoom; }
     double mapX(double screenX) { return posX + (screenX - (left + right) / 2) / zoom; }
     double mapY(double screenY) { return posY + (screenY - (top + bottom) / 2) / zoom; }
+    double scaleFrom(KOMEMapViewport built) { return zoom / built.zoom; }
+    double offsetXFrom(KOMEMapViewport built) { return screenX(0) - built.screenX(0) * scaleFrom(built); }
+    double offsetYFrom(KOMEMapViewport built) { return screenY(0) - built.screenY(0) * scaleFrom(built); }
     boolean contains(double x, double y) { return x >= left && x < right && y >= top && y < bottom; }
 }

@@ -27,3 +27,7 @@ Tests: [precise Builds](../../../../src/test/java/kome/common/data/KOMEPreciseBu
 ```
 
 Use [shared prerequisites](../../INDEX.md). Compare approved/developed time, exact rate, bank/remainder, ownership, phase, and saved boundary before/after a live tick and cold restart. The development/payout loops are sequential, not one universal atomic daily transaction; historical per-boundary rate reconstruction remains a rules/acceptance question.
+
+## KOM-85 banner meaning
+
+Normal map Build banners use the existing authoritative populationFaction projection for population allegiance. This is not an independent per-Build capture controller. Map tooltips and Build details use population wording. Defensive Builds retain the custom castle. Future independently captured controller banners require a separate campaign/siege authority implementation; no such state, packet, save field or gameplay is added here. Sprite layering and interaction are in the [client route](../client-network/README.md).

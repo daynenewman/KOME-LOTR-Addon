@@ -424,6 +424,7 @@ public class CharacterCreationIsolationTest {
                 kome.core.KOMECampaignHealthTransformer.class.getName(),
                 kome.core.KOMEPublicWaypointTransformer.class.getName(),
                 kome.core.KOMEMapInputTransformer.class.getName(),
+                kome.core.KOMEMapTerritoryTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),

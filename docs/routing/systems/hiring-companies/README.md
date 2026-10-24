@@ -25,3 +25,7 @@ References: [integration decisions](../../../KOME_DEV_INTEGRATION_DECISIONS.md),
 ```
 
 Use [shared prerequisites](../../INDEX.md). On disposable fixtures compare payment/bank, UUID/classification, company membership, physical NPC/mount insertion, rollback, and reload. [KOMECompanyReorganizationService](../../../../src/main/java/kome/common/data/KOMECompanyReorganizationService.java) has split/merge logic but no production caller at this baseline. No general ordinary-to-campaign conversion workflow is wired.
+
+## KOM-85 map presentation continuity
+
+The read-only company projection in [KOMEPacketUnitMapMarkers](../../../../src/main/java/kome/common/network/KOMEPacketUnitMapMarkers.java) separates strategic membership from physical NPC loading. It uses existing committed-lifespan, exact membership, owner and current-tile evidence, with the original recipient/admin visibility boundary. A zero loaded-unit count carries tile-level map presence only, not a live combatant or precise NPC locator. Movement/retreat with an order suppresses stationed fallback; reconstructed UUIDs rejoin the same company ID through current membership. No company, movement, health, persistence or reconstruction authority is changed. Client publication and tile-anchor rules are documented in the [client route](../client-network/README.md). Focused server-builder/wire/art regressions: [KOMEStableCompanyMarkersTest](../../../../src/test/java/kome/client/KOMEStableCompanyMarkersTest.java).

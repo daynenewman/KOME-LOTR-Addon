@@ -21,6 +21,76 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEClientTaskQueueTest {
+    @Test public void completedCompanyRemovalImmediatelyRejectsOldPhysicalMarkerAndItsAggregateDeduction()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        try {
+            client.resetClientState();KOMEArmyCompany company=markerCompany();KOMEUnitMapMarker marker=physicalMarker();
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,company),null);proxy.queue.drain();
+            client.unitMapMarkers.add(marker);assertTrue(markerCurrent(marker));assertEquals(Integer.valueOf(25),markerDeductions().get("T100"));
+            KOMEPacketConquestData removal=companySnapshot(true);
+            KOMETileTroopSummary summary=new KOMETileTroopSummary();summary.tileId="T100";summary.stationedPop=40;
+            row(removal,"TroopSummaries",summary.writeToNBT());
+            new KOMEPacketConquestData.Handler().onMessage(removal,null);
+            assertTrue("Queued removal is not yet canonical",markerCurrent(marker));proxy.queue.drain();
+            assertFalse("A completed removal must not turn an old physical marker into a neutral shield",markerCurrent(marker));
+            assertTrue(markerDeductions().isEmpty());assertEquals(40,client.troopSummaries.get("T100").stationedPop);
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void initialCompanySnapshotUnavailabilityDiffersFromCompletedEmptySnapshot()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            KOMEClientData.INSTANCE.resetClientState();KOMEUnitMapMarker marker=physicalMarker();
+            assertTrue("Initial physical fix can use neutral art until the first snapshot",markerCurrent(marker));
+            assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.company(marker,KOMEClientData.INSTANCE.armyCompanies));
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(false),null);proxy.queue.drain();assertTrue(markerCurrent(marker));
+            KOMEPacketConquestData end=new KOMEPacketConquestData();end.complete=true;
+            new KOMEPacketConquestData.Handler().onMessage(end,null);proxy.queue.drain();assertFalse("Only completed publication establishes absence",markerCurrent(marker));
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(false,markerCompany()),null);proxy.queue.drain();
+            assertFalse("An incomplete replacement cannot restore a removed ID",markerCurrent(marker));
+            new KOMEPacketConquestData.Handler().onMessage(end,null);proxy.queue.drain();assertTrue(markerCurrent(marker));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void currentCompanySurvivesUnloadingMovementAndReconstructionWithExactIdentity()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            KOMEClientData.INSTANCE.resetClientState();KOMEArmyCompany company=markerCompany();KOMEUnitMapMarker marker=physicalMarker();
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,company),null);proxy.queue.drain();assertTrue(markerCurrent(marker));
+            marker.unitCount=0;assertTrue(markerCurrent(marker));assertSame(KOMEMapMarkerArt.shield("rohan"),KOMEMapMarkerArt.company(marker,KOMEClientData.INSTANCE.armyCompanies));
+            company.movementOrderId="M1";new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,company),null);proxy.queue.drain();assertFalse(markerCurrent(marker));
+            company.movementOrderId="";company.currentTile="T101";new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,company),null);proxy.queue.drain();assertFalse(markerCurrent(marker));
+            KOMEUnitMapMarker reconstructed=physicalMarker();reconstructed.currentTile="T101";reconstructed.x=789;reconstructed.z=987;
+            assertEquals(marker.entityId,reconstructed.entityId);assertTrue(markerCurrent(reconstructed));
+            KOMEUnitMapMarker different=physicalMarker();different.entityId="C-other";assertFalse(markerCurrent(different));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void lateUnitPublicationCannotResurrectRemovedCompanyAndReconnectRequiresNewSnapshot()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        KOMEUnitMapMarkerPublisher markers=new KOMEUnitMapMarkerPublisher(proxy.queue,rows->{client.unitMapMarkers.clear();client.unitMapMarkers.addAll(rows);});
+        Object old=new Object(),next=new Object();markers.start(old);
+        try {
+            client.resetClientState();KOMEUnitMapMarker marker=physicalMarker();
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);proxy.queue.drain();
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true),null);markers.accept(Arrays.asList(marker),old);proxy.queue.drain();
+            assertFalse("A late unit packet cannot override completed company absence",markerCurrent(client.unitMapMarkers.get(0)));assertTrue(markerDeductions().isEmpty());
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);
+            markers.accept(Arrays.asList(marker),old);markers.start(null);proxy.resetSession(false,client::resetClientState);
+            markers.start(next);proxy.resetSession(true,client::resetClientState);proxy.queue.drain();assertTrue(client.unitMapMarkers.isEmpty());assertTrue(client.armyCompanies.isEmpty());
+            markers.accept(Arrays.asList(marker),old);proxy.queue.drain();assertTrue(client.unitMapMarkers.isEmpty());
+            markers.accept(Arrays.asList(marker),next);proxy.queue.drain();assertTrue("Fresh connection is initially awaiting its company snapshot",markerCurrent(client.unitMapMarkers.get(0)));
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);proxy.queue.drain();assertTrue(markerCurrent(marker));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    private static KOMEArmyCompany markerCompany(){KOMEArmyCompany c=new KOMEArmyCompany();c.id="C1";c.currentTile="T100";c.nativeFaction="rohan";return c;}
+    private static KOMEUnitMapMarker physicalMarker(){KOMEUnitMapMarker m=new KOMEUnitMapMarker();m.entityId="C1";m.currentTile="T100";m.unitCount=1;m.population=25;m.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;return m;}
+    private static KOMEPacketConquestData companySnapshot(boolean complete,KOMEArmyCompany... companies){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=true;p.complete=complete;NBTTagList rows=new NBTTagList();for(KOMEArmyCompany c:companies)rows.appendTag(c.writeToNBT());p.data.setTag("ArmyCompanies",rows);return p;}
+    private static boolean markerCurrent(KOMEUnitMapMarker marker)throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("companyMarkerCurrent",KOMEUnitMapMarker.class);m.setAccessible(true);return (Boolean)m.invoke(null,marker);}
+    private static Map markerDeductions()throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("liveCompanyStationedPopulationByTile");m.setAccessible(true);return (Map)m.invoke(null);}
     @Test public void startTickDrainsFifoSnapshotAndFailureDoesNotBlockLaterTasks() {
         KOMEClientTaskQueue queue = connected(); List<Integer> order = new ArrayList<Integer>();
         queue.enqueue(() -> { order.add(1); queue.enqueue(() -> order.add(4)); });
@@ -431,9 +501,13 @@ public class KOMEClientTaskQueueTest {
             client.routeEdges, client.tileWaypointLinksByTileId, client.builds);
         private final List<Map> values = new ArrayList<Map>();
         private final int revision = client.conquestRevision;
+        private final List<KOMEUnitMapMarker> markers=new ArrayList<>(client.unitMapMarkers);
+        private final Map<Field,Object> lifecycle=new HashMap<>();
 
         private SavedClientState() {
             for (Map map : maps) values.add(new HashMap(map));
+            try {for(Field f:KOMEClientData.class.getDeclaredFields())if(f.getType()==boolean.class||f.getName().equals("conquestRenderOwners")){f.setAccessible(true);lifecycle.put(f,f.get(client));}}
+            catch(IllegalAccessException e){throw new AssertionError(e);}
         }
 
         private void clear() {
@@ -445,6 +519,8 @@ public class KOMEClientTaskQueueTest {
                 maps.get(i).clear(); maps.get(i).putAll(values.get(i));
             }
             client.conquestRevision = revision;
+            client.unitMapMarkers.clear();client.unitMapMarkers.addAll(markers);
+            try{for(Map.Entry<Field,Object> e:lifecycle.entrySet())e.getKey().set(client,e.getValue());}catch(IllegalAccessException e){throw new AssertionError(e);}
         }
     }
 

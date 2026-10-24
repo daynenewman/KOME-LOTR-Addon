@@ -8,6 +8,7 @@ public class KOMEUnitMapMarker {
     public String unitName = "";
     public String companyName = "";
     public String currentTile = "";
+    /** Loaded NPC count. Zero explicitly denotes strategic tile presentation, not a physical fix. */
     public int unitCount;
     public int dimensionId;
     public double x;

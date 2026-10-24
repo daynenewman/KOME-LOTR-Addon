@@ -28,6 +28,7 @@ public class KOMEWaypointTransformerTest {
                 kome.core.KOMECampaignHealthTransformer.class.getName(),
                 KOMEPublicWaypointTransformer.class.getName(),
                 KOMEMapInputTransformer.class.getName(),
+                KOMEMapTerritoryTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),
@@ -71,13 +72,16 @@ public class KOMEWaypointTransformerTest {
         }
         ClassNode node = new ClassNode();
         new ClassReader(transformed).accept(node, 0);
-        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0, radialInput = 0;
+        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0, radialInput = 0, territoryPass = 0;
         for (MethodNode method : node.methods) {
             for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
                     instruction = instruction.getNext()) {
                 if (instruction instanceof MethodInsnNode) {
                     MethodInsnNode call = (MethodInsnNode) instruction;
-                    if (KOMEMapInputTransformer.HOOK.equals(call.owner)) radialInput++;
+                    if (KOMEMapInputTransformer.HOOK.equals(call.owner)) {
+                        if ("onBeforeNativeMapLabels".equals(call.name)) territoryPass++;
+                        else radialInput++;
+                    }
                     if (KOMEPublicWaypointTransformer.CLIENT.equals(call.owner)) {
                         if ("beforeWidgets".equals(call.name)) publicWidgets++;
                         if ("isPublicVisible".equals(call.name)) publicVisibility++;
@@ -97,6 +101,7 @@ public class KOMEWaypointTransformerTest {
         assertEquals(1, publicVisibility);
         assertEquals(1, progressionMarkers);
         assertEquals(7, radialInput);
+        assertEquals(1, territoryPass);
     }
 
     @Test

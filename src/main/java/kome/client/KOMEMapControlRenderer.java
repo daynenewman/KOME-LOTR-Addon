@@ -1,0 +1,60 @@
+package kome.client;
+
+import lotr.client.gui.LOTRGuiMap;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
+
+/** Native atlas artwork, with small KOME-only pictograms. Never added to LOTR's widget list. */
+final class KOMEMapControlRenderer extends GuiScreen {
+    static final ResourceLocation ATLAS=new ResourceLocation("lotr:map/mapScreen.png");
+    static final ResourceLocation ICON_ATLAS=new ResourceLocation("kome:textures/gui/map_button_icons.png");
+    static final int ICON_CELL=8, ICON_WIDTH=128, ICON_HEIGHT=32;
+    private static final KOMEMapControlRenderer TOOLTIP=new KOMEMapControlRenderer();
+    interface Artwork {void blit(int x,int y,int width,int height,int u,int v);}
+    static void artwork(int control,int x,int y,boolean interactive,Artwork sink) {
+        int v=interactive?0:10;
+        // Zoom Out's top/bottom rows are the native blank frame. Reuse a blank row for its minus sign.
+        sink.blit(x,y,10,4,40,v);sink.blit(x,y+4,10,2,40,v+2);sink.blit(x,y+6,10,4,40,v+6);
+    }
+    /** Columns are controls; rows are primary/on, alternate/off, and input-locked. See the asset README. */
+    static int spriteRow(int control,boolean active,boolean interactive,KOMETerritoryStyle style) {
+        if(!interactive)return 2;
+        if(control==0)return style.palette==KOMETerritoryStyle.Palette.CLASSIC_LOTR?0:1;
+        if(control==1)return style.mode.fillsTerritory()?0:1;
+        return active?0:1;
+    }
+    static void pictogram(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style,Artwork sink) {
+        sink.blit(x+1,y+1,ICON_CELL,ICON_CELL,control*ICON_CELL,spriteRow(control,active,interactive,style)*ICON_CELL);
+    }
+    static void draw(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style) {
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_CURRENT_BIT|GL11.GL_TEXTURE_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_DEPTH_BUFFER_BIT);
+        try {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);GL11.glDepthMask(false);GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_BLEND);GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);GL11.glColor4f(1,1,1,1);
+            KOMEMinecraftClient.textureManager().bindTexture(ATLAS);
+            Tessellator tess=Tessellator.instance;tess.startDrawingQuads();
+            artwork(control,x,y,interactive,KOMEMapControlRenderer::blit);tess.draw();
+            KOMEMinecraftClient.textureManager().bindTexture(ICON_ATLAS);tess.startDrawingQuads();
+            pictogram(control,x,y,active,interactive,style,(xx,yy,w,h,u,v)->blit(xx,yy,w,h,u,v,ICON_WIDTH,ICON_HEIGHT));
+            tess.draw();
+        } finally {GL11.glPopAttrib();}
+    }
+    private static void blit(int x,int y,int width,int height,int u,int v) {
+        blit(x,y,width,height,u,v,256,256);
+    }
+    private static void blit(int x,int y,int width,int height,int u,int v,int textureWidth,int textureHeight) {
+        Tessellator tess=Tessellator.instance;
+        tess.addVertexWithUV(x,y+height,0,u/(double)textureWidth,(v+height)/(double)textureHeight);tess.addVertexWithUV(x+width,y+height,0,(u+width)/(double)textureWidth,(v+height)/(double)textureHeight);
+        tess.addVertexWithUV(x+width,y,0,(u+width)/(double)textureWidth,v/(double)textureHeight);tess.addVertexWithUV(x,y,0,u/(double)textureWidth,v/(double)textureHeight);
+    }
+    static void tooltip(LOTRGuiMap map,String label,int x,int y) {
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);GL11.glPushMatrix();float itemZ=itemRender.zLevel;
+        try {
+            TOOLTIP.width=map.width;TOOLTIP.height=map.height;
+            net.minecraft.client.gui.FontRenderer font=KOMEMinecraftClient.fontRenderer();
+            TOOLTIP.drawHoveringText(font.listFormattedStringToWidth(label,200),x,y,font);
+        } finally {itemRender.zLevel=itemZ;GL11.glPopMatrix();GL11.glPopAttrib();}
+    }
+}
