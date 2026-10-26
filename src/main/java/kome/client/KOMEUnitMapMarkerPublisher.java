@@ -18,7 +18,7 @@ final class KOMEUnitMapMarkerPublisher {
     synchronized void accept(List<KOMEUnitMapMarker> markers,Object source) {
         if(connection==null||source!=connection)return;
         final long epoch=generation;
-        tasks.enqueueLatest(this,()->{
+        tasks.enqueueLatestAtTail(this,()->{
             synchronized(KOMEUnitMapMarkerPublisher.this) {
                 if(epoch==generation&&connection==source)publication.accept(markers);
             }

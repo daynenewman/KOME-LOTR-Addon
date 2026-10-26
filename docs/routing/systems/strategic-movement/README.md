@@ -43,3 +43,19 @@ evidence for each included company so subsequent arrivals observe a prior CREATE
 Reconciliation checks include `KOMECompanyMovementServiceTest`, `KOMECommandTroopsMovementTest`,
 `KOMECampaignMovementReconstructionTest`, `KOMEFormalRetreatBatchTest`, and ordinary-battle/recovery
 suites. Source wiring and automated checks do not establish new live acceptance.
+
+KOM-85 g16 separates current Campaign company read authorization from movement eligibility. The
+destination, source and Rally preview catalogues filter information-bearing rows with
+`KOMECompanyMapProjection` before serialization; `canPlayerConsiderCompany` and movement submission
+retain their existing gameplay meaning. `/troops previewmove` also denies unreadable company details
+before route evaluation. This does not grant spotted foreign companies a movement or detail entry.
+Valid temporary controllers who can pass final movement execution are directly readable through the
+same central projection, including a short live-pledge/recorded-faction mismatch. Former owners who
+cannot pass the current-faction movement check remain unreadable; rejected map submissions for their
+hidden company have the same generic result fields as an unknown company ID. Movement validation and
+execution are unchanged.
+Company management mutations now require live current-faction ownership or their explicit temporary
+controller/ruler/operator authority before touching records or physical snapshots. Movement-order
+controls resolve the current company instead of trusting a retained order owner UUID. The existing
+movement route, combat, retreat and reconstruction decisions are unchanged; see the
+[client/network route](../client-network/README.md) for the read/command distinction.

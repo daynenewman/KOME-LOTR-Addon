@@ -30,7 +30,7 @@ public class KOMECompanyOriginNetworkTest {
         catch(IllegalArgumentException expected){ }
     }
     @Test public void malformedTrailingBytesAndWrongProtocolAreRejected(){
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g13"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g9"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g11"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g18"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g11"));
         ByteBuf b=Unpooled.buffer();try{
             new KOMEPacketCompanyOriginRequest(session,1,"T001","","").toBytes(b);b.writeInt(42);
             try{new KOMEPacketCompanyOriginRequest().fromBytes(b);fail();}catch(IllegalArgumentException expected){ }

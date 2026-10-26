@@ -124,6 +124,7 @@ public class KOMEEvents {
     private final KOMEPopulationPayoutRuntime populationPayoutRuntime = new KOMEPopulationPayoutRuntime();
 
     public void resetSessionState() {
+        kome.common.network.KOMEAdminMapVision.clear();
         kome.common.network.KOMEPublicWaypointSync.reset();
         KOMEPacketConquestData.clearSentSnapshots();
         lastCoinValues.clear();
@@ -144,6 +145,7 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player instanceof EntityPlayerMP) {
+            kome.common.network.KOMEAdminMapVision.forget((EntityPlayerMP) event.player);
             World world = KOMEReflection.getWorld(event.player);
             KOMEWorldData data = KOMEWorldData.get(world);
             KOMECommandTroops.removeStaleMovingEntities(data, world);
@@ -188,6 +190,7 @@ public class KOMEEvents {
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP player=(EntityPlayerMP)event.player;
+            kome.common.network.KOMEAdminMapVision.forget(player);
 
             KOMESerfKnightCadenceOverride.clear(
                 player.getUniqueID());
@@ -221,6 +224,14 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.player))) {
+            if (event.player instanceof EntityPlayerMP
+                    && kome.common.network.KOMEAdminMapVision.revokeIfUnauthorized((EntityPlayerMP) event.player)) {
+                EntityPlayerMP player = (EntityPlayerMP) event.player;
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+                // Publish the complete filtered view before removing its companion shields.
+                KOMEPacketConquestData.sendChunked(data, player);
+                KOMEPacketUnitMapMarkers.sendToPlayer(data, player);
+            }
             enforceOpenContainerRestrictions(event.player);
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 20L == 0L) {
                 KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));

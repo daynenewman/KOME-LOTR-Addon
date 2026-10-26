@@ -126,16 +126,48 @@ its eligibility rules, or its cadence.
 - All source projection/cache work runs on the existing server-thread call paths.
   No worker, additional periodic scan, debounce latency, or client packet is added.
 
-The conquest snapshot's current projection is public and recipient-independent;
-private alliance/GUI records and per-player physical markers keep their existing
-separate filters. Op/pledge context changes invalidate even an equal public
-snapshot on the next requested publication. If future conquest fields become
-recipient-specific, filter **before** projection comparison; never reuse another
-recipient's private data. Resource reload retains the client authoritative data
-and only rebuilds rendering caches; reconnect and world replacement reinitialize
-publication. Geometry, gameplay defaults, company policies, schemas 5/4/1/1 and
-protocol g2 are unchanged. Existing ownership-color, population, waypoint,
-immutable client handoff, ordering and bounded-queue fixes remain intact.
+KOM-85 later made the `ArmyCompanies` and company-linked `ArmyMovements` sections
+recipient-specific. The server now filters and reduces those rows before exact
+projection comparison, caching and chunking. The g15 tile-presence decision
+also filters company shields by a recipient's verified personal spotter tile.
+The current g16 projection limits spotted foreign companies to opaque
+shield keys and committed soldier counts; stationed `TroopSummaries` omit
+foreign company cost even on observed tiles, while retaining
+public geography and faction-wide population-bank projections. Conquest chunks
+carry a publication serial, and the matching-artifact protocol is g18. See the current
+[client-network route](routing/systems/client-network/README.md) for the visibility
+predicate, redacted fields and revocation behavior. Resource reload retains the
+completed client projection; reconnect and world replacement reset it. The older
+public-projection and unchanged-protocol claims above describe this historical
+optimization, not the current company visibility contract.
+
+The g16 review follow-up applies current company read authorization to
+capture-response Campaign costs and older company/unit detail commands. A former
+owner's UUID does not disclose costs or routes after faction visibility is lost;
+ordinary non-Campaign units remain separately readable. Opaque spotted marker keys
+are derived from recipient, tile and company under a server-local secret, so removing
+one spotted company does not reassign its key to another. Keys change across tiles,
+and existing completed-snapshot and marker-session fences govern revocation. No
+additional protocol or persistent-world format change was required.
+
+The g17 map-detail correction adds the originating conquest publication serial to
+capture, map company-list, and map Units responses. The server queues a current
+recipient projection before a map response. At client execution, a map-origin GUI
+opens only if that serial was applied on the same connection and remains the latest
+completed publication. OFF, OP loss, reconnect, world replacement, and subsequent ON
+publications invalidate older responses even when a newer snapshot replaces an earlier
+queue entry. Explicit command company-list and Units responses carry zero and retain
+their independent command authorization. The three response payloads change; packet
+IDs and world-save schema do not.
+
+g18 keeps g17's strict stale-response rejection but avoids cancelling a still-active
+ordinary map detail intent on an unrelated snapshot update. A client request ID is
+echoed in capture, company-list and tile Units replies. A stale reply is never used;
+the client may issue at most two read-only replacements for that same current request,
+which the server authorizes afresh. Connection, screen, request identity, and the
+latest applied snapshot are checked at final UI execution. Mutation intents are never
+replayed. This changes the two map request payloads and three response payloads, so
+g17 peers are rejected by the matching-artifact handshake.
 
 ## Automated validation
 

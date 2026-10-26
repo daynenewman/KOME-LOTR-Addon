@@ -7,6 +7,7 @@ import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandTroops;
+import kome.common.command.KOMECompanyMutationAuthority;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.command.CommandException;
@@ -22,6 +23,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
     public String value = "";
     public String tileId = "";
     public String previewToken = "";
+    public long mapRequestId;
 
     public KOMEPacketTroopGuiAction() {
     }
@@ -36,6 +38,15 @@ public class KOMEPacketTroopGuiAction implements IMessage {
         this.value = safe(value);
         this.tileId = safe(tileId);
         this.previewToken = safe(previewToken);
+        String normalized=this.action.trim().toLowerCase(Locale.ROOT);
+        if ("list".equals(normalized) || "population_units".equals(normalized)
+                || "tendency".equals(normalized) || "rename".equals(normalized)
+                || "movement".equals(normalized) || "reclaim".equals(normalized)
+                || "disband".equals(normalized) || "move".equals(normalized)) {
+            if (kome.common.KOMEAddon.proxy != null)
+                mapRequestId=kome.common.KOMEAddon.proxy.beginMapDetailRequest(
+                    "population_units".equals(normalized)?"units":"companies",this.tileId,"");
+        }
     }
 
     @Override
@@ -45,6 +56,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
         value = ByteBufUtils.readUTF8String(buf);
         tileId = ByteBufUtils.readUTF8String(buf);
         previewToken = ByteBufUtils.readUTF8String(buf);
+        mapRequestId = buf.readLong();
     }
 
     @Override
@@ -54,6 +66,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
         ByteBufUtils.writeUTF8String(buf, value);
         ByteBufUtils.writeUTF8String(buf, tileId);
         ByteBufUtils.writeUTF8String(buf, previewToken);
+        buf.writeLong(mapRequestId);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketTroopGuiAction, IMessage> {
@@ -69,8 +82,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
             try {
                 KOMECommandTroops troops = new KOMECommandTroops();
                 if ("list".equals(action)) {
-                    troops.processCommand(player, tileId.length() == 0 ? new String[] {"companies"}
-                        : new String[] {"companies", tileId});
+                    troops.listMapCompanies(player,tileId,message.mapRequestId);
                 } else if ("create".equals(action)) {
                     throw new IllegalArgumentException("Manual company creation is retired; Campaign Hire uses canonical local Campaign Detachment admission.");
                 } else if ("tendency".equals(action)) {
@@ -78,39 +90,39 @@ public class KOMEPacketTroopGuiAction implements IMessage {
                     if (!"aggressive".equals(value) && !"conservative".equals(value))
                         throw new IllegalArgumentException("Unknown company tendency.");
                     troops.processCommand(player, new String[] {"company", companyId, "tendency", value});
-                    refresh(troops, player, tileId);
+                    refresh(troops, player, tileId, message.mapRequestId);
                 } else if ("rename".equals(action)) {
                     requireCompany(companyId);
                     require(rawValue, "Enter a company name.");
                     KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+                    if (!KOMECompanyMutationAuthority.currentOwner(data, player, data.armyCompanies.get(companyId)))
+                        throw new IllegalArgumentException("Company unavailable.");
                     if (!data.renameHiringCompany(companyId, KOMEReflection.getEntityUUID(player), rawValue)) {
                         throw new IllegalArgumentException("Only the company owner may choose a valid company name.");
                     }
-                    refresh(troops, player, tileId);
+                    refresh(troops, player, tileId, message.mapRequestId);
                 } else if ("movement".equals(action)) {
                     requireCompany(companyId);
                     if (!"stay".equals(value) && !"retreat".equals(value) && !"resume".equals(value)
                             && !"continue".equals(value) && !"halt".equals(value))
                         throw new IllegalArgumentException("Unknown movement response.");
                     troops.processCommand(player, new String[] {"movement", value, companyId});
-                    refresh(troops, player, tileId);
+                    refresh(troops, player, tileId, message.mapRequestId);
                 } else if ("reclaim".equals(action) || "disband".equals(action)) {
                     requireCompany(companyId);
                     troops.processCommand(player, new String[] {"company", companyId, action});
-                    refresh(troops, player, tileId);
+                    refresh(troops, player, tileId, message.mapRequestId);
                 } else if ("move".equals(action)) {
                     requireCompany(companyId);
                     require(value, "A destination tile is required.");
                     require(previewToken, "Movement confirmation has expired; preview the route again.");
                     troops.processCommand(player, new String[] {"movecompany", companyId, value, previewToken});
-                    refresh(troops, player, tileId);
+                    refresh(troops, player, tileId, message.mapRequestId);
                 } else if ("recruit".equals(action)) {
                     require(tileId, "A recruitment tile is required.");
                     troops.processCommand(player, new String[] {"recruit", tileId});
                 } else if ("population_units".equals(action)) {
-                    new KOMECommandPopulation().processCommand(player, tileId.length() == 0
-                        ? new String[] {"units", player.getCommandSenderName()}
-                        : new String[] {"units", player.getCommandSenderName(), tileId});
+                    new KOMECommandPopulation().sendMapUnitBreakdown(player,tileId,message.mapRequestId);
                 } else {
                     throw new IllegalArgumentException("Unknown troop GUI action.");
                 }
@@ -122,9 +134,9 @@ public class KOMEPacketTroopGuiAction implements IMessage {
             return null;
         }
 
-        private static void refresh(KOMECommandTroops troops, EntityPlayerMP player, String tileId) throws CommandException {
-            troops.processCommand(player, tileId.length() == 0 ? new String[] {"companies"}
-                : new String[] {"companies", tileId});
+        private static void refresh(KOMECommandTroops troops, EntityPlayerMP player, String tileId,
+                long requestId) throws CommandException {
+            troops.listMapCompanies(player,tileId,requestId);
         }
 
         private static void requireCompany(String companyId) {

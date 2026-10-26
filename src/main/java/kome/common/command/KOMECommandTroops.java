@@ -40,6 +40,7 @@ import kome.common.data.KOMECompanyTransferService;
 import kome.common.KOMEAddon;
 import kome.common.network.KOMECompanyGuiEntry;
 import kome.common.network.KOMEPacketCompanyListGui;
+import kome.common.network.KOMEPacketConquestData;
 import kome.common.network.KOMEPacketCompanyMoveConfirmGui;
 import kome.common.network.KOMEPacketCompanyMovePreviewResult;
 import kome.common.network.KOMEPacketHandler;
@@ -270,7 +271,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         if ("tile".equalsIgnoreCase(args[0])) {
             if (args.length == 3) {
-                handleCompanyProtectionCommand(sender, data, KOMEReflection.getWorld(player), owner, args[1], args[2]);
+                handleCompanyProtectionCommand(sender, player, data, KOMEReflection.getWorld(player), args[1], args[2]);
                 return;
             }
             if (args.length != 2) {
@@ -309,7 +310,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 return;
             }
             if (args.length >= 3) {
-                handleCompanyAuthorityCommand(sender, player, data, args);
+                boolean readable=companyReadView(sender,data,owner).directlyVisible(data.armyCompanies.get(args[1]));
+                try { handleCompanyAuthorityCommand(sender, player, data, args); }
+                catch(WrongUsageException denied){
+                    if(!readable)throw new WrongUsageException("Company unavailable.");
+                    throw denied;
+                }
                 return;
             }
             if (args.length != 2) {
@@ -353,6 +359,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 previewCompanyMove(sender, player, data, owner, args[1], destination);
             } catch (WrongUsageException denied) {
                 KOMEArmyCompany company = data.armyCompanies.get(args[1]);
+                if (!companyReadView(sender,data,owner).directlyVisible(company))
+                    throw new WrongUsageException("Company unavailable.");
                 if (company != null && canPlayerControlCompany(data, player, company)) {
                     sendMovePreviewFailure(player, company, destination, denied.getMessage());
                     sender.addChatMessage(new ChatComponentText("Movement preview denied: " + denied.getMessage()));
@@ -485,6 +493,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void listTroops(ICommandSender sender, KOMEWorldData data, UUID owner, String tile) {
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,owner);
         int stationedPop = 0;
         int stationedUnits = 0;
         int movingPop = 0;
@@ -492,7 +501,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         List<String> details = new ArrayList<String>();
         for (KOMEHiredUnitRecord record : new ArrayList<KOMEHiredUnitRecord>(data.hiredUnits.values())) {
             if (!KOMEHiredUnitClassification.isCampaignUnit(record)
-                    || record.farmhand || !owner.equals(record.owner)) {
+                    || record.farmhand || !owner.equals(record.owner)
+                    || !readView.readableCampaignMember(record)) {
                 continue;
             }
             if (tile.length() > 0 && !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
@@ -508,7 +518,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
         }
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order != null && owner.equals(order.owner) && order.isMoving()) {
+            if (order != null && owner.equals(order.owner) && order.isMoving()
+                    && readView.readableCompanyOrder(order)) {
                 String stepOrigin = activeStepOrigin(order);
                 String stepDestination = activeStepDestination(order);
                 if (tile.length() == 0 || tile.equals(stepOrigin) || tile.equals(stepDestination)) {
@@ -532,6 +543,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         String ownerFaction = conquestTile.projectRulingFaction();
         UUID viewer = KOMEReflection.getEntityUUID(getCommandSenderAsPlayer(sender));
         boolean admin = isStaff(sender);
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,viewer);
         List<String> details = new ArrayList<String>();
         int offensive = 0;
         int defensive = 0;
@@ -541,7 +553,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
             if (!KOMEHiredUnitClassification.isCampaignUnit(record)
                     || !admin && !viewer.equals(record.owner) || record.farmhand || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
-                    || record.movementOrderId != null && record.movementOrderId.length() > 0) {
+                    || record.movementOrderId != null && record.movementOrderId.length() > 0
+                    || !readView.readableCampaignMember(record)) {
                 continue;
             }
             if (record.type == KOMEPopulationType.DEFENSIVE) {
@@ -571,7 +584,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
         }
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !admin && !viewer.equals(order.owner) || !order.isMoving()) {
+            if (order == null || !admin && !viewer.equals(order.owner) || !order.isMoving()
+                    || !readView.readableCompanyOrder(order)) {
                 continue;
             }
             String stepOrigin = activeStepOrigin(order);
@@ -687,6 +701,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             if (company == null) {
                 throw new WrongUsageException("Unknown company " + args[2] + ".");
             }
+            if(!companyReadView(sender,data,owner).directlyVisible(company))
+                throw new WrongUsageException("You do not have authority to view that company record.");
             if (!owner.equals(company.owner) && !player.canCommandSenderUseCommand(2, getCommandName())) {
                 throw new WrongUsageException("You do not own " + company.name + ".");
             }
@@ -801,9 +817,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         KOMEHiredUnitRecord found = null;
         UUID viewer = KOMEReflection.getEntityUUID(getCommandSenderAsPlayer(sender));
         boolean admin = isStaff(sender);
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,viewer);
         String lookup = id == null ? "" : id.toLowerCase();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.entity == null || !admin && !viewer.equals(record.owner)) {
+            if (record == null || record.entity == null || !admin && !viewer.equals(record.owner)
+                    || !readView.readableCampaignMember(record)) {
                 continue;
             }
             String uuid = record.entity.toString().toLowerCase();
@@ -982,9 +1000,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void listMoving(ICommandSender sender, KOMEWorldData data, World world, UUID owner) {
         int count = 0;
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,owner);
         long now = System.currentTimeMillis();
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !owner.equals(order.owner) || !order.isMoving()) {
+            if (order == null || !owner.equals(order.owner) || !order.isMoving()
+                    || !readView.readableCompanyOrder(order)) {
                 continue;
             }
             count++;
@@ -1101,8 +1121,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void listArrivals(ICommandSender sender, KOMEWorldData data, World world, UUID owner, String tile) {
         List<KOMEArmyMovementOrder> arrivals = new ArrayList<KOMEArmyMovementOrder>();
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,owner);
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !owner.equals(order.owner)) {
+            if (order == null || !owner.equals(order.owner) || !readView.readableCompanyOrder(order)) {
                 continue;
             }
             if (tile.length() > 0 && !tile.equals(order.originTile) && !tile.equals(order.destinationTile)) {
@@ -1151,9 +1172,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void locateTroops(ICommandSender sender, KOMEWorldData data, World world, UUID owner, String type, String id) {
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,owner);
         if ("order".equalsIgnoreCase(type)) {
             KOMEArmyMovementOrder order = data.armyMovements.get(id);
-            if (order == null || !owner.equals(order.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())) {
+            if (order == null || !owner.equals(order.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())
+                    || !readView.readableCompanyOrder(order)) {
                 throw new WrongUsageException("No movement order " + id + " was found for you.");
             }
             locateOrder(sender, data, world, order);
@@ -1161,14 +1184,16 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         if ("company".equalsIgnoreCase(type)) {
             KOMEArmyCompany company = data.armyCompanies.get(id);
-            if (company == null || !owner.equals(company.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())) {
+            if (company == null || !owner.equals(company.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())
+                    || !readView.directlyVisible(company)) {
                 throw new WrongUsageException("No company " + id + " was found for you.");
             }
             locateCompany(sender, data, world, company);
             return;
         }
         if ("unit".equalsIgnoreCase(type)) {
-            KOMEHiredUnitRecord record = findUnitByPrefix(data, id, owner, sender.canCommandSenderUseCommand(2, getCommandName()));
+            KOMEHiredUnitRecord record = findUnitByPrefix(data, id, owner,
+                sender.canCommandSenderUseCommand(2, getCommandName()),readView);
             if (record == null) {
                 throw new WrongUsageException("No unit matching " + id + " was found for you.");
             }
@@ -1286,14 +1311,35 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void listCompanies(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String tile) {
-        boolean admin = sender.canCommandSenderUseCommand(2, getCommandName());
+        listCompanies(sender,player,data,owner,tile,sender.canCommandSenderUseCommand(2,getCommandName()),false,0L);
+    }
+
+    /** Map-launched browser uses map vision; explicit operator commands keep command read rights. */
+    public void listMapCompanies(EntityPlayerMP player, String tile) {
+        listMapCompanies(player,tile,0L);
+    }
+
+    public void listMapCompanies(EntityPlayerMP player, String tile, long requestId) {
+        KOMEWorldData data=KOMEWorldData.get(KOMEReflection.getWorld(player));
+        String selected=tile==null||tile.isEmpty()?"":parseTile(tile);
+        if(!selected.isEmpty())requirePublicInspectionTile(data,selected);
+        listCompanies(player,player,data,KOMEReflection.getEntityUUID(player),
+            selected,kome.common.network.KOMEAdminMapVision.enabled(player),true,requestId);
+    }
+
+    private void listCompanies(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data,
+            UUID owner, String tile, boolean admin, boolean mapOrigin, long requestId) {
+        kome.common.network.KOMECompanyMapProjection.View readView=
+            kome.common.network.KOMECompanyMapProjection.view(data,owner,getPlayerFaction(data,player),admin);
         String playerFaction = getPlayerFaction(data, player);
         long now = System.currentTimeMillis();
         List<KOMECompanyGuiEntry> entries = new ArrayList<KOMECompanyGuiEntry>();
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
-            if (company == null || !admin && !owner.equals(company.owner) && !company.isTemporarilyControlledBy(owner)
+            if (company == null || !readView.directlyVisible(company)
+                    || !admin && !owner.equals(company.owner) && !company.isTemporarilyControlledBy(owner)
                     && !(KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-                        && KOMERulerAuthorization.canActAsRuler(data, company.faction, owner))) {
+                        && KOMERulerAuthorization.canActAsRuler(data, company.faction, owner))
+                    && !readView.nativeRulerCanRead(company)) {
                 continue;
             }
             if (tile.length() > 0 && !companyHasPresenceAtTile(data, company, tile)) {
@@ -1368,9 +1414,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             entry.populationSource = company.populationSource;
             entry.withdrawalState = company.withdrawalState;
             entry.authorizationReason = company.authorizationReason;
-            entry.canSetTendency = admin || owner.equals(company.owner);
-            entry.canReclaim = admin || owner.equals(company.owner) || owner.equals(company.delegatedBy)
-                || KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority) && KOMERulerAuthorization.canActAsRuler(data, company.faction, owner);
+            entry.canSetTendency = admin || KOMECompanyMutationAuthority.currentOwner(data, player, company);
+            entry.canReclaim = admin || KOMECompanyMutationAuthority.currentOwner(data, player, company)
+                || owner.equals(company.delegatedBy)
+                    && KOMECompanyMutationAuthority.currentRuler(data, player, company,
+                        KOMEWartimeStewardshipService.nativeFaction(company))
+                || KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
+                    && KOMECompanyMutationAuthority.currentRuler(data, player, company, company.faction);
             entry.canChooseAccessResponse = canControl && order != null
                 && (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status) || KOMEArmyMovementOrder.HOLDING.equals(order.status)
                     || KOMEArmyMovementOrder.STOPPED.equals(order.status)
@@ -1392,7 +1442,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 stewardshipCompany = stewardshipCompany || unitRecord != null
                     && "MILITARY_T3_STEWARDSHIP".equals(unitRecord.benefitSource);
             }
-            entry.canDisband = admin || stewardshipCompany && (owner.equals(company.owner) || KOMERulerAuthorization.canActAsRuler(data, company.faction, owner));
+            entry.canDisband = admin || stewardshipCompany &&
+                (KOMECompanyMutationAuthority.currentOwner(data, player, company)
+                    || KOMECompanyMutationAuthority.currentRuler(data, player, company, company.faction));
             entries.add(entry);
         }
         Collections.sort(entries, new Comparator<KOMECompanyGuiEntry>() {
@@ -1402,8 +1454,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
         });
         if (sender instanceof EntityPlayerMP) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketCompanyListGui(
-                tile, companyTileDisplayName(data, tile), entries, false), player);
+            KOMEPacketCompanyListGui packet=new KOMEPacketCompanyListGui(
+                tile, companyTileDisplayName(data, tile), entries, false);
+            if (mapOrigin) {
+                packet.mapPublicationSerial=KOMEPacketConquestData.mapDetailPublicationSerial(data,player);
+                if (packet.mapPublicationSerial<=0L) return;
+                packet.mapRequestId=requestId;
+            }
+            KOMEPacketHandler.network.sendTo(packet, player);
             return;
         }
         sender.addChatMessage(new ChatComponentText("Companies" + (tile.length() == 0 ? "" : " at " + tile) + ": " + entries.size()));
@@ -1444,28 +1502,31 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     private void handleCompanyAuthorityCommand(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, String[] args) {
         KOMEArmyCompany company = data.armyCompanies.get(args[1]);
         if (company == null) {
-            throw new WrongUsageException("Unknown company " + args[1] + ".");
+            throw new WrongUsageException("Company unavailable.");
         }
         UUID actor = KOMEReflection.getEntityUUID(player);
         boolean admin = sender.canCommandSenderUseCommand(2, getCommandName());
         String action = args[2].toLowerCase(java.util.Locale.ROOT);
+        boolean nativeRuler=actor.equals(company.delegatedBy)
+            && KOMECompanyMutationAuthority.currentRuler(data, player, company,
+                KOMEWartimeStewardshipService.nativeFaction(company));
         if (!admin && company.isTemporarilyControlledBy(actor) && !actor.equals(company.owner)
-                && !KOMEAllianceTemporaryCommandPolicy.allows(action)) {
+                && !nativeRuler && !KOMEAllianceTemporaryCommandPolicy.allows(action)) {
             throw new WrongUsageException("Temporary delegated command permits only View, Dispatch, Continue, Halt, Stay, Retreat, and Resume; structural and owner-only administration is forbidden.");
         }
         if ("tendency".equals(action)) {
-            if (args.length != 4 || !admin && !actor.equals(company.owner)) {
+            if (args.length != 4 || !admin && !KOMECompanyMutationAuthority.currentOwner(data, player, company)) {
                 throw new WrongUsageException("/troops company <id> tendency <aggressive|conservative> (owner only)");
             }
             if ("aggressive".equalsIgnoreCase(args[3])) company.tendency = KOMEArmyCompany.AGGRESSIVE;
             else if ("conservative".equalsIgnoreCase(args[3])) company.tendency = KOMEArmyCompany.CONSERVATIVE;
             else throw new WrongUsageException("Tendency must be aggressive or conservative.");
             data.markDirty();
-            sender.addChatMessage(new ChatComponentText(company.name + " tendency set to " + company.tendency + "."));
+            companyActionFeedback(sender,data,company,company.name + " tendency set to " + company.tendency + ".");
             return;
         }
         if ("transfer".equals(action)) {
-            if (args.length != 4 || !actor.equals(company.owner)) {
+            if (args.length != 4 || !KOMECompanyMutationAuthority.currentOwner(data, player, company)) {
                 throw new WrongUsageException("/troops company <id> transfer <onlinePlayer> (actual owner only)");
             }
             EntityPlayerMP target = MinecraftServer.getServer().getConfigurationManager().func_152612_a(args[3]);
@@ -1476,7 +1537,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             KOMECompanyTransferService.Result result = KOMECompanyTransferService.offer(data, company, actor,
                 KOMEReflection.getEntityUUID(target), target.getCommandSenderName(), System.currentTimeMillis());
             if (!result.success) throw new WrongUsageException(result.message);
-            sender.addChatMessage(new ChatComponentText(result.message + " The recipient must use /troops company " + company.id + " acceptTransfer."));
+            companyActionFeedback(sender,data,company,result.message + " The recipient must use /troops company " + company.id + " acceptTransfer.");
             target.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " offered permanent ownership of "
                 + company.name + ". Accept with /troops company " + company.id + " acceptTransfer."));
             return;
@@ -1489,21 +1550,24 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 player.getCommandSenderName(), System.currentTimeMillis());
             if (!result.success) throw new WrongUsageException(result.message);
             applyLoadedCompanyOwnership(data, company, player);
-            sender.addChatMessage(new ChatComponentText(result.message));
+            companyActionFeedback(sender,data,company,result.message);
             return;
         }
         if ("rejecttransfer".equals(action)) {
-            if (args.length != 3 || !actor.equals(company.transferRecipient)) throw new WrongUsageException("No transfer offer is pending for you.");
+            if (args.length != 3 || !actor.equals(company.transferRecipient)
+                    || !KOMECompanyMutationAuthority.pledgedTo(player, company.faction))
+                throw new WrongUsageException("No transfer offer is pending for you.");
             company.clearTransferOffer();
             data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Rejected the permanent transfer of " + company.name + "."));
+            companyActionFeedback(sender,data,company,"Rejected the permanent transfer of " + company.name + ".");
             return;
         }
         if ("canceltransfer".equals(action)) {
-            if (args.length != 3 || !actor.equals(company.owner)) throw new WrongUsageException("Only the actual owner may cancel the transfer offer.");
+            if (args.length != 3 || !KOMECompanyMutationAuthority.currentOwner(data, player, company))
+                throw new WrongUsageException("Only the current-faction owner may cancel the transfer offer.");
             company.clearTransferOffer();
             data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Cancelled the permanent transfer offer for " + company.name + "."));
+            companyActionFeedback(sender,data,company,"Cancelled the permanent transfer offer for " + company.name + ".");
             return;
         }
         if ("delegate".equals(action)) {
@@ -1511,6 +1575,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 throw new WrongUsageException("/troops company <id> delegate <onlinePlayer>");
             }
             String nativeFaction = KOMEWartimeStewardshipService.nativeFaction(company);
+            if (!KOMECompanyMutationAuthority.currentRuler(data, player, company, nativeFaction))
+                throw new WrongUsageException("Only the currently pledged native ruler may delegate company control.");
             EntityPlayerMP target = MinecraftServer.getServer().getConfigurationManager().func_152612_a(args[3]);
             if (target == null) {
                 throw new WrongUsageException("The temporary commander must be online.");
@@ -1542,14 +1608,17 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 delegationNow, "DELEGATED", company,
                 actor, player.getCommandSenderName(),
                 targetId, target.getCommandSenderName(), "");
-            data.markDirty();            sender.addChatMessage(new ChatComponentText("Delegated movement command of " + company.name + " to " + company.temporaryControllerName
-                + ". Ownership and population sources remain unchanged."));
+            data.markDirty();
+            data.syncConquestTiles();
+            companyActionFeedback(sender,data,company,"Delegated movement command of " + company.name + " to " + company.temporaryControllerName
+                + ". Ownership and population sources remain unchanged.");
             return;
         }
         if ("reclaim".equals(action) || "revoke".equals(action)) {
             boolean nativeStewardshipReclaim = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-                && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
-            if (!admin && !actor.equals(company.owner) && !actor.equals(company.delegatedBy) && !nativeStewardshipReclaim) {
+                && KOMECompanyMutationAuthority.currentRuler(data, player, company, company.faction);
+            if (!admin && !KOMECompanyMutationAuthority.currentOwner(data, player, company)
+                    && !nativeRuler && !nativeStewardshipReclaim) {
                 throw new WrongUsageException("Only the native owner or delegating king may reclaim this company.");
             }
             if (nativeStewardshipReclaim) {
@@ -1582,7 +1651,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 order.accessLossReason = "Temporary command reclaimed by native authority.";
             }
             data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Native control of " + company.name + " reclaimed."));
+            data.syncConquestTiles();
+            companyActionFeedback(sender,data,company,"Native control of " + company.name + " reclaimed.");
             return;
         }
         throw new WrongUsageException("/troops company <id> tendency|delegate|reclaim|disband|transfer|acceptTransfer|rejectTransfer|cancelTransfer ...");
@@ -1625,8 +1695,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             stewardship = stewardship || record != null && "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource);
         }
-        boolean nativeKing = stewardship && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
-        if (!admin && !actor.equals(company.owner) && !nativeKing) {
+        boolean nativeKing = stewardship
+            && KOMECompanyMutationAuthority.currentRuler(data, player, company, company.faction);
+        if (!admin && !KOMECompanyMutationAuthority.currentOwner(data, player, company)
+                && !nativeKing) {
             throw new WrongUsageException("Only the native owner, native faction king, or an operator may disband a stewardship company.");
         }
         if (!stewardship && !admin) {
@@ -1677,14 +1749,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void listCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, World world, String companyId) {
         KOMEArmyCompany company = data.armyCompanies.get(companyId);
-        if (company == null) {
-            throw new WrongUsageException("Unknown company " + companyId + ".");
-        }
         UUID actor = KOMEReflection.getEntityUUID(player);
+        kome.common.network.KOMECompanyMapProjection.View readView=companyReadView(sender,data,actor);
+        if(!readView.directlyVisible(company))
+            throw new WrongUsageException("Company unavailable.");
         boolean nativeSteward = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
             && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
-        if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !canPlayerControlCompany(data, player, company) && !nativeSteward) {
-            throw new WrongUsageException("You do not have authority to view that company record.");
+        if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !canPlayerControlCompany(data, player, company)
+                && !nativeSteward && !readView.nativeRulerCanRead(company)) {
+            throw new WrongUsageException("Company unavailable.");
         }
         sender.addChatMessage(new ChatComponentText(company.id + " - " + company.name + " / " + company.ownerName
             + " / " + displayFaction(company.faction)));
@@ -2080,20 +2153,24 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
     }
 
-    private void handleCompanyProtectionCommand(ICommandSender sender, KOMEWorldData data, World world, UUID actor, String companyId, String action) {
+    private void handleCompanyProtectionCommand(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data,
+            World world, String companyId, String action) {
         KOMEArmyCompany company = data.armyCompanies.get(companyId);
-        if (company == null) {
-            throw new WrongUsageException("Unknown company " + companyId + ".");
-        }
-        if (!actor.equals(company.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())) {
-            throw new WrongUsageException("You can only manage your own companies.");
-        }
+        if (company == null) throw new WrongUsageException("Company unavailable.");
+        boolean status = "status".equalsIgnoreCase(action) || "debug".equalsIgnoreCase(action);
+        UUID actor=KOMEReflection.getEntityUUID(player);
+        if(status && !companyReadView(sender,data,actor).directlyVisible(company))
+            throw new WrongUsageException("Company unavailable.");
         boolean halt = "halt".equalsIgnoreCase(action);
         boolean resume = "resume".equalsIgnoreCase(action) || "ready".equalsIgnoreCase(action) || "deploy".equalsIgnoreCase(action);
-        boolean status = "status".equalsIgnoreCase(action) || "debug".equalsIgnoreCase(action);
         if (!halt && !resume && !status) {
             throw new WrongUsageException("/troops company <companyId> <halt|resume|status>");
         }
+        if (status ? !KOMECompanyMutationAuthority.operator(player)
+                && !KOMECompanyMutationAuthority.currentOwner(data, player, company)
+                && !KOMECompanyMutationAuthority.temporaryController(data, player, company)
+                : !KOMECompanyMutationAuthority.controller(data, player, company))
+            throw new WrongUsageException("Company unavailable.");
         int protectedCount = 0;
         int activeCount = 0;
         int changed = 0;
@@ -2134,6 +2211,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         if (halt || resume) {
             data.markDirty();
+        }
+        if(!companyReadView(sender,data,actor).directlyVisible(company)){
+            sender.addChatMessage(new ChatComponentText("Company action processed."));
+            return;
         }
         sender.addChatMessage(new ChatComponentText(company.name + " (" + company.id + "): protected/inactive "
             + protectedCount + ", active/vulnerable " + activeCount + "."));
@@ -2477,10 +2558,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     private void snapshotCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId) {
         KOMEArmyCompany company = data.armyCompanies.get(companyId);
         if (company == null) {
-            throw new WrongUsageException("No company " + companyId + ".");
+            throw new WrongUsageException("Company unavailable.");
         }
-        if (!owner.equals(company.owner) && !sender.canCommandSenderUseCommand(2, getCommandName())) {
-            throw new WrongUsageException("You can only snapshot your own companies.");
+        boolean readable=companyReadView(sender,data,owner).directlyVisible(company);
+        if (!KOMECompanyMutationAuthority.operator(player)
+                && !KOMECompanyMutationAuthority.currentOwner(data, player, company)) {
+            throw new WrongUsageException("Company unavailable.");
         }
         World world = KOMEReflection.getWorld(player);
         ForgeChunkManager.Ticket originTicket = acquireTemporaryTileChunk(data, world, company.currentTile, System.currentTimeMillis());
@@ -2509,6 +2592,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             releaseTemporaryArrivalChunk(originTicket);
         }
         data.markDirty();
+        if(!readable){
+            sender.addChatMessage(new ChatComponentText("Company action processed."));
+            return;
+        }
         sender.addChatMessage(new ChatComponentText("Saved stationary data for " + saved + "/" + company.units.size()
             + " units in " + company.name + "."));
         if (!missing.isEmpty()) {
@@ -2518,6 +2605,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void previewCompanyMove(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId, String destination) {
+        if(!companyReadView(sender,data,owner).directlyVisible(data.armyCompanies.get(companyId)))
+            throw new WrongUsageException("Company unavailable.");
         KOMECompanyMovementService.Evaluation evaluation =
             KOMECompanyMovementService.INSTANCE.evaluate(data, player, companyId, destination);
         if (evaluation.denial != null && evaluation.denial.stage == KOMECompanyMovementService.FailureStage.VALIDATION)
@@ -2683,10 +2772,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void moveCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner,
             String companyId, String destination, String expectedPreviewToken) {
+        boolean readable=companyReadView(sender,data,owner).directlyVisible(data.armyCompanies.get(companyId));
         KOMECompanyMovementService service = new KOMECompanyMovementService(this, System::currentTimeMillis);
         KOMECompanyMovementService.Submission result = expectedPreviewToken == null || expectedPreviewToken.isEmpty()
             ? service.submitUnpreviewed(data, player, companyId, destination)
             : service.submit(data, player, companyId, destination, expectedPreviewToken);
+        if (!readable){
+            sender.addChatMessage(new ChatComponentText("Movement request processed."));
+            return;
+        }
         if (!result.accepted) throw new WrongUsageException(result.denial.reason);
         KOMEArmyCompany company = data.armyCompanies.get(companyId);
         sender.addChatMessage(new ChatComponentText("Movement order " + result.orderId + " started for company "
@@ -2952,6 +3046,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     || record.farmhand || !owner.equals(record.owner)) {
                 continue;
             }
+            KOMEArmyCompany company=data.armyCompanies.get(record.companyId);
+            if (company == null
+                    ? !normalizeFaction(kome.common.data.KOMEPopulationService.populationFaction(record)).equals(normalizeFaction(faction))
+                    : !KOMECompanyMutationAuthority.currentOwner(data, player, company))
+                continue;
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
                 continue;
             }
@@ -3490,6 +3589,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     private static void reconcileTemporaryControllers(KOMEWorldData data, long nowMillis, String reason) {
         KOMEWarService.reconcileAutomaticMilitarySupport(data, nowMillis, reason);
         KOMEWartimeStewardshipService.revalidateAll(data, nowMillis, reason);
+        boolean visibilityChanged = false;
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company == null || company.temporaryController == null) {
                 continue;
@@ -3517,6 +3617,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     revocation);
                 company.clearTemporaryController(revocation);
                 data.markDirty();
+                visibilityChanged = true;
                 continue;            }
             String controllerFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(company.temporaryController));
             if (controllerFaction.length() > 0
@@ -3541,7 +3642,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 order.accessLostAtMillis = nowMillis;
             }
             data.markDirty();
+            visibilityChanged = true;
         }
+        if (visibilityChanged) data.syncConquestTiles();
+    }
+
+    private void companyActionFeedback(ICommandSender sender,KOMEWorldData data,KOMEArmyCompany company,String detail){
+        UUID viewer=KOMEReflection.getEntityUUID(getCommandSenderAsPlayer(sender));
+        sender.addChatMessage(new ChatComponentText(companyReadView(sender,data,viewer).directlyVisible(company)
+            ? detail : "Company action processed."));
     }
 
     private static boolean isMovementStepAuthorized(KOMEWorldData data, KOMEArmyMovementOrder order) {
@@ -4610,11 +4719,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         return name == null ? "" : name.trim().toLowerCase();
     }
 
-    private static KOMEHiredUnitRecord findUnitByPrefix(KOMEWorldData data, String id, UUID owner, boolean admin) {
+    private static KOMEHiredUnitRecord findUnitByPrefix(KOMEWorldData data, String id, UUID owner,
+            boolean admin,kome.common.network.KOMECompanyMapProjection.View readView) {
         KOMEHiredUnitRecord found = null;
         String lookup = id == null ? "" : id.toLowerCase();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.entity == null || !admin && !owner.equals(record.owner)) {
+            if (record == null || record.entity == null || !admin && !owner.equals(record.owner)
+                    || !readView.readableCampaignMember(record)) {
                 continue;
             }
             String uuid = record.entity.toString().toLowerCase();
@@ -4740,14 +4851,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return false;
         }
         KOMEArmyCompany company = data == null ? null : data.armyCompanies.get(order.companyId);
-        UUID actor = KOMEReflection.getEntityUUID(player);
-        if (company != null && KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)) {
-            return canUseDelegatedCompanyControl(data, company, actor);
-        }
-        if (company != null && KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
-            return new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, actor).allowed;
-        }
-        return player.canCommandSenderUseCommand(2, getCommandName()) || actor.equals(order.owner);
+        return company == null ? KOMECompanyMutationAuthority.operator(player)
+            : KOMECompanyMutationAuthority.controller(data, player, company);
     }
 
     private boolean companyHasPresenceAtTile(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -5279,6 +5384,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             id = "M" + next++;
         } while (data.armyMovements.containsKey(id));
         return id;
+    }
+
+    private kome.common.network.KOMECompanyMapProjection.View companyReadView(
+            ICommandSender sender,KOMEWorldData data,UUID viewer) {
+        EntityPlayerMP player=getCommandSenderAsPlayer(sender);
+        return kome.common.network.KOMECompanyMapProjection.view(data,viewer,
+            getPlayerFaction(data,player),sender.canCommandSenderUseCommand(2,getCommandName()));
     }
 
     private String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {

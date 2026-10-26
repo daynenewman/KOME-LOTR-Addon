@@ -20,6 +20,7 @@ import kome.client.gui.KOMEGuiTheme;
 import kome.common.network.KOMEPacketCompanyMoveConfirmGui;
 import kome.common.network.KOMEPacketCompanyMovePreviewResult;
 import kome.common.network.KOMEPacketConquestOpenCapture;
+import kome.common.network.KOMECompanyMapProjection;
 import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMap;
 import lotr.common.LOTRDimension;
@@ -1719,6 +1720,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     /** Used by the live hover renderer; a missing public projection is not a known zero. */
     static void appendPopulationTooltip(List<String> lines, KOMETileTroopSummary summary) {
         if (summary != null) {
+            if (summary.stationedPop > 0) {
+                lines.add("Visible Campaign total: " + summary.stationedPop);
+            }
             if (!summary.population.faction.isEmpty()) {
                 lines.add("Faction Available Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.availablePopulationCenti));
                 lines.add("Faction Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.activePopulationCenti));
@@ -1832,7 +1836,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         return renderCompanyMarkers(map,mouseX,mouseY,(marker,art,bounds,presentation)->{
             if(KOMEMapMarkerTrace.ENABLED)drawTexturedMarker(KOMEMapMarkerTrace.Kind.COMPANY_SHIELD,marker.entityId,art,bounds);
             else drawTexturedMarker(art,bounds);
-            if(presentation.labels)drawTroopCount(KOMEMinecraftClient.fontRenderer(),bounds.x,bounds.y,bounds.width,bounds.height,marker.population);
+            if(presentation.labels)drawTroopCount(KOMEMinecraftClient.fontRenderer(),bounds.x,bounds.y,bounds.width,bounds.height,marker.soldierCount);
         });
     }
 
@@ -1866,7 +1870,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             KOMEMapIconPresentation.Bounds bounds=art.bounds(presentation,screenX,screenY);
             if(!bounds.visible(view))continue;
             sink.draw(marker,art,bounds,presentation);
-            if (inspect && bounds.contains(mouseX,mouseY)) tooltipMarker=marker;
+            if (inspect && !spottedCompany(marker) && bounds.contains(mouseX,mouseY)) tooltipMarker=marker;
         }
         return tooltipMarker==null?null:liveUnitTooltip(tooltipMarker);
     }
@@ -1877,6 +1881,11 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         markers.sort(java.util.Comparator.nullsFirst(java.util.Comparator.comparing(
             (KOMEUnitMapMarker marker)->marker.entityId,java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder()))));
         return markers;
+    }
+
+    private static boolean spottedCompany(KOMEUnitMapMarker marker) {
+        KOMEArmyCompany company=marker==null?null:KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
+        return company!=null && KOMECompanyMapProjection.SPOTTED_STATUS.equals(company.status);
     }
 
     private static List<String> drawBuildMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
@@ -1974,7 +1983,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 continue;
             }
             String tileId = markerStationedTile(marker);
-            int population = Math.max(0, marker.population);
+            KOMEArmyCompany company=KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
+            int population = company==null || spottedCompany(marker)?0:Math.max(0,company.totalPopulation);
             if (tileId.length() > 0 && population > 0) {
                 populationByTile.put(tileId, Integer.valueOf((int)Math.min(Integer.MAX_VALUE,
                     (long)mapIntValue(populationByTile, tileId) + population)));
@@ -2013,9 +2023,11 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     private static List<String> liveUnitTooltip(KOMEUnitMapMarker marker) {
+        if(spottedCompany(marker))return null;
         List<String> lines = new ArrayList<String>();
         lines.add(marker.companyName == null || marker.companyName.length() == 0 ? "Company" : marker.companyName);
         lines.add("Loaded units: " + marker.unitCount);
+        lines.add("Campaign soldiers: " + marker.soldierCount);
         lines.add("Campaign population: " + marker.population + (marker.mounted ? " mounted" : " mixed/ground"));
         if(marker.unitCount>0)lines.add(marker.haltedProtected ? "Halted: Protected / Inactive" : "Active: Vulnerable / Combat-capable");
         else lines.add("Strategic tile presence; NPC position/combat state unavailable");
@@ -2044,7 +2056,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         // Afterwards, absence is authoritative even if an older marker packet arrives later.
         // Strategic-only presence needs the matching current stationed projection, never tile ownership.
         if(company==null)return marker.unitCount>0&&!KOMEClientData.INSTANCE.hasCompleteConquestSnapshot();
-        return !company.isMoving()&&(KOMEArmyCompany.STATIONED.equals(company.status)||KOMEArmyCompany.WAR_ENDED_HALTED.equals(company.status))
+        return !company.isMoving()&&(KOMEArmyCompany.STATIONED.equals(company.status)
+            ||KOMEArmyCompany.WAR_ENDED_HALTED.equals(company.status)
+            ||KOMECompanyMapProjection.SPOTTED_STATUS.equals(company.status))
             && markerStationedTile(marker).equals(KOMEConquestTile.normalizeId(company.currentTile));
     }
 

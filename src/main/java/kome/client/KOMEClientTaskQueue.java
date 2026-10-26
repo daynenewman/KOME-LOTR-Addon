@@ -72,6 +72,37 @@ public final class KOMEClientTaskQueue {
         return true;
     }
 
+    /** Marker replacements must remain behind any conquest snapshot queued between them. */
+    public boolean enqueueLatestAtTail(Object key, Runnable task) {
+        if (key == null || task == null) throw new IllegalArgumentException("Task key and body are required");
+        boolean immediate = onClientThread.getAsBoolean() && !draining;
+        if (immediate) drain();
+        synchronized (lock) {
+            if (!connected) return false;
+            LatestTask pending = latestTasks.get(key);
+            if (pending != null) {
+                if (tasks.remove(pending)) {
+                    pending.task = task;
+                    tasks.add(pending);
+                } else {
+                    if (tasks.size() >= MAX_PENDING_TASKS)
+                        throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
+                    LatestTask latest = new LatestTask(key, task);
+                    latestTasks.put(key, latest);
+                    tasks.add(latest);
+                }
+            } else {
+                if (tasks.size() >= MAX_PENDING_TASKS)
+                    throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
+                LatestTask latest = new LatestTask(key, task);
+                latestTasks.put(key, latest);
+                tasks.add(latest);
+            }
+        }
+        if (immediate) drain();
+        return true;
+    }
+
     /** Discards the previous connection's work; reset itself runs on the client thread. */
     public void resetSession(boolean connected, Runnable reset) {
         if (reset == null) throw new IllegalArgumentException("Client reset is required");
@@ -129,7 +160,8 @@ public final class KOMEClientTaskQueue {
         public void run() {
             Runnable publication;
             synchronized (lock) {
-                if (latestTasks.get(key) == this) latestTasks.remove(key);
+                if (latestTasks.get(key) != this) return;
+                latestTasks.remove(key);
                 publication = task;
             }
             publication.run();

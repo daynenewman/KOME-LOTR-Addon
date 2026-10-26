@@ -83,13 +83,16 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
                 KOMEMinecraftClient.closePlayerScreen();
             }
         } else if (button.id == 1) {
-            String command = "/population units " + playerName + (tileFilter.length() > 0 ? " " + tileFilter : "");
-            KOMEMinecraftClient.sendChat(command);
+            if (tileFilter.length() > 0)
+                KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
+                    "population_units", "", "", tileFilter));
+            else KOMEMinecraftClient.sendChat("/population units " + playerName);
             KOMEMinecraftClient.closePlayerScreen();
         } else if (button.id == 2) {
             KOMEUnitGuiEntry selected = getSelectedUnit();
             if (selected != null && selected.canMove) {
-                KOMEMinecraftClient.sendChat("/troops companies " + selected.currentTile);
+                KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
+                    "list", "", "", selected.currentTile));
                 KOMEMinecraftClient.closePlayerScreen();
             }
         } else if (button.id >= 10 && button.id <= 17) {

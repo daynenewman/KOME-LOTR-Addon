@@ -1,6 +1,9 @@
 package kome.common.command;
 
 import kome.common.data.*;
+import lotr.common.LOTRLevelData;
+import lotr.common.LOTRPlayerData;
+import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.profiler.Profiler;
@@ -153,6 +156,8 @@ public class KOMECampaignBoundaryMovementTest {
                 player.worldObj = world;
                 Field uuid = Entity.class.getDeclaredField("entityUniqueID"); uuid.setAccessible(true);
                 order.owner = UUID.randomUUID(); uuid.set(player, order.owner);
+                data.armyCompanies.get(order.companyId).owner = order.owner;
+                try (AutoCloseable pledge=pledged(order.owner, LOTRFaction.GONDOR)) {
                 java.lang.reflect.Method command = KOMECommandTroops.class.getDeclaredMethod("handleMovementAdmin",
                         net.minecraft.command.ICommandSender.class, net.minecraft.entity.player.EntityPlayerMP.class,
                         KOMEWorldData.class, String[].class);
@@ -208,6 +213,7 @@ public class KOMECampaignBoundaryMovementTest {
                 assertEquals(allowance - 1, reloaded.dailyStepsRemaining);
                 KOMECommandTroops.resetDailyMovementAllowances(restored, next);
                 assertEquals(allowance - 1, reloaded.dailyStepsRemaining);
+                }
             }
         }
     }
@@ -216,6 +222,17 @@ public class KOMECampaignBoundaryMovementTest {
         Class<?> unsafe = Class.forName("sun.misc.Unsafe");
         Field singleton = unsafe.getDeclaredField("theUnsafe"); singleton.setAccessible(true);
         return unsafe.getMethod("allocateInstance", Class.class).invoke(singleton.get(null), type);
+    }
+
+    private static AutoCloseable pledged(UUID id, LOTRFaction faction) throws Exception {
+        Field mapField=LOTRLevelData.class.getDeclaredField("playerDataMap");mapField.setAccessible(true);
+        @SuppressWarnings("unchecked") java.util.Map<UUID,LOTRPlayerData> map=
+            (java.util.Map<UUID,LOTRPlayerData>)mapField.get(null);
+        LOTRPlayerData data=new LOTRPlayerData(id);
+        Field pledge=LOTRPlayerData.class.getDeclaredField("pledgeFaction");pledge.setAccessible(true);
+        pledge.set(data,faction);
+        LOTRPlayerData old=map.put(id,data);
+        return ()->{if(old==null)map.remove(id);else map.put(id,old);};
     }
 
     /** Inert, non-operator controller; real command permission/dispatch logic remains under test. */

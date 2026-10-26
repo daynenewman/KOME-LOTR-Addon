@@ -21,13 +21,23 @@ public final class KOMEConquestSnapshotPublisher {
     private static final Object PUBLICATION_KEY = new Object();
 
     private final KOMEClientTaskQueue tasks;
+    private final Runnable onSensitiveRemoval;
     private Accumulator incoming;
     private Snapshot lastComplete;
     private long generation;
+    private Object connection;
+    private long latestPublicationSerial = -1L;
+    private long completedPublicationSerial = -1L;
+    private long appliedPublicationSerial = -1L;
 
     public KOMEConquestSnapshotPublisher(KOMEClientTaskQueue tasks) {
+        this(tasks, () -> { });
+    }
+
+    public KOMEConquestSnapshotPublisher(KOMEClientTaskQueue tasks, Runnable onSensitiveRemoval) {
         if (tasks == null) throw new IllegalArgumentException("Client task queue is required");
         this.tasks = tasks;
+        this.onSensitiveRemoval = onSensitiveRemoval;
     }
 
     /** Drops an incomplete snapshot from the previous connection. */
@@ -35,10 +45,55 @@ public final class KOMEConquestSnapshotPublisher {
         incoming = null;
         lastComplete = null;
         generation++;
+        latestPublicationSerial = -1L;
+        completedPublicationSerial = -1L;
+        appliedPublicationSerial = -1L;
     }
 
-    public synchronized void accept(KOMEPacketConquestData.PublicationChunk chunk) {
+    /** The exact NetHandlerPlayClient object is the session identity, as for unit markers. */
+    public synchronized void start(Object connection) {
+        this.connection = connection;
+        resetSession();
+    }
+
+    /** A world replacement invalidates pending work while retaining the connection serial floor. */
+    public synchronized void invalidateWorld() {
+        incoming = null;
+        lastComplete = null;
+        completedPublicationSerial = latestPublicationSerial;
+        appliedPublicationSerial = -1L;
+        generation++;
+    }
+
+    /** Checked on the client thread immediately before opening a map-origin detail view. */
+    public synchronized boolean allowsMapDetail(long serial, Object source) {
+        return source != null && source == connection && serial > 0L
+            && serial == latestPublicationSerial && serial == completedPublicationSerial
+            && serial == appliedPublicationSerial
+            && lastComplete != null;
+    }
+
+    /** Only a fully applied newer snapshot can justify a current-authority re-query. */
+    public synchronized long appliedPublicationSerial(Object source) {
+        return source != null && source == connection && appliedPublicationSerial == latestPublicationSerial
+            ? appliedPublicationSerial : -1L;
+    }
+
+    public synchronized void accept(KOMEPacketConquestData.PublicationChunk chunk,Object source) {
+        if (connection == null || connection != source) return;
+        accept(chunk);
+    }
+
+    synchronized void accept(KOMEPacketConquestData.PublicationChunk chunk) {
         if (chunk == null) throw new IllegalArgumentException("Conquest snapshot chunk is required");
+        if (chunk.publicationSerial < latestPublicationSerial) return;
+        if (chunk.publicationSerial > 0L
+                && chunk.publicationSerial == completedPublicationSerial) return;
+        if (chunk.publicationSerial > latestPublicationSerial) {
+            if (!chunk.reset) return;
+            latestPublicationSerial = chunk.publicationSerial;
+            incoming = null;
+        }
         if (chunk.reset) incoming = new Accumulator();
         if (incoming == null) {
             // Continuations cannot initialize a session; after a completed baseline, retain
@@ -52,11 +107,18 @@ public final class KOMEConquestSnapshotPublisher {
         Snapshot completed = incoming.complete();
         incoming = null;
         lastComplete = completed;
+        completedPublicationSerial = chunk.publicationSerial;
         final long publicationGeneration = generation;
+        final long publicationSerial = chunk.publicationSerial;
         try {
             tasks.enqueueLatest(PUBLICATION_KEY, () -> {
                 synchronized (KOMEConquestSnapshotPublisher.this) {
-                    if (publicationGeneration == generation) completed.publish();
+                    if (publicationGeneration == generation
+                            && publicationSerial == latestPublicationSerial) {
+                        boolean removed = completed.publish();
+                        appliedPublicationSerial = publicationSerial;
+                        if (removed) onSensitiveRemoval.run();
+                    }
                 }
             });
         } catch (RejectedExecutionException full) {
@@ -138,8 +200,16 @@ public final class KOMEConquestSnapshotPublisher {
             this.capitalTiles = new HashMap<String, String>(capitalTiles);
         }
 
-        private void publish() {
+        private boolean publish() {
             KOMEClientData data = KOMEClientData.INSTANCE;
+            boolean removed = !armyCompanies.keySet().containsAll(data.armyCompanies.keySet())
+                || !armyMovements.keySet().containsAll(data.armyMovements.keySet());
+            if (!removed) for (KOMETileTroopSummary previous : data.troopSummaries.values()) {
+                KOMETileTroopSummary current = troopSummaries.get(previous.tileId);
+                if (current == null || current.stationedPop < previous.stationedPop
+                        || current.movingPop < previous.movingPop
+                        || current.incomingPop < previous.incomingPop) { removed = true; break; }
+            }
             data.armyCompanies.clear();
             data.armyCompanies.putAll(armyCompanies);
             data.conquestTiles.clear();
@@ -157,6 +227,7 @@ public final class KOMEConquestSnapshotPublisher {
             data.builds.clear();
             data.builds.putAll(builds);
             data.completeConquestUpdate();
+            return removed;
         }
     }
 }

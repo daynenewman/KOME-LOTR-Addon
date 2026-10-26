@@ -32,9 +32,12 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketTroopGuiAction(
                 "move", move.companyId, move.destinationTile, move.originTile, move.previewToken));
         } else if (button.id == 1) {
-            mc.displayGuiScreen(null);
+            kome.common.KOMEAddon.proxy.cancelMapDetailRequest(this);
+            closeAfterCancel();
         }
     }
+
+    protected void closeAfterCancel() { mc.displayGuiScreen(null); }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {

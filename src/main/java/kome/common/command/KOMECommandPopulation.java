@@ -243,15 +243,35 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
     }
 
     private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player, String filterTile) {
+        sendUnitBreakdown(sender,player,filterTile,sender.canCommandSenderUseCommand(2,getCommandName()),false,0L);
+    }
+
+    /** GUI map entry point: administrative command access is distinct from map intelligence. */
+    public void sendMapUnitBreakdown(EntityPlayerMP player, String filterTile) {
+        sendMapUnitBreakdown(player,filterTile,0L);
+    }
+
+    public void sendMapUnitBreakdown(EntityPlayerMP player, String filterTile, long requestId) {
+        sendUnitBreakdown(player,player,filterTile,
+            kome.common.network.KOMEAdminMapVision.enabled(player),true,requestId);
+    }
+
+    private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player,
+            String filterTile, boolean adminMapView, boolean mapOrigin, long requestId) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         if (!filterTile.isEmpty() && data.getPublicConquestTile(filterTile) == null)
             throw new WrongUsageException("Unknown or unavailable public tile: " + filterTile);
         UUID playerID = KOMEReflection.getEntityUUID(player);
+        LOTRFaction currentPledge=LOTRLevelData.getData(player).getPledgeFaction();
+        kome.common.network.KOMECompanyMapProjection.View companyRead=
+            kome.common.network.KOMECompanyMapProjection.view(data,playerID,
+                currentPledge==null?"":KOMEAlliance.normalizeFactionKey(currentPledge.codeName()),
+                adminMapView);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
         String faction = data.getPlayerFactionKey(playerID);
         List units = new ArrayList();
         for (KOMEHiredUnitRecord record : kome.common.data.KOMEPopulationService.livingRecords(data)) {
-            if (!playerID.equals(record.owner)) {
+            if (!playerID.equals(record.owner) || !companyRead.readableCampaignMember(record)) {
                 continue;
             }
             if (filterTile.length() > 0) {
@@ -272,7 +292,13 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
             }
         });
         if (sender instanceof EntityPlayerMP) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationUnitsGui(player.getCommandSenderName(), filterTile, units, kome.common.data.KOMEPopulationProjection.of(data, faction), farmhandsUsed), (EntityPlayerMP) sender);
+            KOMEPacketPopulationUnitsGui packet=new KOMEPacketPopulationUnitsGui(player.getCommandSenderName(), filterTile, units, kome.common.data.KOMEPopulationProjection.of(data, faction), farmhandsUsed);
+            if(mapOrigin){
+                packet.mapPublicationSerial=kome.common.network.KOMEPacketConquestData.mapDetailPublicationSerial(data,player);
+                if(packet.mapPublicationSerial<=0L)return;
+                packet.mapRequestId=requestId;
+            }
+            KOMEPacketHandler.network.sendTo(packet, (EntityPlayerMP) sender);
             return;
         }
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " tracked units:"));

@@ -13,6 +13,7 @@ import kome.common.KOMEAccessFixture;
 import kome.common.command.KOMECommandKome;
 import kome.common.data.*;
 import lotr.common.fac.LOTRFaction;
+import net.minecraft.nbt.NBTTagCompound;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,8 +57,10 @@ public class KOMEPublicAccessPacketTest {
             .onMessage(request, f.context);
         assertTrue(f.network.messages.isEmpty());
         assertEquals(1, KOMEPacketHandler.runPendingServerTasks());
-        assertEquals(1, f.network.messages.size());
-        KOMEPacketConquestCaptureGui response = (KOMEPacketConquestCaptureGui) f.network.messages.get(0);
+        assertTrue(f.network.messages.size()>1);
+        KOMEPacketConquestCaptureGui response = (KOMEPacketConquestCaptureGui) f.network.messages.get(f.network.messages.size()-1);
+        assertTrue(response.mapPublicationSerial>0L);
+        assertTrue(f.network.messages.get(0) instanceof KOMEPacketConquestData);
         assertEquals(tile.id, response.tileId);
         assertEquals(2450L, response.population.availablePopulationCenti);
         assertEquals(1, response.builds.size());
@@ -67,7 +70,7 @@ public class KOMEPublicAccessPacketTest {
         assertFalse(f.data.isDirty());
         assertTrue(f.data.progressions.isEmpty());
         new KOMECommandKome().processCommand(f.player, new String[] {"tile", tile.id});
-        assertEquals(2, f.network.messages.size());
+        assertTrue(f.network.messages.get(f.network.messages.size()-1) instanceof KOMEPacketConquestCaptureGui);
     }
 
     @Test public void sameFactionPacketPublishesGeneratedOwnerChoicesAndRoundTrips() throws Exception {
@@ -97,6 +100,95 @@ public class KOMEPublicAccessPacketTest {
         assertEquals(before, savedWorld());
         assertFalse(f.data.isDirty());
         assertTrue(f.data.progressions.isEmpty());
+    }
+
+    @Test public void foreignIncomingCapturePacketHidesEtaAndMovementIdentityOnWire() throws Exception {
+        tile.claim("mordor",0L);
+        KOMEHiredUnitRecord unit=new KOMEHiredUnitRecord();
+        unit.entity=UUID.randomUUID();unit.owner=UUID.randomUUID();unit.sourcePlayer=unit.owner;
+        unit.type=KOMEPopulationType.OFFENSIVE;unit.cost=unit.baseCost=unit.populationSpent=25;
+        unit.sourceTileId=unit.currentTile="T149";unit.companyId="SECRET_COMPANY";
+        unit.unitFaction=unit.sourceFaction=unit.populationOwningFaction="mordor";
+        unit.sourceType=KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK;
+        net.minecraft.nbt.NBTTagCompound campaign=unit.writeToNBT();campaign.setString("UnitClass","CAMPAIGN");unit.readFromNBT(campaign);
+        unit.movementOrderId="SECRET_ORDER";f.data.hiredUnits.put(unit.entity,unit);
+        KOMEArmyMovementOrder order=new KOMEArmyMovementOrder();
+        order.id="SECRET_ORDER";order.companyId="SECRET_COMPANY";order.companyName="SECRET_MARCH";
+        order.ownerFaction="mordor";order.status=KOMEArmyMovementOrder.MOVING;
+        order.originTile=order.currentTile="T149";order.destinationTile=order.nextTile=tile.id;
+        order.arrivalMillis=System.currentTimeMillis()+60000L;order.units.add(unit.entity);
+        f.data.armyMovements.put(order.id,order);
+        KOMEPacketConquestCaptureGui foreign=tilePacket();
+        assertEquals(0,foreign.incomingPop);assertEquals(0L,foreign.incomingEtaMillis);
+        io.netty.buffer.ByteBuf bytes=Unpooled.buffer();
+        try {
+            foreign.toBytes(bytes);
+            assertFalse(bytes.toString(java.nio.charset.StandardCharsets.UTF_8).contains("SECRET_MARCH"));
+            assertFalse(bytes.toString(java.nio.charset.StandardCharsets.UTF_8).contains("SECRET_ORDER"));
+            KOMEPacketConquestCaptureGui decoded=new KOMEPacketConquestCaptureGui();decoded.fromBytes(bytes);
+            assertEquals(tile.id,decoded.tileId);assertEquals("mordor",decoded.ownerFaction);
+            assertEquals(0,decoded.incomingPop);assertEquals(0L,decoded.incomingEtaMillis);
+        }finally{bytes.release();}
+        f.pledge(LOTRFaction.MORDOR);
+        KOMEPacketConquestCaptureGui friendly=tilePacket();
+        assertTrue("The owner faction keeps its useful incoming ETA",friendly.incomingEtaMillis>0L);
+    }
+
+    @Test public void capturePacketDoesNotExposeUnobservedEnemyTileStrength() throws Exception {
+        tile.claim("mordor",0L);
+        UUID enemyOwner=UUID.randomUUID();
+        f.data.lastKnownPlayerFactions.put(enemyOwner,"mordor");
+        KOMEHiredUnitRecord enemy=new KOMEHiredUnitRecord();
+        enemy.entity=UUID.randomUUID();enemy.owner=enemyOwner;enemy.currentTile=tile.id;
+        enemy.cost=25;enemy.type=KOMEPopulationType.OFFENSIVE;
+        NBTTagCompound saved=enemy.writeToNBT();saved.setString("UnitClass","CAMPAIGN");enemy.readFromNBT(saved);
+        f.data.hiredUnits.put(enemy.entity,enemy);
+        KOMEPacketConquestCaptureGui hidden=tilePacket();
+        assertEquals(0,hidden.offensivePop);
+        KOMEArmyCompany spotter=new KOMEArmyCompany();spotter.id="SPOTTER";
+        spotter.faction="gondor";spotter.currentTile=tile.id;spotter.owner=f.player.getUniqueID();
+        f.data.armyCompanies.put(spotter.id,spotter);
+        KOMEHiredUnitRecord own=new KOMEHiredUnitRecord();
+        own.entity=UUID.randomUUID();own.owner=spotter.owner;own.currentTile=tile.id;
+        own.companyId=spotter.id;own.cost=30;
+        saved=own.writeToNBT();saved.setString("UnitClass","CAMPAIGN");own.readFromNBT(saved);
+        f.data.hiredUnits.put(own.entity,own);spotter.units.add(own.entity);
+        KOMEPacketConquestCaptureGui observed=tilePacket();
+        assertEquals(0,observed.offensivePop);
+        assertEquals(30,observed.myOffensivePop);
+        spotter.movementOrderId="LEFT";
+        assertEquals(0,tilePacket().offensivePop);
+    }
+
+    @Test public void formerCompanyOwnerCannotRecoverForeignCostAfterPledgeChange() throws Exception {
+        UUID viewer=f.player.getUniqueID();
+        KOMEArmyCompany company=new KOMEArmyCompany();company.id="FORMER";company.faction="gondor";
+        company.owner=viewer;company.currentTile=tile.id;f.data.armyCompanies.put(company.id,company);
+        KOMEHiredUnitRecord member=new KOMEHiredUnitRecord();member.entity=UUID.randomUUID();
+        member.owner=viewer;member.companyId=company.id;member.currentTile=tile.id;member.cost=37;
+        NBTTagCompound saved=member.writeToNBT();saved.setString("UnitClass","CAMPAIGN");
+        member.readFromNBT(saved);f.data.hiredUnits.put(member.entity,member);company.units.add(member.entity);
+        assertEquals(37,tilePacket().myOffensivePop);
+        f.pledge(LOTRFaction.ROHAN);tile.claim("rohan",1L);
+        KOMEPacketConquestCaptureGui restricted=tilePacket();
+        assertFalse("Hidden former-owner company cannot toggle a presence capability",restricted.canMoveTroops);
+        assertEquals(0,restricted.myOffensivePop);assertEquals(0,restricted.myDefensivePop);
+        assertEquals(0,restricted.myMountedPop);assertEquals(0,restricted.myGroundPop);
+        assertEquals(0,restricted.offensivePop);assertEquals(0,restricted.defensivePop);
+        assertEquals(0,restricted.mountedPop);assertEquals(0,restricted.groundPop);
+        io.netty.buffer.ByteBuf wire=Unpooled.buffer();
+        try {
+            restricted.toBytes(wire);
+            KOMEPacketConquestCaptureGui decoded=new KOMEPacketConquestCaptureGui();decoded.fromBytes(wire);
+            assertEquals(0,decoded.myOffensivePop);assertEquals(0,decoded.offensivePop);
+            assertEquals(0,decoded.mountedPop);assertEquals(0,decoded.groundPop);
+            assertFalse(decoded.canMoveTroops);
+        }finally{wire.release();}
+        f.player.operator=true;
+        assertEquals("OP alone must not expose private map costs",0,tilePacket().myOffensivePop);
+        assertTrue(KOMEAdminMapVision.setEnabled(f.player,true));
+        assertEquals("Operator retains independent administrative access",37,tilePacket().myOffensivePop);
+        KOMEAdminMapVision.forget(f.player);
     }
 
     @Test public void unpledgedPublicViewerReceivesNoCreationOwners() throws Exception {
@@ -151,8 +243,10 @@ public class KOMEPublicAccessPacketTest {
         int before = f.network.messages.size();
         new KOMEPacketConquestOpenCapture.Handler().onMessage(
             new KOMEPacketConquestOpenCapture(tile.id), f.context);
-        assertEquals(before + 1, f.network.messages.size());
-        return (KOMEPacketConquestCaptureGui) f.network.messages.get(before);
+        assertTrue(f.network.messages.size()>before);
+        KOMEPacketConquestCaptureGui response=(KOMEPacketConquestCaptureGui)f.network.messages.get(f.network.messages.size()-1);
+        assertTrue(response.mapPublicationSerial>0L);
+        return response;
     }
 
     @Test public void unknownAndRetiredTilesAreNotCreatedOrPublishedEvenByForgedRequests() {
@@ -354,7 +448,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g13"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g18"));
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 

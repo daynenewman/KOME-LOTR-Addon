@@ -94,6 +94,199 @@ public class KOMECompanyMovementServiceTest {
             assertTrue(f.data.armyMovements.isEmpty());
         }
     }
+    @Test public void formerOwnerCannotReadTileStatusOrDeniedPreviewAfterPledgeChange() throws Exception {
+        try(Fixture f=new Fixture(false,1)) {
+            f.command.processCommand(f.player,new String[]{"tile","C1","status"});
+            assertTrue(f.player.messages.toString().contains("Company"));
+            f.player.messages.clear();
+            f.pledge(LOTRFaction.ROHAN);
+            try { f.command.processCommand(f.player,new String[]{"tile","C1","status"}); fail(); }
+            catch(net.minecraft.command.WrongUsageException denied){ assertEquals("Company unavailable.",denied.getMessage()); }
+            assertFalse(f.player.messages.toString().contains("Company"));
+            assertFalse(f.player.messages.toString().contains("protected/inactive"));
+            f.player.messages.clear();
+            f.company.movementAllowance=0;
+            try { f.command.processCommand(f.player,new String[]{"previewmove","C1",f.destination}); fail(); }
+            catch(net.minecraft.command.WrongUsageException denied){ assertEquals("Company unavailable.",denied.getMessage()); }
+            assertNull(f.command.failure);
+            assertFalse(f.player.messages.toString().contains("Company"));
+        }
+    }
+    @Test public void historicalOwnerCannotMutateCompanyAfterPledgeChange()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.pledge(LOTRFaction.ROHAN);
+            String original=f.company.tendency;
+            NBTTagCompound originalMember=f.unit.writeToNBT();
+            f.data.setDirty(false);
+            for(String[] command:new String[][]{
+                {"company","C1","tendency","aggressive"},
+                {"company","C1","transfer","Nobody"},
+                {"company","C1","reclaim"},
+                {"company","C1","canceltransfer"},
+                {"tile","C1","halt"},
+                {"tile","C1","resume"},
+                {"snapshotcompany","C1"},
+                {"company","rebuild"}}){
+                try {f.command.processCommand(f.player,command);fail(Arrays.toString(command));}
+                catch(net.minecraft.command.WrongUsageException denied){
+                    assertTrue(denied.getMessage(),"Company unavailable.".equals(denied.getMessage())
+                        || Arrays.equals(command,new String[]{"company","rebuild"})
+                            && denied.getMessage().contains("Only operators"));
+                }
+                assertEquals(original,f.company.tendency);
+                assertEquals(originalMember,f.unit.writeToNBT());
+                assertFalse(f.data.isDirty());
+                assertTrue(f.player.messages.isEmpty());
+            }
+            assertEquals(KOMEArmyCompany.AUTHORITY_NATIVE,f.company.controllerAuthority);
+            assertNull(f.company.temporaryController);
+        }
+    }
+    @Test public void currentOwnerAndOperatorKeepExplicitCompanyMutationRights()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.command.processCommand(f.player,new String[]{"company","C1","tendency","aggressive"});
+            assertEquals(KOMEArmyCompany.AGGRESSIVE,f.company.tendency);
+            f.pledge(LOTRFaction.ROHAN);
+            f.player.operator=true;
+            f.command.processCommand(f.player,new String[]{"company","C1","tendency","conservative"});
+            assertEquals(KOMEArmyCompany.CONSERVATIVE,f.company.tendency);
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+        }
+    }
+    @Test public void sameFactionReadOnlyPeerCannotMutateCompany()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+            assertFalse(KOMECompanyMutationAuthority.controller(f.data,f.player,f.company));
+            try{f.command.processCommand(f.player,new String[]{"company","C1","tendency","aggressive"});fail();}
+            catch(net.minecraft.command.WrongUsageException denied){assertFalse(denied.getMessage().isEmpty());}
+            assertEquals(KOMEArmyCompany.CONSERVATIVE,f.company.tendency);
+        }
+    }
+    @Test public void validTemporaryControllerKeepsProtectionAndReadAuthority()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            f.company.controllerAuthority=KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+            f.company.temporaryController=f.player.id;
+            f.data.lastKnownPlayerFactions.put(f.company.owner,"gondor");
+            f.data.lastKnownPlayerFactions.put(f.player.id,"gondor");
+            assertTrue(KOMECompanyMutationAuthority.controller(f.data,f.player,f.company));
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+            f.command.processCommand(f.player,new String[]{"tile","C1","halt"});
+            f.command.processCommand(f.player,new String[]{"tile","C1","resume"});
+            assertTrue(f.data.armyMovements.isEmpty());
+        }
+    }
+    @Test public void movementOrderControlFollowsCurrentCompanyAuthorityInsteadOfHistoricOrderOwner()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            KOMEArmyMovementOrder order=new KOMEArmyMovementOrder();order.companyId="C1";order.owner=f.player.id;
+            java.lang.reflect.Method method=KOMECommandTroops.class.getDeclaredMethod("canPlayerControlMovementOrder",
+                EntityPlayerMP.class,KOMEWorldData.class,KOMEArmyMovementOrder.class);
+            method.setAccessible(true);
+            assertEquals(Boolean.TRUE,method.invoke(f.command,f.player,f.data,order));
+            f.pledge(LOTRFaction.ROHAN);
+            assertEquals(Boolean.FALSE,method.invoke(f.command,f.player,f.data,order));
+            f.player.operator=true;
+            assertEquals(Boolean.TRUE,method.invoke(f.command,f.player,f.data,order));
+        }
+    }
+    @Test public void recognizedPledgedRulerCanReclaimButHistoricalDelegatorCannot()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            f.company.controllerAuthority=KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+            f.company.temporaryController=new UUID(8,8);
+            f.company.delegatedBy=f.player.id;
+            KOMERulerService.assignRuler(f.data,"gondor",f.player.id,"Ruler");
+            f.pledge(LOTRFaction.ROHAN);
+            try{f.command.processCommand(f.player,new String[]{"company","C1","reclaim"});fail();}
+            catch(net.minecraft.command.WrongUsageException denied){assertEquals("Company unavailable.",denied.getMessage());}
+            assertEquals(new UUID(8,8),f.company.temporaryController);
+            f.pledge(LOTRFaction.GONDOR);
+            f.command.processCommand(f.player,new String[]{"company","C1","reclaim"});
+            assertNull(f.company.temporaryController);
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+        }
+    }
+    @Test public void guiRenameRejectsFormerOwnerBeforeWorldDataMutation()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.pledge(LOTRFaction.ROHAN);
+            java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+                cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(
+                    net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+            constructor.setAccessible(true);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=constructor.newInstance(
+                f.player.playerNetServerHandler,cpw.mods.fml.relauncher.Side.SERVER);
+            new KOMEPacketTroopGuiAction.Handler().onMessage(
+                new KOMEPacketTroopGuiAction("rename","C1","Stolen Name",""),context);
+            assertEquals("Company",f.company.name);
+            assertTrue(f.player.messages.toString().contains("Company unavailable"));
+        }
+    }
+    @Test public void formerOwnerCannotStationOldFactionCampaignMemberInNewFactionTile()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.unit.currentTile="";
+            f.data.conquestTiles.get("T002").claim("rohan",NOW);
+            f.pledge(LOTRFaction.ROHAN);
+            f.command.processCommand(f.player,new String[]{"station","T002"});
+            assertEquals("",f.unit.currentTile);
+            assertEquals("T001",f.company.currentTile);
+        }
+    }
+    @Test public void forgedMapSubmissionCannotDistinguishHiddenCompanyFromUnknownId()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.pledge(LOTRFaction.ROHAN);
+            UUID session=new UUID(8,5);
+            String stale=String.join("",Collections.nCopies(64,"a"));
+            KOMECompanyMovementResult hidden=KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,
+                session,1,1,"C1",f.destination,stale,stale);
+            KOMECompanyMovementResult unknown=KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,
+                session,2,1,"NO_SUCH_COMPANY",f.destination,stale,stale);
+            assertEquals(unknown.code,hidden.code);
+            assertEquals(unknown.detail,hidden.detail);
+            assertEquals(unknown.outcome,hidden.outcome);
+            assertEquals(unknown.orderId,hidden.orderId);
+            assertEquals(unknown.orderStatus,hidden.orderStatus);
+            assertEquals(unknown.completedSteps,hidden.completedSteps);
+            assertEquals(unknown.distance,hidden.distance);
+            assertEquals("",hidden.currentTile);
+            assertTrue(f.data.armyMovements.isEmpty());
+        }
+    }
+    @Test public void commandableDelegatedPledgeMustHaveCurrentReadVisibility()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            f.company.controllerAuthority=KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+            f.company.temporaryController=f.player.id;
+            f.data.lastKnownPlayerFactions.put(f.company.owner,"gondor");
+            f.pledge(LOTRFaction.ROHAN);
+            f.data.lastKnownPlayerFactions.put(f.player.id,"gondor");
+            assertTrue(f.service.canPlayerConsiderCompany(f.data,f.player,f.company));
+            Evaluation evaluation=f.evaluate();
+            assertTrue(evaluation.denial==null?"":evaluation.denial.reason,evaluation.allowed());
+            Submission result=f.submit(evaluation);
+            assertTrue(result.denial==null?"":result.denial.reason,result.accepted);
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+        }
+    }
+    @Test public void delegatedMapSubmissionRetainsDetailedAuthorizedFeedback()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            f.company.controllerAuthority=KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+            f.company.temporaryController=f.player.id;
+            f.data.lastKnownPlayerFactions.put(f.company.owner,"gondor");
+            f.pledge(LOTRFaction.ROHAN);
+            f.data.lastKnownPlayerFactions.put(f.player.id,"gondor");
+            Evaluation evaluation=f.evaluate();
+            assertTrue(evaluation.denial==null?"":evaluation.denial.reason,evaluation.allowed());
+            assertTrue(kome.common.network.KOMECompanyMapProjection.directlyVisible(f.data,f.player,f.company));
+            KOMECompanyMovementResult result=KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,
+                new UUID(8,6),1,1,"C1",f.destination,evaluation.confirmation.legacyFingerprint,
+                evaluation.confirmation.serviceFingerprint);
+            assertTrue(result.detail,result.accepted());
+            assertFalse(result.orderId.isEmpty());
+            assertEquals(1,f.data.armyMovements.size());
+        }
+    }
     @Test public void committedCompanyProjectsHoldAndDoesNotMutateConflict() throws Exception {
         try (Fixture f = new Fixture(false, 1)) {
             KOMEConflictService conflicts = f.data.getConflictService();
@@ -606,6 +799,11 @@ public class KOMECompanyMovementServiceTest {
             data.armyMovements.put(holder.id, holder); return holder;
         }
         void edge(String a, String b, String type) { data.setRouteEdge(a, b, type, "fixture", 0, 10, 64, 20, "test"); }
+        void pledge(LOTRFaction faction) throws Exception {
+            Field field=LOTRPlayerData.class.getDeclaredField("pledgeFaction");field.setAccessible(true);
+            field.set(nativePlayers.get(player.id),faction);
+            data.lastKnownPlayerFactions.put(player.id,faction==null?"":faction.codeName());
+        }
         Evaluation evaluate() { return service.evaluate(data, player, "C1", destination); }
         Submission submit(Evaluation e) { return service.submit(data, player, "C1", destination, e); }
         @Override public void close() {

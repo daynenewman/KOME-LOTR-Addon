@@ -77,5 +77,5 @@ public class KOMECompanyMovementNetworkTest {
         guard.forget(connections.get(0));assertTrue(guard.acquire(extra,1));assertFalse(guard.acquire(connections.get(1),1));
         guard.clear();assertTrue(guard.acquire(connections.get(1),1));
     }
-    @Test public void protocolRequiresMatchingG13Artifacts() {assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g13"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));}
+    @Test public void protocolRequiresMatchingG18Artifacts() {assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g18"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));}
 }

@@ -167,9 +167,16 @@ public final class KOMEWartimeStewardshipService {
 
     public static void revalidateAll(KOMEWorldData data, long nowMillis, String reason) {
         if (data == null) return;
+        boolean visibilityChanged = false;
         for (KOMEArmyCompany company : new ArrayList<KOMEArmyCompany>(data.armyCompanies.values())) {
+            if (company == null) continue;
+            UUID priorController = company.temporaryController;
+            String priorAuthority = company.controllerAuthority;
             revalidateCompany(data, company, nowMillis, reason);
+            visibilityChanged |= !java.util.Objects.equals(priorController, company.temporaryController)
+                || !java.util.Objects.equals(priorAuthority, company.controllerAuthority);
         }
+        if (visibilityChanged) data.syncConquestTiles();
     }
 
     public static void beginWarEnding(KOMEWorldData data, KOMEWar war, String reason, long nowMillis) {

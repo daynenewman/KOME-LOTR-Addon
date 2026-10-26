@@ -75,7 +75,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
                 "audit <list|summary> [page]", "repair stewardship",
                 "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
         completion(root, staff, new String[] {""}, "gui", "help", "tile", "joinbattle", "battle", "waypoint", "character", "config",
-            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
+            "conquest", "waypointdefaults", "adminvision", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
             "conflict", "emergencydefense", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
         completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate");

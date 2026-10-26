@@ -45,6 +45,6 @@ public class KOMECompanyRallyNetworkTest {
                 Phase.READY,1,invalid==0?65:2,invalid==1?1:invalid==0?65:2,1,0,0,"Bad",new Entry(0,row(),"gondor",true,Outcome.PREVIEW,"Will rally"));
             try{new KOMEPacketCompanyRallyResponse(s);fail();}catch(IllegalArgumentException expected){ }
         }
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g13"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g10"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g18"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));
     }
 }

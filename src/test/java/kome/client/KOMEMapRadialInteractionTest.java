@@ -129,6 +129,38 @@ public class KOMEMapRadialInteractionTest {
         KOMEUnitMapMarker marker=new KOMEUnitMapMarker();marker.entityId=id;marker.companyName=name;marker.currentTile="T001";
         marker.population=population;marker.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;return marker;
     }
+    @Test public void spottedShieldDrawsAtTileButHasNoDetailTooltipOrCostDeduction()throws Exception {
+        preserve(KOMEClientData.INSTANCE.armyCompanies);KOMEClientData.INSTANCE.armyCompanies.clear();
+        save(field(KOMEConquestMapOverlay.class,"showTroopMarkers"));field(KOMEConquestMapOverlay.class,"showTroopMarkers").setBoolean(null,true);
+        save(field(KOMEMapMarkerArt.class,"validated"));save(field(KOMEMapMarkerArt.class,"available"));
+        Map<KOMEMapMarkerArt.Sprite,KOMEMapMarkerArt.Sprite> prepared=new IdentityHashMap<>();
+        prepared.put(KOMEMapMarkerArt.shield("mordor"),KOMEMapMarkerArt.shield("mordor"));
+        field(KOMEMapMarkerArt.class,"available").set(null,prepared);field(KOMEMapMarkerArt.class,"validated").setBoolean(null,true);
+        List<KOMEUnitMapMarker> old=new ArrayList<>(KOMEClientData.INSTANCE.unitMapMarkers);
+        try {
+            KOMEArmyCompany spotted=new KOMEArmyCompany();spotted.id="~recon:T001:mordor:1";
+            spotted.faction=spotted.nativeFaction="mordor";spotted.currentTile="T001";
+            spotted.status=kome.common.network.KOMECompanyMapProjection.SPOTTED_STATUS;
+            KOMEClientData.INSTANCE.armyCompanies.put(spotted.id,spotted);
+            KOMEUnitMapMarker marker=new KOMEUnitMapMarker();marker.entityId=spotted.id;
+            marker.currentTile="T001";marker.soldierCount=3;
+            marker.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;
+            KOMEClientData.INSTANCE.unitMapMarkers.clear();KOMEClientData.INSTANCE.unitMapMarkers.add(marker);
+            KOMEClientData.INSTANCE.tileWaypointLinksByTileId.remove("T001");
+            KOMETileRasterSnapshot raster=(KOMETileRasterSnapshot)field(KOMEConquestMapOverlay.class,"tileRaster").get(null);
+            pan((float)(2292D*LOTRGenLayerWorld.imageWidth/raster.width),
+                (float)(58D*LOTRGenLayerWorld.imageHeight/raster.height),1);
+            List<KOMEUnitMapMarker> drawn=new ArrayList<>();
+            assertNull(KOMEConquestMapOverlay.renderCompanyMarkers(map,400,300,(m,art,b,p)->{
+                drawn.add(m);assertSame(KOMEMapMarkerArt.shield("mordor"),art);
+            }));
+            assertEquals(Arrays.asList(marker),drawn);
+            java.lang.reflect.Method tooltip=KOMEConquestMapOverlay.class.getDeclaredMethod("liveUnitTooltip",KOMEUnitMapMarker.class);
+            tooltip.setAccessible(true);assertNull(tooltip.invoke(null,marker));
+            java.lang.reflect.Method counts=KOMEConquestMapOverlay.class.getDeclaredMethod("liveCompanyStationedPopulationByTile");
+            counts.setAccessible(true);assertTrue(((Map)counts.invoke(null)).isEmpty());
+        }finally{KOMEClientData.INSTANCE.unitMapMarkers.clear();KOMEClientData.INSTANCE.unitMapMarkers.addAll(old);}
+    }
     @Test public void nativeZoomStopsSubmitProgressiveCompanyAndBuildBounds()throws Exception {
         preserve(KOMEClientData.INSTANCE.armyCompanies);preserve(KOMEClientData.INSTANCE.builds);
         List<KOMEUnitMapMarker> old=new ArrayList<>(KOMEClientData.INSTANCE.unitMapMarkers);
@@ -189,7 +221,7 @@ public class KOMEMapRadialInteractionTest {
         preserve(KOMEClientData.INSTANCE.armyCompanies);KOMEClientData.INSTANCE.armyCompanies.clear();
         List<KOMEUnitMapMarker> old=new ArrayList<>(KOMEClientData.INSTANCE.unitMapMarkers);
         try {
-            KOMEArmyCompany company=new KOMEArmyCompany();company.id="C1";company.currentTile="T001";company.nativeFaction="rohan";
+            KOMEArmyCompany company=new KOMEArmyCompany();company.id="C1";company.currentTile="T001";company.nativeFaction="rohan";company.totalPopulation=50;
             KOMEClientData.INSTANCE.armyCompanies.put(company.id,company);
             KOMEUnitMapMarker marker=new KOMEUnitMapMarker();marker.entityId="C1";marker.currentTile="T001";
             marker.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;marker.population=50;marker.x=999999;marker.z=-999999;

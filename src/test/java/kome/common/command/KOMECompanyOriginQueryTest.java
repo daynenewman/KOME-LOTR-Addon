@@ -19,6 +19,14 @@ public class KOMECompanyOriginQueryTest {
     private void relation(LOTRFactionRelations.Relation r){LOTRFactionRelations.overrideRelations(LOTRFaction.GONDOR,LOTRFaction.MORDOR,r);}
     private KOMECompanySourceOptions source(Fixture f){return new KOMECompanyOriginQuery(f.service).source(f.data,f.player,session,1,"T001","","");}
     private KOMECompanyDestinationOptions target(Fixture f){return new KOMECompanyOriginQuery(f.service).target(f.data,f.player,session,2,"T001","C1",f.destination);}
+    @Test public void formerOwnerCannotReadSourceOrForgedTargetAfterPledgeChange()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            assertEquals(1,source(f).rows.size());
+            f.pledge(LOTRFaction.ROHAN);
+            assertTrue(source(f).rows.isEmpty());
+            assertTrue(target(f).rows.isEmpty());
+        }
+    }
     private KOMEArmyCompany add(Fixture f,String id,String tile){
         KOMEArmyCompany c=new KOMEArmyCompany();c.readFromNBT(f.company.writeToNBT());c.id=id;c.name=id;c.currentTile=tile;c.units.clear();
         KOMEHiredUnitRecord u=new KOMEHiredUnitRecord();u.readFromNBT(f.unit.writeToNBT());
@@ -45,6 +53,21 @@ public class KOMECompanyOriginQueryTest {
             f.data.lastKnownPlayerFactions.put(f.player.id,"gondor");
             assertEquals(1,source(f).rows.size());assertTrue(target(f).rows.get(0).canStartNow);
             f.company.temporaryController=null;assertTrue(source(f).rows.isEmpty());assertEquals(Result.SOURCE_CHANGED,target(f).result);
+        }
+    }
+    @Test public void livePledgeMismatchDoesNotHideStillCommandableDelegate()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.owner=f.unit.owner=new UUID(9,9);
+            f.company.controllerAuthority=KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+            f.company.temporaryController=f.player.id;
+            f.data.lastKnownPlayerFactions.put(f.company.owner,"gondor");
+            f.pledge(LOTRFaction.ROHAN);
+            f.data.lastKnownPlayerFactions.put(f.player.id,"gondor");
+            assertTrue(f.service.canPlayerConsiderCompany(f.data,f.player,f.company));
+            assertEquals(1,source(f).rows.size());
+            assertEquals("C1",source(f).rows.get(0).companyId);
+            assertEquals(1,target(f).rows.size());
+            assertTrue(target(f).rows.get(0).canStartNow);
         }
     }
     @Test public void exactTargetBeyondFirstEightNeverScansCatalogueOrEvaluatesOtherRoutes()throws Exception{

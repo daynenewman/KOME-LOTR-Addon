@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEPacketConquestCaptureGui implements IMessage {
+    public long mapPublicationSerial;
+    public long mapRequestId;
     public kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
             "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
     public String tileId;
@@ -125,6 +127,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         viewerY = buf.readDouble();
         viewerZ = buf.readDouble();
         focusBuildId = KOMEPopulationWire.readText(buf);
+        mapPublicationSerial = buf.readLong();
+        mapRequestId = buf.readLong();
         KOMEPopulationWire.requireFullyRead(buf);
     }
 
@@ -184,6 +188,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeDouble(viewerY);
             buf.writeDouble(viewerZ);
             KOMEPopulationWire.writeText(buf, focusBuildId == null ? "" : focusBuildId);
+            buf.writeLong(mapPublicationSerial);
+            buf.writeLong(mapRequestId);
         });
     }
 
@@ -191,7 +197,11 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketConquestCaptureGui message, MessageContext ctx) {
             final KOMEPacketConquestCaptureGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketConquestCaptureGui::new);
-            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayConquestCaptureGui(snapshot));
+            final Object source = ctx == null ? null : ctx.netHandler;
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.handleMapDetailResponse(
+                snapshot.mapRequestId,"capture",snapshot.tileId,snapshot.focusBuildId,
+                snapshot.mapPublicationSerial,source,
+                () -> KOMEAddon.proxy.displayConquestCaptureGui(snapshot)));
             return null;
         }
     }

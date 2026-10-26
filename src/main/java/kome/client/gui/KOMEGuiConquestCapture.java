@@ -1018,7 +1018,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int stationedCompanyCount() {
         int count = 0;
         for (KOMEArmyCompany company : KOMEClientData.INSTANCE.armyCompanies.values()) {
-            if (company != null && !company.isMoving() && tileId.equals(company.currentTile)
+            if (company != null && !kome.common.network.KOMECompanyMapProjection.SPOTTED_STATUS.equals(company.status)
+                    && !company.isMoving() && tileId.equals(company.currentTile)
                     && KOMEAlliance.normalizeFactionKey(ownerFaction).equals(KOMEAlliance.normalizeFactionKey(company.faction))) {
                 count++;
             }
@@ -1055,7 +1056,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         String direction = outgoing ? " -> " : " <- ";
         String extra = orders > 1 ? ", +" + (orders - 1) + " order" + (orders == 2 ? "" : "s") : "";
         String company = first.companyName == null || first.companyName.length() == 0 ? "Company" : first.companyName;
-        return company + ": " + total + " pop / " + first.units.size() + " units" + direction + otherTile + ", ETA "
+        return company + ": " + total + " pop / " + (first.mountedUnits + first.groundUnits) + " units" + direction + otherTile + ", ETA "
             + formatDuration(earliest == Long.MAX_VALUE ? 0L : earliest) + extra;
     }
 

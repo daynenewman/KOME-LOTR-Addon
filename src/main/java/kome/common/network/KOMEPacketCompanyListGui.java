@@ -15,6 +15,9 @@ public class KOMEPacketCompanyListGui implements IMessage {
     public String tileDisplayName = "";
     public final List<KOMECompanyGuiEntry> companies = new ArrayList<KOMECompanyGuiEntry>();
     public boolean canCreate;
+    /** Zero is an explicit command response; positive serials are map-origin views. */
+    public long mapPublicationSerial;
+    public long mapRequestId;
 
     public KOMEPacketCompanyListGui() {
     }
@@ -45,6 +48,8 @@ public class KOMEPacketCompanyListGui implements IMessage {
             entry.fromBytes(buf);
             companies.add(entry);
         }
+        mapPublicationSerial = buf.readLong();
+        mapRequestId = buf.readLong();
         KOMEPopulationWire.requireFullyRead(buf);
     }
 
@@ -59,6 +64,8 @@ public class KOMEPacketCompanyListGui implements IMessage {
             for (KOMECompanyGuiEntry entry : companies) {
                 entry.toBytes(buf);
             }
+            buf.writeLong(mapPublicationSerial);
+            buf.writeLong(mapRequestId);
         });
     }
 
@@ -66,7 +73,15 @@ public class KOMEPacketCompanyListGui implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketCompanyListGui message, MessageContext ctx) {
             final KOMEPacketCompanyListGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketCompanyListGui::new);
-            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayCompanyListGui(snapshot.tileId, snapshot.tileDisplayName, snapshot.companies, snapshot.canCreate));
+            final Object source = ctx == null ? null : ctx.netHandler;
+            KOMEAddon.proxy.enqueueClientTask(() -> {
+                if (snapshot.mapPublicationSerial == 0L)
+                    KOMEAddon.proxy.displayCompanyListGui(snapshot.tileId, snapshot.tileDisplayName, snapshot.companies, snapshot.canCreate);
+                else KOMEAddon.proxy.handleMapDetailResponse(snapshot.mapRequestId,"companies",
+                    snapshot.tileId,"",snapshot.mapPublicationSerial,source,
+                    () -> KOMEAddon.proxy.displayCompanyListGui(snapshot.tileId,
+                        snapshot.tileDisplayName,snapshot.companies,snapshot.canCreate));
+            });
             return null;
         }
     }

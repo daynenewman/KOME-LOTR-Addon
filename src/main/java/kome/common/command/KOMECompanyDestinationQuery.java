@@ -3,6 +3,7 @@ package kome.common.command;
 import java.util.*;
 import kome.common.KOMEReflection;
 import kome.common.data.*;
+import kome.common.network.KOMECompanyMapProjection;
 import net.minecraft.entity.player.EntityPlayerMP;
 import static kome.common.data.KOMECompanyDestinationOptions.*;
 
@@ -20,9 +21,11 @@ public final class KOMECompanyDestinationQuery {
                 || !KOMEConquestTile.isCanonicalTileId(destination))
             return error(session,sequence,destination,Result.INVALID_REQUEST);
         if(data.armyCompanies.size()>MAX_CATALOGUE) return error(session,sequence,destination,Result.CATALOGUE_LIMIT);
+        KOMECompanyMapProjection.View readView=KOMECompanyMapProjection.mapView(data,actor);
         List<String> candidates=new ArrayList<String>();
         for(KOMEArmyCompany company:data.armyCompanies.values()) {
             if(company==null) continue;
+            if(!readView.directlyVisible(company))continue;
             if(!movement.canPlayerConsiderCompany(data,actor,company)) continue;
             if(company.units.size()>MAX_MEMBERS) return error(session,sequence,destination,Result.COMPANY_LIMIT);
             // Fail closed: empty/all-missing membership cannot establish Campaign classification.

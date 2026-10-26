@@ -13,6 +13,18 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEUnitMapMarkerPublisherTest {
+    @Test public void newerMarkerReplacementRunsAfterInterveningConquestPublication() {
+        KOMEClientTaskQueue tasks=new KOMEClientTaskQueue();tasks.resetSession(true,()->{});
+        List<String> order=new ArrayList<String>();
+        KOMEUnitMapMarkerPublisher markers=new KOMEUnitMapMarkerPublisher(tasks,
+            rows->order.add("markers:"+rows.get(0).entityId));
+        Object connection=new Object();markers.start(connection);
+        markers.accept(rows("old"),connection);
+        tasks.enqueueLatest("conquest",()->order.add("filtered-conquest"));
+        markers.accept(rows("filtered"),connection);
+        tasks.drain();
+        assertEquals(Arrays.asList("filtered-conquest","markers:filtered"),order);
+    }
     @Test public void onlyClientDrainPublishesLatestFullReplacementIncludingEmptyRemoval() {
         KOMEClientTaskQueue tasks=new KOMEClientTaskQueue();tasks.resetSession(true,()->{});
         List<KOMEUnitMapMarker> visible=new ArrayList<>();

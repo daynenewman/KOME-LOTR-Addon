@@ -55,7 +55,8 @@ public class KOMEConquestPopulationRefreshTest {
         send(packet(true,true,summary("gondor",2500)));
         KOMETileTroopSummary tacticalOnly=summary("",0);tacticalOnly.stationedPop=20;tacticalOnly.stationedOffensivePop=20;
         send(packet(true,true,tacticalOnly));
-        assertEquals(Collections.singletonList("Stationed: Off 20, Mounted 0, Def 0"),lines());
+        assertEquals(Arrays.asList("Visible Campaign total: 20",
+            "Stationed: Off 20, Mounted 0, Def 0"),lines());
         send(packet(true,true));assertTrue(lines().isEmpty());
     }
     @Test public void missingProjectionFieldsFailBeforePublicationRatherThanEraseOrPatchData() {
@@ -73,12 +74,17 @@ public class KOMEConquestPopulationRefreshTest {
     }
     @Test public void worldUnloadClearsPublishedPendingAndPreviouslyQueuedRows() throws Exception {
         send(packet(true,true,summary("gondor",2500)));send(packet(true,false,summary("gondor",9999)));
+        KOMEArmyCompany visibleCompany=new KOMEArmyCompany();visibleCompany.id="old-world-company";
+        client.armyCompanies.put(visibleCompany.id,visibleCompany);
+        KOMEArmyMovementOrder visibleMovement=new KOMEArmyMovementOrder();visibleMovement.id="old-world-movement";
+        client.armyMovements.put(visibleMovement.id,visibleMovement);
         new KOMEPacketConquestData.Handler().onMessage(packet(true,true,summary("gondor",8888)),null);
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
         java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         net.minecraft.world.World remote=KOMEAccessFixture.allocate(KOMEAccessFixture.TestWorld.class);
         java.lang.reflect.Field flag=net.minecraft.world.World.class.getDeclaredField("isRemote");flag.setAccessible(true);flag.setBoolean(remote,true);
         lifecycle.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(remote));
+        assertTrue(client.armyCompanies.isEmpty());assertTrue(client.armyMovements.isEmpty());
         assertTrue(lines().isEmpty());proxy.queue.drain();assertTrue(lines().isEmpty());
         send(packet(false,true,summary("gondor",7777)));assertTrue(lines().isEmpty());
         send(packet(true,true,summary("rohan",0)));assertPopulation(0);
@@ -154,5 +160,5 @@ public class KOMEConquestPopulationRefreshTest {
     private KOMETileTroopSummary summary(String faction,long available){KOMETileTroopSummary s=new KOMETileTroopSummary();s.tileId="T001";s.ownerFaction=faction;s.population=new KOMEPopulationProjection(faction,available,BigInteger.ZERO,BigInteger.ZERO,false,0);return s;}
     private KOMEPacketConquestData packet(boolean reset,boolean complete,KOMETileTroopSummary... rows){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=reset;p.complete=complete;if(rows.length>0){NBTTagList list=new NBTTagList();for(KOMETileTroopSummary s:rows)list.appendTag(s.writeToNBT());p.data.setTag("TroopSummaries",list);}return p;}
     private void send(KOMEPacketConquestData p){ByteBuf b=Unpooled.buffer();try{p.toBytes(b);KOMEPacketConquestData decoded=new KOMEPacketConquestData();decoded.fromBytes(b);new KOMEPacketConquestData.Handler().onMessage(decoded,null);}finally{b.release();}proxy.queue.drain();}
-    public static class TestProxy extends KOMECommonProxy {KOMEClientTaskQueue queue;KOMEConquestSnapshotPublisher snapshots;@Override public void enqueueClientTask(Runnable task){queue.enqueue(task);}@Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk){snapshots.accept(chunk);}}
+    public static class TestProxy extends KOMECommonProxy {KOMEClientTaskQueue queue;KOMEConquestSnapshotPublisher snapshots;@Override public void enqueueClientTask(Runnable task){queue.enqueue(task);}@Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk,Object connection){snapshots.accept(chunk);}}
 }

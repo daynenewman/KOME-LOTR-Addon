@@ -10,6 +10,9 @@ import kome.common.data.KOMEMovementRecoveryOptions;
 import kome.common.data.KOMEPopulationTestConfig;
 import kome.common.data.KOMETileTestResources;
 import kome.common.data.KOMEWorldData;
+import lotr.common.LOTRLevelData;
+import lotr.common.LOTRPlayerData;
+import lotr.common.fac.LOTRFaction;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.Entity;
@@ -33,6 +36,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -44,27 +48,28 @@ public class KOMEMountainBarrierRecoveryTest {
     @Test public void ordinaryOwnerCannotResumeAPlainStoppedOrderAcrossAnIllegalEdge() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
             for (String restriction : restrictions()) {
-                Fixture f = new Fixture("T218", "T220", restriction, false);
-                KOMEHiredUnitRecord unit = f.addUnit();
-                f.command("stop");
-                assertEquals(KOMEArmyMovementOrder.STOPPED, f.order.status);
-                assertEquals("", f.order.accessLossReason);
-                assertFalse(KOMEMovementRecoveryOptions.forOrder(f.data, f.order).canResume);
-                NBTTagCompound orderBefore = f.order.writeToNBT();
-                NBTTagCompound companyBefore = f.company.writeToNBT();
-                NBTTagCompound unitBefore = unit.writeToNBT();
-                NBTTagCompound historyBefore = f.data.movementHistory.get(f.order.id).writeToNBT();
+                try (Fixture f = new Fixture("T218", "T220", restriction, false)) {
+                    KOMEHiredUnitRecord unit = f.addUnit();
+                    f.command("stop");
+                    assertEquals(KOMEArmyMovementOrder.STOPPED, f.order.status);
+                    assertEquals("", f.order.accessLossReason);
+                    assertFalse(KOMEMovementRecoveryOptions.forOrder(f.data, f.order).canResume);
+                    NBTTagCompound orderBefore = f.order.writeToNBT();
+                    NBTTagCompound companyBefore = f.company.writeToNBT();
+                    NBTTagCompound unitBefore = unit.writeToNBT();
+                    NBTTagCompound historyBefore = f.data.movementHistory.get(f.order.id).writeToNBT();
 
-                try {
-                    f.command("resume");
-                    fail("Plain stopped route must reject Resume: " + restriction);
-                } catch (WrongUsageException expected) {
-                    assertEquals(orderBefore, f.order.writeToNBT());
-                    assertEquals(companyBefore, f.company.writeToNBT());
-                    assertEquals(unitBefore, unit.writeToNBT());
-                    assertEquals(historyBefore, f.data.movementHistory.get(f.order.id).writeToNBT());
-                    assertEquals(0, f.world.chunkRequests);
-                    assertEquals(0, f.data.arrivalPublications);
+                    try {
+                        f.command("resume");
+                        fail("Plain stopped route must reject Resume: " + restriction);
+                    } catch (WrongUsageException expected) {
+                        assertEquals(orderBefore, f.order.writeToNBT());
+                        assertEquals(companyBefore, f.company.writeToNBT());
+                        assertEquals(unitBefore, unit.writeToNBT());
+                        assertEquals(historyBefore, f.data.movementHistory.get(f.order.id).writeToNBT());
+                        assertEquals(0, f.world.chunkRequests);
+                        assertEquals(0, f.data.arrivalPublications);
+                    }
                 }
             }
         }
@@ -73,42 +78,44 @@ public class KOMEMountainBarrierRecoveryTest {
     @Test public void operatorCompleteCannotTurnARejectedQueuedStepIntoAnArrival() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
             for (String restriction : restrictions()) {
-                Fixture f = new Fixture("T218", "T220", restriction, true);
-                f.command("complete");
+                try (Fixture f = new Fixture("T218", "T220", restriction, true)) {
+                    f.command("complete");
 
-                assertEquals(restriction, KOMEArmyMovementOrder.WAITING_NEXT_STEP, f.order.status);
-                assertEquals("missing".equals(restriction) ? "ROUTE_EDGE_MISSING" : "ROUTE_EDGE_BLOCKED",
-                    f.order.lastSpawnFailureCode);
-                assertTrue(f.order.pendingSpawnReason.contains(f.order.lastSpawnFailureCode));
-                assertEquals(2, f.order.dailyStepsRemaining);
-                assertEquals("T218", f.order.currentTile);
-                assertEquals("T218", f.company.currentTile);
-                assertEquals("T220", f.order.nextTile);
-                assertEquals(0, f.order.currentRouteIndex);
-                assertEquals(1, f.order.nextRouteIndex);
-                assertEquals(0, f.order.completedSteps);
-                assertEquals(Arrays.asList("T218"), f.order.traveledRouteTiles);
-                assertEquals(0L, f.order.stepDepartureMillis);
-                assertEquals(0, f.data.arrivalPublications);
-                assertEquals(0, f.world.chunkRequests);
+                    assertEquals(restriction, KOMEArmyMovementOrder.WAITING_NEXT_STEP, f.order.status);
+                    assertEquals("missing".equals(restriction) ? "ROUTE_EDGE_MISSING" : "ROUTE_EDGE_BLOCKED",
+                        f.order.lastSpawnFailureCode);
+                    assertTrue(f.order.pendingSpawnReason.contains(f.order.lastSpawnFailureCode));
+                    assertEquals(2, f.order.dailyStepsRemaining);
+                    assertEquals("T218", f.order.currentTile);
+                    assertEquals("T218", f.company.currentTile);
+                    assertEquals("T220", f.order.nextTile);
+                    assertEquals(0, f.order.currentRouteIndex);
+                    assertEquals(1, f.order.nextRouteIndex);
+                    assertEquals(0, f.order.completedSteps);
+                    assertEquals(Arrays.asList("T218"), f.order.traveledRouteTiles);
+                    assertEquals(0L, f.order.stepDepartureMillis);
+                    assertEquals(0, f.data.arrivalPublications);
+                    assertEquals(0, f.world.chunkRequests);
+                }
             }
         }
     }
 
     @Test public void operatorCompleteOnALegalQueuedCrossingPublishesArrivalOnlyOnce() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
-            Fixture f = new Fixture("T220", "T223", "default", true);
-            assertTrue(f.data.getRouteEdge("T220", "T223").isPassable());
-            f.command("complete");
+            try (Fixture f = new Fixture("T220", "T223", "default", true)) {
+                assertTrue(f.data.getRouteEdge("T220", "T223").isPassable());
+                f.command("complete");
 
-            assertEquals(KOMEArmyMovementOrder.ARRIVED, f.order.status);
-            assertEquals("T223", f.order.currentTile);
-            assertEquals("T223", f.company.currentTile);
-            assertEquals(1, f.order.completedSteps);
-            assertEquals(1, f.order.dailyStepsRemaining);
-            assertEquals(Arrays.asList("T220", "T223"), f.order.traveledRouteTiles);
-            assertEquals(1, f.data.arrivalPublications);
-            assertEquals(KOMEMovementHistoryRecord.ARRIVED, f.data.movementHistory.get(f.order.id).status);
+                assertEquals(KOMEArmyMovementOrder.ARRIVED, f.order.status);
+                assertEquals("T223", f.order.currentTile);
+                assertEquals("T223", f.company.currentTile);
+                assertEquals(1, f.order.completedSteps);
+                assertEquals(1, f.order.dailyStepsRemaining);
+                assertEquals(Arrays.asList("T220", "T223"), f.order.traveledRouteTiles);
+                assertEquals(1, f.data.arrivalPublications);
+                assertEquals(KOMEMovementHistoryRecord.ARRIVED, f.data.movementHistory.get(f.order.id).status);
+            }
         }
     }
 
@@ -117,12 +124,14 @@ public class KOMEMountainBarrierRecoveryTest {
             KOMEConquestRouteEdge.RIVER, KOMEConquestRouteEdge.BLOCKED};
     }
 
-    private static final class Fixture {
+    private static final class Fixture implements AutoCloseable {
         final ObservedData data = new ObservedData();
         final FixtureWorld world;
         final FixturePlayer player;
         final KOMEArmyCompany company = new KOMEArmyCompany();
         final KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(2);
+        final Map<UUID,LOTRPlayerData> nativePlayers;
+        final LOTRPlayerData previous;
 
         Fixture(String origin, String destination, String restriction, boolean operator) throws Exception {
             world = allocate(FixtureWorld.class);
@@ -132,6 +141,12 @@ public class KOMEMountainBarrierRecoveryTest {
             player.id = UUID.randomUUID(); player.operator = operator;
             player.messages = new ArrayList<String>(); player.worldObj = world;
             set(Entity.class, player, "entityUniqueID", player.id);
+            Field mapField=LOTRLevelData.class.getDeclaredField("playerDataMap");mapField.setAccessible(true);
+            @SuppressWarnings("unchecked") Map<UUID,LOTRPlayerData> map=(Map<UUID,LOTRPlayerData>)mapField.get(null);
+            nativePlayers=map;
+            LOTRPlayerData nativeData=new LOTRPlayerData(player.id);
+            set(LOTRPlayerData.class,nativeData,"pledgeFaction",LOTRFaction.GONDOR);
+            previous=nativePlayers.put(player.id,nativeData);
             for (String id : new String[] {origin, destination}) {
                 KOMEConquestTile tile = new KOMEConquestTile(id);
                 tile.claim("gondor", 0L); tile.setAnchor(0, 10.0D, 64.0D, 20.0D);
@@ -182,6 +197,10 @@ public class KOMEMountainBarrierRecoveryTest {
                 if (cause instanceof Error) throw (Error) cause;
                 throw new AssertionError(cause);
             }
+        }
+        @Override public void close() {
+            if(previous==null)nativePlayers.remove(player.id);
+            else nativePlayers.put(player.id,previous);
         }
     }
 

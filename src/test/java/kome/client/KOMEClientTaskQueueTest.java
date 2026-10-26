@@ -21,6 +21,373 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEClientTaskQueueTest {
+    @Test public void cancelledMoveConfirmMustNotRefreshOrReopenCompanyList() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            final boolean[] closed={false};
+            kome.client.gui.KOMEGuiCompanyMoveConfirm moveConfirm=
+                new kome.client.gui.KOMEGuiCompanyMoveConfirm(new KOMEPacketCompanyMoveConfirmGui()) {
+                    @Override protected void closeAfterCancel() { closed[0]=true; }
+                };
+            long requestId=proxy.details.begin("companies","T100","",moveConfirm,true);
+            KOMEPacketConquestData initial=companySnapshot(true,markerCompany());initial.publicationSerial=101;
+            new KOMEPacketConquestData.Handler().onMessage(initial,context);proxy.queue.drain();
+            java.lang.reflect.Method cancel=kome.client.gui.KOMEGuiCompanyMoveConfirm.class
+                .getDeclaredMethod("actionPerformed",net.minecraft.client.gui.GuiButton.class);
+            cancel.setAccessible(true);
+            cancel.invoke(moveConfirm,new net.minecraft.client.gui.GuiButton(1,0,0,"Cancel"));
+            assertTrue("Production Cancel closes Move Confirm",closed[0]);
+            KOMEPacketConquestData update=companySnapshot(true,markerCompany());update.publicationSerial=102;
+            new KOMEPacketConquestData.Handler().onMessage(update,context);proxy.queue.drain();
+            KOMEPacketCompanyListGui old=new KOMEPacketCompanyListGui();
+            old.tileId="T100";old.mapPublicationSerial=101;old.mapRequestId=requestId;
+            new KOMEPacketCompanyListGui.Handler().onMessage(old,context);proxy.queue.drain();
+            assertTrue("Cancel must not re-query the company list",proxy.refreshes.isEmpty());
+            assertFalse("Cancel must not reopen the company list",proxy.calls.contains("companies:T100"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void onlyIntentionalPopulationNavigationMayCloseBeforeMapDetail() {
+        assertTrue(KOMEClientProxy.mayCloseForMapDetail(
+            new kome.client.gui.KOMEGuiPopulation(new KOMEPacketPopulationGui())));
+        assertTrue(KOMEClientProxy.mayCloseForMapDetail(
+            new kome.client.gui.KOMEGuiPopulationUnits(new KOMEPacketPopulationUnitsGui())));
+        assertFalse(KOMEClientProxy.mayCloseForMapDetail(
+            new kome.client.gui.KOMEGuiCompanyMoveConfirm(new KOMEPacketCompanyMoveConfirmGui())));
+    }
+    @Test public void populationAndUnitsNavigationStillOpenCurrentAuthorizedDetails() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            KOMEPacketConquestData snapshot=companySnapshot(true,markerCompany());snapshot.publicationSerial=101;
+            new KOMEPacketConquestData.Handler().onMessage(snapshot,context);proxy.queue.drain();
+            Object population=new kome.client.gui.KOMEGuiPopulation(new KOMEPacketPopulationGui());
+            long companyId=proxy.details.begin("companies","T100","",population,true);
+            KOMEPacketCompanyListGui companies=new KOMEPacketCompanyListGui();
+            companies.tileId="T100";companies.mapPublicationSerial=101;companies.mapRequestId=companyId;
+            new KOMEPacketCompanyListGui.Handler().onMessage(companies,context);proxy.queue.drain();
+            assertTrue(proxy.calls.contains("companies:T100"));
+            Object units=new kome.client.gui.KOMEGuiPopulationUnits(new KOMEPacketPopulationUnitsGui());
+            long captureId=proxy.details.begin("capture","T100","",units,true);
+            KOMEPacketConquestCaptureGui capture=new KOMEPacketConquestCaptureGui();
+            capture.tileId="T100";capture.mapPublicationSerial=101;capture.mapRequestId=captureId;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(capture,context);proxy.queue.drain();
+            assertTrue(proxy.calls.contains("capture:T100"));
+            assertTrue(proxy.refreshes.isEmpty());
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void unrelatedConquestUpdateMustNotStrandOrdinaryMapDetailRequest() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            long requestId=proxy.details.begin("companies","T100","",null,true);
+            KOMEPacketConquestData original=companySnapshot(true,markerCompany());original.publicationSerial=101;
+            new KOMEPacketConquestData.Handler().onMessage(original,context);proxy.queue.drain();
+            KOMEPacketConquestData unrelated=companySnapshot(true,markerCompany());unrelated.publicationSerial=102;
+            new KOMEPacketConquestData.Handler().onMessage(unrelated,context);proxy.queue.drain();
+            KOMEPacketCompanyListGui list=new KOMEPacketCompanyListGui();list.tileId="T100";list.mapPublicationSerial=101;list.mapRequestId=requestId;
+            new KOMEPacketCompanyListGui.Handler().onMessage(list,context);proxy.queue.drain();
+            assertEquals("Only a fresh server response may open the browser",1,proxy.refreshes.size());
+            assertFalse(proxy.calls.contains("companies:T100"));
+            KOMEPacketCompanyListGui refreshed=new KOMEPacketCompanyListGui();
+            refreshed.tileId="T100";refreshed.mapPublicationSerial=102;refreshed.mapRequestId=requestId;
+            new KOMEPacketCompanyListGui.Handler().onMessage(refreshed,context);proxy.queue.drain();
+            assertTrue("Ordinary company browser should remain available after an unrelated snapshot",
+                proxy.calls.contains("companies:T100"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void captureAndUnitsRefreshUnderCurrentAuthorizationAfterUnrelatedUpdate() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            KOMEPacketConquestData one=companySnapshot(true,markerCompany());one.publicationSerial=101;
+            new KOMEPacketConquestData.Handler().onMessage(one,context);proxy.queue.drain();
+            KOMEPacketConquestData two=companySnapshot(true,markerCompany());two.publicationSerial=102;
+            new KOMEPacketConquestData.Handler().onMessage(two,context);proxy.queue.drain();
+            long captureId=proxy.details.begin("capture","T100","",null,true);
+            KOMEPacketConquestCaptureGui oldCapture=new KOMEPacketConquestCaptureGui();
+            oldCapture.tileId="T100";oldCapture.mapPublicationSerial=101;oldCapture.mapRequestId=captureId;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(oldCapture,context);proxy.queue.drain();
+            assertEquals(Arrays.asList("capture:T100"),proxy.refreshes);
+            assertFalse(proxy.calls.contains("capture:T100"));
+            KOMEPacketConquestCaptureGui freshCapture=new KOMEPacketConquestCaptureGui();
+            freshCapture.tileId="T100";freshCapture.mapPublicationSerial=102;freshCapture.mapRequestId=captureId;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(freshCapture,context);proxy.queue.drain();
+            assertTrue(proxy.calls.contains("capture:T100"));
+            long unitsId=proxy.details.begin("units","T100","",null,true);
+            KOMEPacketPopulationUnitsGui oldUnits=new KOMEPacketPopulationUnitsGui();
+            oldUnits.playerName="old";oldUnits.filterTile="T100";oldUnits.mapPublicationSerial=101;oldUnits.mapRequestId=unitsId;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(oldUnits,context);proxy.queue.drain();
+            assertEquals(Arrays.asList("capture:T100","units:T100"),proxy.refreshes);
+            assertFalse(proxy.calls.contains("units:old"));
+            KOMEPacketPopulationUnitsGui freshUnits=new KOMEPacketPopulationUnitsGui();
+            freshUnits.playerName="fresh";freshUnits.filterTile="T100";freshUnits.mapPublicationSerial=102;freshUnits.mapRequestId=unitsId;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(freshUnits,context);proxy.queue.drain();
+            assertTrue(proxy.calls.contains("units:fresh"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void revokedCompanyAndUnitsDetailsRefreshOnlyThroughFilteredServerReply() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            KOMEPacketConquestData on=companySnapshot(true,markerCompany());on.publicationSerial=201;
+            new KOMEPacketConquestData.Handler().onMessage(on,context);proxy.queue.drain();
+            long listId=proxy.details.begin("companies","T100","",null,true);
+            KOMEPacketCompanyListGui oldList=new KOMEPacketCompanyListGui();
+            oldList.tileId="T100";oldList.mapPublicationSerial=201;oldList.mapRequestId=listId;
+            KOMEPacketConquestData off=companySnapshot(true);off.publicationSerial=202;
+            new KOMEPacketConquestData.Handler().onMessage(off,context);proxy.queue.drain();
+            new KOMEPacketCompanyListGui.Handler().onMessage(oldList,context);proxy.queue.drain();
+            assertFalse(proxy.calls.contains("companies:T100"));
+            assertEquals(Arrays.asList("companies:T100"),proxy.refreshes);
+            KOMEPacketCompanyListGui filtered=new KOMEPacketCompanyListGui();
+            filtered.tileId="T100";filtered.mapPublicationSerial=202;filtered.mapRequestId=listId;
+            new KOMEPacketCompanyListGui.Handler().onMessage(filtered,context);proxy.queue.drain();
+            assertEquals(1,Collections.frequency(proxy.calls,"companies:T100"));
+            long unitsId=proxy.details.begin("units","T100","",null,true);
+            KOMEPacketPopulationUnitsGui oldUnits=new KOMEPacketPopulationUnitsGui();
+            oldUnits.playerName="Privileged";oldUnits.filterTile="T100";
+            oldUnits.mapPublicationSerial=201;oldUnits.mapRequestId=unitsId;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(oldUnits,context);proxy.queue.drain();
+            assertFalse(proxy.calls.contains("units:Privileged"));
+            KOMEPacketPopulationUnitsGui safeUnits=new KOMEPacketPopulationUnitsGui();
+            safeUnits.playerName="Current";safeUnits.filterTile="T100";
+            safeUnits.mapPublicationSerial=202;safeUnits.mapRequestId=unitsId;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(safeUnits,context);proxy.queue.drain();
+            assertTrue(proxy.calls.contains("units:Current"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void revokedQueuedPrivilegedDetailNeverOpensAndOldRequestIdentityCannotReturn() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);proxy.details.start(connection);
+            long id=proxy.details.begin("capture","T100","",null,true);
+            KOMEPacketConquestData on=companySnapshot(true,markerCompany());on.publicationSerial=201;
+            new KOMEPacketConquestData.Handler().onMessage(on,context);
+            KOMEPacketConquestCaptureGui privileged=new KOMEPacketConquestCaptureGui();
+            privileged.tileId="T100";privileged.myOffensivePop=45;
+            privileged.mapPublicationSerial=201;privileged.mapRequestId=id;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(privileged,context);
+            KOMEPacketConquestData off=companySnapshot(true);off.publicationSerial=202;
+            new KOMEPacketConquestData.Handler().onMessage(off,context);proxy.queue.drain();
+            assertFalse(proxy.calls.contains("capture:T100"));
+            assertEquals(1,proxy.refreshes.size());
+            long newer=proxy.details.begin("capture","T100","",null,true);
+            KOMEPacketConquestData nextOn=companySnapshot(true,markerCompany());nextOn.publicationSerial=203;
+            new KOMEPacketConquestData.Handler().onMessage(nextOn,context);proxy.queue.drain();
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(privileged,context);proxy.queue.drain();
+            assertFalse("Old request cannot regain validity after ON",proxy.calls.contains("capture:T100"));
+            KOMEPacketConquestCaptureGui current=new KOMEPacketConquestCaptureGui();
+            current.tileId="T100";current.mapPublicationSerial=203;current.mapRequestId=newer;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(current,context);proxy.queue.drain();
+            assertEquals(1,Collections.frequency(proxy.calls,"capture:T100"));
+            assertEquals(1,proxy.refreshes.size());
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void dismissedOrSupersededDetailRequestsDoNotRetryIndefinitely() throws Exception {
+        SavedClientState saved=new SavedClientState();
+        RecordingProxy proxy=proxy();Object connection=new Object(),screen=new Object();
+        try {
+        proxy.snapshots.start(connection);proxy.details.start(connection);
+        long id=proxy.details.begin("companies","T100","",screen,false);
+        assertEquals(KOMEMapDetailRequests.Decision.DROP,
+            proxy.details.resolve(id,"companies","T100","",101,connection,new Object(),proxy.snapshots));
+        long active=proxy.details.begin("companies","T100","",screen,false);
+        assertNotEquals(id,active);
+        assertEquals(KOMEMapDetailRequests.Decision.DROP,
+            proxy.details.resolve(id,"companies","T100","",101,connection,screen,proxy.snapshots));
+        net.minecraft.client.network.NetHandlerPlayClient real=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+        cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(real);
+        proxy.snapshots.start(real);proxy.details.start(real);
+        active=proxy.details.begin("companies","T100","",screen,false);
+        KOMEPacketConquestData latest=companySnapshot(true,markerCompany());latest.publicationSerial=102;
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {new KOMEPacketConquestData.Handler().onMessage(latest,context);proxy.queue.drain();}
+        finally {KOMEAddon.proxy=previous;}
+        assertEquals(KOMEMapDetailRequests.Decision.REFRESH,
+            proxy.details.resolve(active,"companies","T100","",101,real,screen,proxy.snapshots));
+        assertEquals(KOMEMapDetailRequests.Decision.REFRESH,
+            proxy.details.resolve(active,"companies","T100","",101,real,screen,proxy.snapshots));
+        assertEquals(KOMEMapDetailRequests.Decision.DROP,
+            proxy.details.resolve(active,"companies","T100","",101,real,screen,proxy.snapshots));
+        proxy.details.start(new Object());
+        assertEquals(KOMEMapDetailRequests.Decision.DROP,
+            proxy.details.resolve(active,"companies","T100","",102,real,screen,proxy.snapshots));
+        } finally {saved.restore();}
+    }
+    @Test public void revokedSnapshotReplacesPendingOnSnapshotBeforeQueuedMapDetails() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            KOMEClientData.INSTANCE.resetClientState();
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);
+            KOMEPacketConquestData on=companySnapshot(true,markerCompany());on.publicationSerial=101;
+            new KOMEPacketConquestData.Handler().onMessage(on,context);
+            KOMEPacketConquestCaptureGui capture=new KOMEPacketConquestCaptureGui();capture.tileId="T100";
+            capture.mapPublicationSerial=101;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(capture,context);
+            KOMEPacketCompanyListGui companies=new KOMEPacketCompanyListGui();companies.tileId="T100";
+            companies.mapPublicationSerial=101;
+            new KOMEPacketCompanyListGui.Handler().onMessage(companies,context);
+            KOMEPacketPopulationUnitsGui units=new KOMEPacketPopulationUnitsGui();units.playerName="Privileged";
+            units.mapPublicationSerial=101;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(units,context);
+            KOMEPacketConquestData off=companySnapshot(true);off.publicationSerial=102;
+            new KOMEPacketConquestData.Handler().onMessage(off,context);
+            proxy.queue.drain();
+            assertTrue(KOMEClientData.INSTANCE.armyCompanies.isEmpty());
+            assertFalse("Queued capture must not reopen after revocation",proxy.calls.contains("capture:T100"));
+            assertFalse("Queued company list must not reopen after revocation",proxy.calls.contains("companies:T100"));
+            assertFalse("Queued Units view must not reopen after revocation",proxy.calls.contains("units:Privileged"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void mapDetailExecutionRejectsOldGenerationsButAcceptsFreshAndExplicitCommands() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            KOMEClientData.INSTANCE.resetClientState();
+            net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext context=clientContext(connection);
+            proxy.snapshots.start(connection);
+            KOMEPacketConquestData on=companySnapshot(true,markerCompany());on.publicationSerial=201;
+            new KOMEPacketConquestData.Handler().onMessage(on,context);proxy.queue.drain();
+            assertTrue(proxy.snapshots.allowsMapDetail(201,connection));
+            KOMEPacketConquestCaptureGui old=new KOMEPacketConquestCaptureGui();old.tileId="old";old.mapPublicationSerial=201;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(old,context);
+            KOMEPacketConquestData off=companySnapshot(true);off.publicationSerial=202;
+            new KOMEPacketConquestData.Handler().onMessage(off,context);
+            KOMEPacketConquestData nextOn=companySnapshot(true,markerCompany());nextOn.publicationSerial=203;
+            new KOMEPacketConquestData.Handler().onMessage(nextOn,context);
+            proxy.queue.drain();
+            assertFalse(proxy.calls.contains("capture:old"));
+            assertTrue(proxy.snapshots.allowsMapDetail(203,connection));
+            KOMEPacketConquestCaptureGui fresh=new KOMEPacketConquestCaptureGui();fresh.tileId="fresh";fresh.mapPublicationSerial=203;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(fresh,context);
+            KOMEPacketCompanyListGui list=new KOMEPacketCompanyListGui();list.tileId="current";list.mapPublicationSerial=203;
+            new KOMEPacketCompanyListGui.Handler().onMessage(list,context);
+            KOMEPacketPopulationUnitsGui units=new KOMEPacketPopulationUnitsGui();units.playerName="current";units.mapPublicationSerial=203;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(units,context);
+            KOMEPacketCompanyListGui command=new KOMEPacketCompanyListGui();command.tileId="staff-command";
+            new KOMEPacketCompanyListGui.Handler().onMessage(command,context);
+            proxy.queue.drain();
+            assertTrue(proxy.calls.contains("capture:fresh"));
+            assertTrue(proxy.calls.contains("companies:current"));
+            assertTrue(proxy.calls.contains("units:current"));
+            assertTrue("Explicit command response does not depend on map vision",proxy.calls.contains("companies:staff-command"));
+            proxy.snapshots.invalidateWorld();
+            assertFalse(proxy.snapshots.allowsMapDetail(203,connection));
+            KOMEPacketPopulationUnitsGui staleWorld=new KOMEPacketPopulationUnitsGui();
+            staleWorld.playerName="former-world";staleWorld.mapPublicationSerial=203;
+            new KOMEPacketPopulationUnitsGui.Handler().onMessage(staleWorld,context);
+            proxy.queue.drain();
+            assertFalse(proxy.calls.contains("units:former-world"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void mapDetailResponseFromFormerConnectionCannotOpenAfterReconnect() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            net.minecraft.client.network.NetHandlerPlayClient former=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            net.minecraft.client.network.NetHandlerPlayClient current=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext formerContext=clientContext(former);
+            cpw.mods.fml.common.network.simpleimpl.MessageContext currentContext=clientContext(current);
+            proxy.snapshots.start(former);
+            KOMEPacketConquestData first=companySnapshot(true,markerCompany());first.publicationSerial=301;
+            new KOMEPacketConquestData.Handler().onMessage(first,formerContext);proxy.queue.drain();
+            proxy.snapshots.start(current);proxy.queue.resetSession(true,()->{});proxy.queue.drain();
+            KOMEPacketConquestData second=companySnapshot(true);second.publicationSerial=302;
+            new KOMEPacketConquestData.Handler().onMessage(second,currentContext);proxy.queue.drain();
+            KOMEPacketConquestCaptureGui stale=new KOMEPacketConquestCaptureGui();stale.tileId="former";stale.mapPublicationSerial=301;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(stale,formerContext);
+            KOMEPacketConquestCaptureGui wrongConnection=new KOMEPacketConquestCaptureGui();wrongConnection.tileId="wrong";wrongConnection.mapPublicationSerial=302;
+            new KOMEPacketConquestCaptureGui.Handler().onMessage(wrongConnection,formerContext);
+            proxy.queue.drain();
+            assertFalse(proxy.calls.contains("capture:former"));
+            assertFalse(proxy.calls.contains("capture:wrong"));
+            assertTrue(proxy.snapshots.allowsMapDetail(302,current));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void completeReplacementRemovesPrivilegedStandaloneCountBeforeMarkerRefresh() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        java.util.concurrent.atomic.AtomicInteger clearedViews=new java.util.concurrent.atomic.AtomicInteger();
+        proxy.snapshots=new KOMEConquestSnapshotPublisher(proxy.queue,clearedViews::incrementAndGet);
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        try {
+            client.resetClientState();
+            KOMEPacketConquestData old=companySnapshot(true,markerCompany());old.publicationSerial=7;
+            KOMETileTroopSummary summary=new KOMETileTroopSummary();summary.tileId="T100";
+            summary.stationedPop=45;row(old,"TroopSummaries",summary.writeToNBT());
+            new KOMEPacketConquestData.Handler().onMessage(old,null);proxy.queue.drain();
+            assertEquals(45,client.troopSummaries.get("T100").stationedPop);
+            KOMEPacketConquestData revocation=companySnapshot(false);revocation.publicationSerial=8;
+            new KOMEPacketConquestData.Handler().onMessage(revocation,null);proxy.queue.drain();
+            assertEquals("Partial publications must remain atomic",45,
+                client.troopSummaries.get("T100").stationedPop);
+            new KOMEPacketConquestData.Handler().onMessage(old,null);proxy.queue.drain();
+            assertEquals(45,client.troopSummaries.get("T100").stationedPop);
+            KOMEPacketConquestData complete=new KOMEPacketConquestData();
+            complete.publicationSerial=8;complete.complete=true;
+            new KOMEPacketConquestData.Handler().onMessage(complete,null);proxy.queue.drain();
+            assertTrue(client.troopSummaries.isEmpty());
+            assertTrue(client.armyCompanies.isEmpty());
+            assertEquals("Privileged map browsers must be invalidated",1,clearedViews.get());
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+    @Test public void completedSpottedReplacementCannotReattributeAnOldForeignMarker()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        try {
+            KOMEClientData client=KOMEClientData.INSTANCE;client.resetClientState();
+            KOMEArmyCompany a=new KOMEArmyCompany(),b=new KOMEArmyCompany();
+            a.id="CANONICAL_A";b.id="CANONICAL_B";a.faction=b.faction="mordor";
+            a.currentTile=b.currentTile="T100";
+            String aliasA="~recon:opaque-a",aliasB="~recon:opaque-b";
+            KOMEPacketConquestData initial=spottedSnapshot(a,aliasA,b,aliasB);
+            new KOMEPacketConquestData.Handler().onMessage(initial,null);proxy.queue.drain();
+            KOMEUnitMapMarker old=new KOMEUnitMapMarker(),current=new KOMEUnitMapMarker();
+            old.entityId=aliasA;old.currentTile="T100";old.soldierCount=1;
+            current.entityId=aliasB;current.currentTile="T100";current.soldierCount=3;
+            assertTrue(markerCurrent(old));assertTrue(markerCurrent(current));
+            new KOMEPacketConquestData.Handler().onMessage(spottedSnapshot(b,aliasB),null);proxy.queue.drain();
+            assertFalse("Old alias cannot identify the surviving foreign company",markerCurrent(old));
+            assertTrue(markerCurrent(current));
+            client.unitMapMarkers.clear();client.unitMapMarkers.add(old); // A late older marker list.
+            assertFalse(markerCurrent(client.unitMapMarkers.get(0)));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    private static KOMEPacketConquestData spottedSnapshot(Object... companyAndAlias) {
+        KOMEPacketConquestData packet=new KOMEPacketConquestData();packet.reset=true;packet.complete=true;
+        NBTTagList rows=new NBTTagList();
+        for(int i=0;i<companyAndAlias.length;i+=2)
+            rows.appendTag(KOMECompanyMapProjection.spottedTag((KOMEArmyCompany)companyAndAlias[i],
+                (String)companyAndAlias[i+1]));
+        packet.data.setTag("ArmyCompanies",rows);return packet;
+    }
+
     @Test public void completedCompanyRemovalImmediatelyRejectsOldPhysicalMarkerAndItsAggregateDeduction()throws Exception {
         SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
         KOMEClientData client=KOMEClientData.INSTANCE;
@@ -67,6 +434,84 @@ public class KOMEClientTaskQueueTest {
         }finally{saved.restore();KOMEAddon.proxy=previous;}
     }
 
+    @Test public void olderCompanyPublicationCannotUndoNewerRevocation() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        try {
+            client.resetClientState();
+            KOMEPacketConquestData old=companySnapshot(true,markerCompany()); old.publicationSerial=7;
+            new KOMEPacketConquestData.Handler().onMessage(old,null);
+            KOMEPacketConquestData revocation=companySnapshot(false); revocation.publicationSerial=8;
+            new KOMEPacketConquestData.Handler().onMessage(revocation,null);
+            proxy.queue.drain();
+            assertFalse("An older queued company snapshot must not publish after a newer reset",
+                client.armyCompanies.containsKey("C1"));
+            new KOMEPacketConquestData.Handler().onMessage(old,null);
+            KOMEPacketConquestData completion=new KOMEPacketConquestData();
+            completion.publicationSerial=8;completion.reset=false;completion.complete=true;
+            new KOMEPacketConquestData.Handler().onMessage(completion,null);proxy.queue.drain();
+            assertTrue(client.armyCompanies.isEmpty());
+            new KOMEPacketConquestData.Handler().onMessage(old,null);proxy.queue.drain();
+            assertTrue(client.armyCompanies.isEmpty());
+        } finally {saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void formerConnectionCannotRestoreCompanyAfterReconnect() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        net.minecraft.client.network.NetHandlerPlayClient old=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+        net.minecraft.client.network.NetHandlerPlayClient currentConnection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+        java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+            cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(
+                net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+        constructor.setAccessible(true);
+        cpw.mods.fml.common.network.simpleimpl.MessageContext oldContext=constructor.newInstance(old,cpw.mods.fml.relauncher.Side.CLIENT);
+        cpw.mods.fml.common.network.simpleimpl.MessageContext currentContext=constructor.newInstance(currentConnection,cpw.mods.fml.relauncher.Side.CLIENT);
+        try {
+            client.resetClientState();proxy.snapshots.start(old);
+            KOMEPacketConquestData authorized=companySnapshot(true,markerCompany());authorized.publicationSerial=7;
+            new KOMEPacketConquestData.Handler().onMessage(authorized,oldContext);proxy.queue.drain();
+            assertTrue(client.armyCompanies.containsKey("C1"));
+            KOMEPacketConquestData pending=companySnapshot(true,markerCompany());pending.publicationSerial=9;
+            new KOMEPacketConquestData.Handler().onMessage(pending,oldContext);
+            proxy.snapshots.start(null);proxy.queue.resetSession(false,client::resetClientState);proxy.queue.drain();
+            proxy.snapshots.start(currentConnection);proxy.queue.resetSession(true,client::resetClientState);proxy.queue.drain();
+            KOMEPacketConquestData incomplete=companySnapshot(false,markerCompany());incomplete.publicationSerial=10;
+            new KOMEPacketConquestData.Handler().onMessage(incomplete,oldContext);
+            new KOMEPacketConquestData.Handler().onMessage(authorized,oldContext);proxy.queue.drain();
+            assertFalse("A former connection must not initialize a new session",client.armyCompanies.containsKey("C1"));
+            KOMEPacketConquestData current=companySnapshot(true,markerCompany());current.publicationSerial=8;
+            new KOMEPacketConquestData.Handler().onMessage(current,currentContext);proxy.queue.drain();
+            assertTrue("A current connection must still publish",client.armyCompanies.containsKey("C1"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void worldReplacementDiscardsPartialCompanyBatchAndKeepsSerialFloor() throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();
+        KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        net.minecraft.client.network.NetHandlerPlayClient connection=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+        java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+            cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(
+                net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+        constructor.setAccessible(true);
+        cpw.mods.fml.common.network.simpleimpl.MessageContext context=constructor.newInstance(connection,cpw.mods.fml.relauncher.Side.CLIENT);
+        try {
+            client.resetClientState();proxy.snapshots.start(connection);
+            KOMEPacketConquestData old=companySnapshot(false,markerCompany());old.publicationSerial=10;
+            new KOMEPacketConquestData.Handler().onMessage(old,context);
+            proxy.snapshots.invalidateWorld();client.armyCompanies.clear();
+            KOMEPacketConquestData tail=new KOMEPacketConquestData();tail.publicationSerial=10;tail.complete=true;
+            new KOMEPacketConquestData.Handler().onMessage(tail,context);proxy.queue.drain();
+            assertTrue(client.armyCompanies.isEmpty());
+            KOMEPacketConquestData current=companySnapshot(true,markerCompany());current.publicationSerial=11;
+            new KOMEPacketConquestData.Handler().onMessage(current,context);proxy.queue.drain();
+            assertTrue(client.armyCompanies.containsKey("C1"));
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
     @Test public void lateUnitPublicationCannotResurrectRemovedCompanyAndReconnectRequiresNewSnapshot()throws Exception {
         SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
         KOMEClientData client=KOMEClientData.INSTANCE;
@@ -86,9 +531,9 @@ public class KOMEClientTaskQueueTest {
         }finally{saved.restore();KOMEAddon.proxy=previous;}
     }
 
-    private static KOMEArmyCompany markerCompany(){KOMEArmyCompany c=new KOMEArmyCompany();c.id="C1";c.currentTile="T100";c.nativeFaction="rohan";return c;}
+    private static KOMEArmyCompany markerCompany(){KOMEArmyCompany c=new KOMEArmyCompany();c.id="C1";c.currentTile="T100";c.nativeFaction="rohan";c.totalPopulation=25;return c;}
     private static KOMEUnitMapMarker physicalMarker(){KOMEUnitMapMarker m=new KOMEUnitMapMarker();m.entityId="C1";m.currentTile="T100";m.unitCount=1;m.population=25;m.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;return m;}
-    private static KOMEPacketConquestData companySnapshot(boolean complete,KOMEArmyCompany... companies){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=true;p.complete=complete;NBTTagList rows=new NBTTagList();for(KOMEArmyCompany c:companies)rows.appendTag(c.writeToNBT());p.data.setTag("ArmyCompanies",rows);return p;}
+    private static KOMEPacketConquestData companySnapshot(boolean complete,KOMEArmyCompany... companies){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=true;p.complete=complete;NBTTagList rows=new NBTTagList();for(KOMEArmyCompany c:companies)rows.appendTag(KOMECompanyMapProjection.companyTag(c));p.data.setTag("ArmyCompanies",rows);return p;}
     private static boolean markerCurrent(KOMEUnitMapMarker marker)throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("companyMarkerCurrent",KOMEUnitMapMarker.class);m.setAccessible(true);return (Boolean)m.invoke(null,marker);}
     private static Map markerDeductions()throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("liveCompanyStationedPopulationByTile");m.setAccessible(true);return (Map)m.invoke(null);}
     @Test public void startTickDrainsFifoSnapshotAndFailureDoesNotBlockLaterTasks() {
@@ -354,7 +799,9 @@ public class KOMEClientTaskQueueTest {
         assertTrue(client.contains("Minecraft.getMinecraft().func_152345_ab()"));
         assertTrue(client.contains("ClientDisconnectionFromServerEvent"));
         assertTrue(client.contains("clientTasks.resetSession(false, this::resetClientSessionState)"));
-        assertTrue(client.contains("conquestSnapshots.resetSession()"));
+        assertTrue(client.contains("conquestSnapshots.start(event == null ? null : event.handler)"));
+        assertTrue(client.contains("conquestSnapshots.start(null)"));
+        assertTrue(client.contains("conquestSnapshots.invalidateWorld()"));
         String clientData = source("common/data/KOMEClientData.java");
         String reset = clientData.substring(clientData.indexOf("public void resetClientState()"));
         assertFalse(reset.contains("conquestRevision++"));
@@ -530,19 +977,41 @@ public class KOMEClientTaskQueueTest {
         network.start(); network.join(10000L); assertFalse("Handler must return", network.isAlive());
         if (failure.get() != null) throw new AssertionError(failure.get());
     }
+    private static cpw.mods.fml.common.network.simpleimpl.MessageContext clientContext(
+            net.minecraft.client.network.NetHandlerPlayClient connection) throws Exception {
+        java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+            cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(
+                net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(connection,cpw.mods.fml.relauncher.Side.CLIENT);
+    }
     private static RecordingProxy proxy() throws Exception {
         // Do not initialize the three imported mods merely to observe GUI dispatch.
         Class<?> unsafe = Class.forName("sun.misc.Unsafe"); Field singleton = unsafe.getDeclaredField("theUnsafe"); singleton.setAccessible(true);
         RecordingProxy proxy = (RecordingProxy) unsafe.getMethod("allocateInstance", Class.class).invoke(singleton.get(null), RecordingProxy.class);
         proxy.queue = connected(); proxy.snapshots = new KOMEConquestSnapshotPublisher(proxy.queue);
-        proxy.calls = new ArrayList<String>(); proxy.threads = new ArrayList<Thread>(); return proxy;
+        proxy.calls = new ArrayList<String>(); proxy.threads = new ArrayList<Thread>();
+        proxy.details=new KOMEMapDetailRequests();proxy.refreshes=new ArrayList<String>();return proxy;
     }
     private static class RecordingProxy extends KOMECommonProxy {
         KOMEClientTaskQueue queue; KOMEConquestSnapshotPublisher snapshots;
-        List<String> calls; List<Thread> threads;
+        KOMEMapDetailRequests details;
+        List<String> calls; List<Thread> threads;List<String> refreshes;
         @Override public void enqueueClientTask(Runnable task) { queue.enqueue(task); }
-        @Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk) {
-            snapshots.accept(chunk);
+        @Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk,Object connection) {
+            if(connection==null)snapshots.accept(chunk);else snapshots.accept(chunk,connection);
+        }
+        @Override public boolean allowsMapDetail(long serial,Object connection) {
+            return connection==null && serial==0L || snapshots.allowsMapDetail(serial,connection);
+        }
+        @Override public void cancelMapDetailRequest(Object screen) { details.cancelFromScreen(screen); }
+        @Override public void handleMapDetailResponse(long id,String kind,String tile,String focus,
+                long serial,Object connection,Runnable publish) {
+            if(id==0L){if(allowsMapDetail(serial,connection))publish.run();return;}
+            KOMEMapDetailRequests.Decision decision=details.resolve(id,kind,tile,focus,
+                serial,connection,null,snapshots);
+            if(decision==KOMEMapDetailRequests.Decision.OPEN)publish.run();
+            else if(decision==KOMEMapDetailRequests.Decision.REFRESH)refreshes.add(kind+":"+tile);
         }
         void resetSession(boolean connected, Runnable reset) {
             snapshots.resetSession(); queue.resetSession(connected, reset);

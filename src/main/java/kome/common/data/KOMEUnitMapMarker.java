@@ -15,6 +15,8 @@ public class KOMEUnitMapMarker {
     public double y;
     public double z;
     public int population;
+    /** Surviving committed Campaign member records; independent of loaded NPC count and cost. */
+    public int soldierCount;
     public boolean mounted;
     public boolean haltedProtected;
 
@@ -29,6 +31,7 @@ public class KOMEUnitMapMarker {
         y = buf.readDouble();
         z = buf.readDouble();
         population = buf.readInt();
+        soldierCount = buf.readInt();
         mounted = buf.readBoolean();
         haltedProtected = buf.readBoolean();
     }
@@ -44,6 +47,7 @@ public class KOMEUnitMapMarker {
         buf.writeDouble(y);
         buf.writeDouble(z);
         buf.writeInt(population);
+        buf.writeInt(soldierCount);
         buf.writeBoolean(mounted);
         buf.writeBoolean(haltedProtected);
     }

@@ -41,6 +41,7 @@ public final class KOMEPledgeReleaseService {
                     nowMillis, "Schema-5 initial pledge reconciliation");
             }
             data.markDirty();
+            kome.common.network.KOMEPacketConquestData.sendIfChanged(data, player);
             return Result.noop("Pledge baseline recorded.");
         }
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
@@ -50,6 +51,7 @@ public final class KOMEPledgeReleaseService {
         KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
         if (former.length() == 0) {
             data.markDirty();
+            kome.common.network.KOMEPacketConquestData.sendIfChanged(data, player);
             return Result.noop("New pledge recorded.");
         }
         return release(data, playerId, player.getCommandSenderName(), former, current, nowMillis, "LOTR pledge transition");

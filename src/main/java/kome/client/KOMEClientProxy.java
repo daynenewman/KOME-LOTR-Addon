@@ -28,7 +28,21 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
-        new KOMEConquestSnapshotPublisher(clientTasks);
+        new KOMEConquestSnapshotPublisher(clientTasks, () -> {
+            destinationOptions().close();
+            KOMEConquestMapOverlay.resetDestinationSelection();
+            net.minecraft.client.gui.GuiScreen screen=KOMEMinecraftClient.currentScreen();
+            if(screen instanceof kome.client.gui.KOMEGuiCompanyList
+                    || screen instanceof kome.client.gui.KOMEGuiPopulationUnits
+                    || screen instanceof kome.client.gui.KOMEGuiConquestCapture
+                    || screen instanceof kome.client.gui.KOMEGuiCompanyMoveConfirm)
+                KOMEMinecraftClient.closePlayerScreen();
+        });
+    private KOMEMapDetailRequests mapDetailRequests = new KOMEMapDetailRequests();
+    private synchronized KOMEMapDetailRequests mapDetailRequests() {
+        if(mapDetailRequests==null)mapDetailRequests=new KOMEMapDetailRequests();
+        return mapDetailRequests;
+    }
     private KOMEUnitMapMarkerPublisher unitMarkers;
     private synchronized KOMEUnitMapMarkerPublisher unitMarkers() {
         if(unitMarkers==null)unitMarkers=new KOMEUnitMapMarkerPublisher(clientTasks,markers->{
@@ -101,7 +115,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
-        conquestSnapshots.resetSession();
+        conquestSnapshots.start(event == null ? null : event.handler);
+        mapDetailRequests().start(event == null ? null : event.handler);
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
             resetClientSessionState();
@@ -115,7 +130,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         destinationOptions().start(null);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
-        conquestSnapshots.resetSession();
+        conquestSnapshots.start(null);
+        mapDetailRequests().start(null);
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
     }
@@ -130,7 +146,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
             if (tacticalEditor != null) tacticalEditor.clearScope();
             tacticalEditorStatus = null;
-            conquestSnapshots.resetSession();
+            conquestSnapshots.invalidateWorld();
+            mapDetailRequests().invalidateWorld();
+            // Keep completed-snapshot absence authoritative while the next world is loading.
+            KOMEClientData.INSTANCE.armyCompanies.clear();
+            KOMEClientData.INSTANCE.armyMovements.clear();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
     }
@@ -172,8 +192,51 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override
     public void acceptConquestSnapshotChunk(
-            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
-        conquestSnapshots.accept(chunk);
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk,Object connection) {
+        conquestSnapshots.accept(chunk,connection);
+    }
+
+    @Override
+    public boolean allowsMapDetail(long publicationSerial, Object connection) {
+        return conquestSnapshots.allowsMapDetail(publicationSerial, connection);
+    }
+
+    @Override
+    public long beginMapDetailRequest(String kind, String tile, String focus) {
+        net.minecraft.client.gui.GuiScreen screen=KOMEMinecraftClient.currentScreen();
+        return mapDetailRequests().begin(kind,tile,focus,screen,mayCloseForMapDetail(screen));
+    }
+
+    static boolean mayCloseForMapDetail(net.minecraft.client.gui.GuiScreen screen) {
+        return screen instanceof kome.client.gui.KOMEGuiPopulation
+            || screen instanceof kome.client.gui.KOMEGuiPopulationUnits;
+    }
+
+    @Override public void cancelMapDetailRequest(Object screen) {
+        mapDetailRequests().cancelFromScreen(screen);
+    }
+
+    @Override
+    public void handleMapDetailResponse(long requestId, String kind, String tile, String focus,
+            long serial, Object connection, Runnable publish) {
+        if(requestId==0L){
+            if(conquestSnapshots.allowsMapDetail(serial,connection))publish.run();
+            return;
+        }
+        KOMEMapDetailRequests.Decision decision=mapDetailRequests().resolve(requestId,kind,tile,focus,
+            serial,connection,KOMEMinecraftClient.currentScreen(),conquestSnapshots);
+        if(decision==KOMEMapDetailRequests.Decision.OPEN){publish.run();return;}
+        if(decision!=KOMEMapDetailRequests.Decision.REFRESH)return;
+        if("capture".equals(kind)){
+            kome.common.network.KOMEPacketConquestOpenCapture request=new kome.common.network.KOMEPacketConquestOpenCapture();
+            request.tileId=tile;request.focusBuildId=focus;request.mapRequestId=requestId;
+            kome.common.network.KOMEPacketHandler.network.sendToServer(request);
+        }else{
+            kome.common.network.KOMEPacketTroopGuiAction request=new kome.common.network.KOMEPacketTroopGuiAction();
+            request.action="companies".equals(kind)?"list":"population_units";
+            request.tileId=tile;request.mapRequestId=requestId;
+            kome.common.network.KOMEPacketHandler.network.sendToServer(request);
+        }
     }
 
     @Override

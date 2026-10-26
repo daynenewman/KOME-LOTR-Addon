@@ -29,17 +29,21 @@ import net.minecraft.entity.player.EntityPlayerMP;
 public class KOMEPacketConquestOpenCapture implements IMessage {
     public String tileId;
     public String focusBuildId = "";
+    public long mapRequestId;
 
     public KOMEPacketConquestOpenCapture() {
     }
 
     public KOMEPacketConquestOpenCapture(String tileId) {
-        this.tileId = tileId;
+        this(tileId, "");
     }
 
     public KOMEPacketConquestOpenCapture(String tileId, String focusBuildId) {
         this.tileId = tileId;
         this.focusBuildId = focusBuildId == null ? "" : focusBuildId;
+        this.mapRequestId = kome.common.KOMEAddon.proxy == null ? 0L
+            : kome.common.KOMEAddon.proxy.beginMapDetailRequest(
+                "capture", this.tileId, this.focusBuildId);
     }
 
     @Override
@@ -47,6 +51,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         KOMEPopulationWire.readHeader(buf);
         tileId = KOMEPopulationWire.readText(buf);
         focusBuildId = KOMEPopulationWire.readText(buf);
+        mapRequestId = buf.readLong();
         KOMEPopulationWire.requireFullyRead(buf);
     }
 
@@ -56,14 +61,20 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             KOMEPopulationWire.writeHeader(buf);
             KOMEPopulationWire.writeText(buf, tileId);
             KOMEPopulationWire.writeText(buf, focusBuildId == null ? "" : focusBuildId);
+            buf.writeLong(mapRequestId);
         });
     }
 
     public static void sendTileCommand(EntityPlayerMP player, String requestedTileId) {
-        sendTileCommand(player, requestedTileId, "");
+        sendTileCommand(player, requestedTileId, "", 0L);
     }
 
     public static void sendTileCommand(EntityPlayerMP player, String requestedTileId, String focusBuildId) {
+        sendTileCommand(player, requestedTileId, focusBuildId, 0L);
+    }
+
+    public static void sendTileCommand(EntityPlayerMP player, String requestedTileId,
+            String focusBuildId, long requestId) {
         String tileId = KOMEConquestTile.normalizeId(requestedTileId);
         if (tileId.isEmpty() || !KOMEConquestTile.isCanonicalTileId(tileId)) {
             player.addChatMessage(new net.minecraft.util.ChatComponentText("Invalid conquest tile."));
@@ -75,13 +86,21 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             player.addChatMessage(new net.minecraft.util.ChatComponentText("Unknown or unavailable conquest tile."));
             return;
         }
+        long mapSerial = KOMEPacketConquestData.mapDetailPublicationSerial(data, player);
+        if (mapSerial <= 0L) return;
         String viewerFaction = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
         String ownerFaction = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         String pendingToFaction = KOMEAlliance.normalizeFactionKey(tile.pendingTransferToFaction);
         java.util.UUID viewerId = KOMEReflection.getEntityUUID(player);
         boolean canInspectWaypoint = canInspectWaypoint(data, player, tile);
-        TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
-        boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
+        boolean adminCompanyView = KOMEAdminMapVision.enabled(player);
+        KOMECompanyMapProjection.View readView=KOMECompanyMapProjection.view(
+            data,viewerId,viewerFaction,adminCompanyView);
+        TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId,readView);
+        boolean ownFactionCounts=viewerFaction.length()>0 && viewerFaction.equals(ownerFaction);
+        boolean factionCountsVisible=adminCompanyView || ownFactionCounts;
+        boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId,
+            player.canCommandSenderUseCommand(2, "troops"),readView);
         boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction)
             && kome.common.data.KOMEProgressionPermissions.has(player, kome.common.data.KOMEProgressionPermissions.TAKE_WAYPOINTS);
         boolean ownerKing = KOMERulerAuthorization.canActAsRuler(data, ownerFaction, KOMEReflection.getEntityUUID(player));
@@ -94,18 +113,22 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canSetRecruitmentTile = recruitment.legal;
         KOMETileWaypointLink waypointLink = data.getTileWaypointLink(tileId);
         KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui();
+        packet.mapPublicationSerial = mapSerial;
+        packet.mapRequestId = requestId;
         packet.tileId = tile.id;
         packet.ownerFaction = ownerFaction;
         packet.pendingFromFaction = tile.pendingTransferFromFaction;
         packet.pendingToFaction = tile.pendingTransferToFaction;
         packet.viewerFaction = viewerFaction;
-        packet.offensivePop = summary.offensivePop;
-        packet.defensivePop = summary.defensivePop;
-        packet.mountedPop = summary.mountedPop;
-        packet.groundPop = summary.groundPop;
-        packet.incomingPop = summary.incomingPop;
-        packet.outgoingPop = summary.outgoingPop;
-        packet.incomingEtaMillis = summary.incomingEtaMillis;
+        packet.offensivePop = factionCountsVisible ? summary.offensivePop : 0;
+        packet.defensivePop = factionCountsVisible ? summary.defensivePop : 0;
+        packet.mountedPop = factionCountsVisible ? summary.mountedPop : 0;
+        packet.groundPop = factionCountsVisible ? summary.groundPop : 0;
+        // Tile presence reveals current companies, never a foreign movement plan.
+        packet.incomingPop = adminCompanyView || ownFactionCounts ? summary.incomingPop : 0;
+        packet.outgoingPop = adminCompanyView || ownFactionCounts ? summary.outgoingPop : 0;
+        packet.incomingEtaMillis = visibleIncomingEta(summary.incomingEtaMillis,
+            viewerFaction, ownerFaction, adminCompanyView);
         packet.myOffensivePop = summary.myOffensivePop;
         packet.myDefensivePop = summary.myDefensivePop;
         packet.myMountedPop = summary.myMountedPop;
@@ -274,13 +297,21 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
     }
 
-    private static TroopSummary summarizeTroops(KOMEWorldData data, String ownerFaction, String tileId, java.util.UUID viewerId) {
+    static long visibleIncomingEta(long eta, String viewerFaction, String ownerFaction, boolean adminCompanyView) {
+        String owner = KOMEAlliance.normalizeFactionKey(ownerFaction);
+        return !owner.isEmpty() && (adminCompanyView
+            || owner.equals(KOMEAlliance.normalizeFactionKey(viewerFaction))) ? eta : 0L;
+    }
+
+    private static TroopSummary summarizeTroops(KOMEWorldData data, String ownerFaction, String tileId,
+            java.util.UUID viewerId,KOMECompanyMapProjection.View readView) {
         TroopSummary summary = new TroopSummary();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
             if (!kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
                     || !tileId.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
                 continue;
             }
+            if(!readView.readableCampaignMember(record))continue;
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
                 continue;
             }
@@ -299,7 +330,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                     }
                 }
             }
-            String faction = data.getPlayerFactionKey(record.owner);
+            kome.common.data.KOMEArmyCompany recordCompany=data.armyCompanies.get(record.companyId);
+            String faction=recordCompany==null?data.getPlayerFactionKey(record.owner):recordCompany.faction;
             if (!kome.common.data.KOMEAlliance.normalizeFactionKey(ownerFaction).equals(kome.common.data.KOMEAlliance.normalizeFactionKey(faction))) {
                 continue;
             }
@@ -317,7 +349,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         long now = System.currentTimeMillis();
         long eta = Long.MAX_VALUE;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !order.isMoving()) {
+            if (order == null || !order.isMoving() || !readView.readableCompanyOrder(order)) {
                 continue;
             }
             kome.common.data.KOMECampaignUnitTotals campaign =
@@ -348,14 +380,15 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         return summary;
     }
 
-    private static boolean hasControllableCompanyAtTile(KOMEWorldData data, java.util.UUID viewerId, String viewerFaction, String tileId, boolean admin) {
+    private static boolean hasControllableCompanyAtTile(KOMEWorldData data, java.util.UUID viewerId, String viewerFaction, String tileId, boolean admin,
+            KOMECompanyMapProjection.View readView) {
         String tile = KOMEConquestTile.normalizeId(tileId);
         for (Object object : data.armyCompanies.values()) {
             if (!(object instanceof kome.common.data.KOMEArmyCompany)) {
                 continue;
             }
             kome.common.data.KOMEArmyCompany company = (kome.common.data.KOMEArmyCompany) object;
-            if (company != null && viewerId.equals(company.owner) && !company.units.isEmpty()
+            if (company != null && readView.directlyVisible(company) && viewerId.equals(company.owner) && !company.units.isEmpty()
                     && companyHasPresenceAtTile(data, company, tile)) {
                 return true;
             }
@@ -408,7 +441,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketConquestOpenCapture message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-            sendTileCommand(player, message.tileId, message.focusBuildId);
+            sendTileCommand(player, message.tileId, message.focusBuildId, message.mapRequestId);
             return null;
         }
     }

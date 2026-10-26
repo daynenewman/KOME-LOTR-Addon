@@ -31,6 +31,7 @@ import kome.common.data.KOMESerfKnightRecoveryService;
 import kome.common.data.KOMESerfKnightRelationshipService;
 import kome.common.data.KOMESerfKnightTrialAssignment;
 import kome.common.network.KOMEPacketUnitMapMarkers;
+import kome.common.network.KOMEAdminMapVision;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -61,7 +62,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 && kome.common.tactical.edit.KOMETacticalEditAccess.isAuthorized((EntityPlayerMP) sender)
             ? "/kome [gui|help|tile <tileId>|joinbattle <tileId>|battle retreat [conflictId]|waypoint propose <name>|tactical [tileId]]"
             : "/kome [gui|help|tile <tileId>|joinbattle <tileId>|battle retreat [conflictId]|waypoint propose <name>]";
-        return "/kome tactical [tileId] | diagnostics <domain> <subject> | emergencydefense inspect <faction> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome tactical [tileId] | diagnostics <domain> <subject> | emergencydefense inspect <faction> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminvision <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -327,29 +328,32 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 return;
             }
         }
-        if (args.length == 2 && "adminmarkers".equalsIgnoreCase(args[0])) {
+        if (args.length == 2 && ("adminvision".equalsIgnoreCase(args[0])
+                || "adminmarkers".equalsIgnoreCase(args[0]))) {
             requireStaff(sender);
             if (!(sender instanceof EntityPlayerMP)) {
                 throw new WrongUsageException("Only a player can change personal admin marker visibility.");
             }
             EntityPlayerMP player = (EntityPlayerMP) sender;
             if ("on".equalsIgnoreCase(args[1]) || "all".equalsIgnoreCase(args[1])) {
-                data.setAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player), false);
+                if (!KOMEAdminMapVision.setEnabled(player, true))
+                    throw new WrongUsageException("Operator permission is required for administrative map vision.");
+                kome.common.network.KOMEPacketConquestData.sendChunked(data, player);
                 KOMEPacketUnitMapMarkers.sendToPlayer(data, player);
-                sender.addChatMessage(new ChatComponentText("Admin live unit markers: showing all tracked loaded units."));
+                sender.addChatMessage(new ChatComponentText("Administrative map vision enabled for this session."));
                 return;
             }
             if ("off".equalsIgnoreCase(args[1]) || "own".equalsIgnoreCase(args[1])) {
-                data.setAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player), true);
+                KOMEAdminMapVision.setEnabled(player, false);
+                kome.common.network.KOMEPacketConquestData.sendChunked(data, player);
                 KOMEPacketUnitMapMarkers.sendToPlayer(data, player);
-                sender.addChatMessage(new ChatComponentText("Admin live unit markers disabled. Map now shows only your own loaded units."));
+                sender.addChatMessage(new ChatComponentText("Administrative map vision disabled; normal reconnaissance applies."));
                 return;
             }
             if ("status".equalsIgnoreCase(args[1])) {
-                boolean disabled = data.isAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player));
-                sender.addChatMessage(new ChatComponentText(disabled
-                    ? "Admin live unit markers are disabled; showing only your own loaded units."
-                    : "Admin live unit markers are enabled; showing all tracked loaded units."));
+                sender.addChatMessage(new ChatComponentText(KOMEAdminMapVision.enabled(player)
+                    ? "Administrative map vision is enabled for this session."
+                    : "Administrative map vision is disabled; normal reconnaissance applies."));
                 return;
             }
         }
@@ -399,6 +403,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "config",
                 "conquest",
                 "waypointdefaults",
+                "adminvision",
                 "adminmarkers",
                 "capital",
                 "ruler",
