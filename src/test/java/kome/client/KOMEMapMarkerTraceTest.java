@@ -93,7 +93,8 @@ public class KOMEMapMarkerTraceTest {
         assertTrue(calls(method("onDrawMap",null),"observe")>0);
         assertTrue(calls(method("onMapProfileEnd",null),"endFrame")>0);
         assertTrue(calls(method("drawLiveUnitMarkers",null),"renderCompanyMarkers")>0);
-        assertTrue(calls(methodPrefix("lambda$drawLiveUnitMarkers$"),"drawTexturedMarker")>0);
+        assertTrue(callsAcrossPrefix("lambda$drawLiveUnitMarkers$","drawTexturedMarker")>0);
+        assertTrue(callsAcrossPrefix("lambda$drawLiveUnitMarkers$","drawCompanyCluster")>0);
         assertTrue(calls(method("drawBuildMarker",null),"drawTexturedMarker")>0);
     }
 
@@ -111,13 +112,14 @@ public class KOMEMapMarkerTraceTest {
                 &&(descriptorSuffix==null||method.desc.endsWith(descriptorSuffix)))return method;
         throw new AssertionError("Missing method "+name+" "+descriptorSuffix);
     }
-    private static MethodNode methodPrefix(String prefix)throws Exception {
+    private static int callsAcrossPrefix(String prefix,String name)throws Exception {
         ClassNode node=new ClassNode();
         try(InputStream in=KOMEConquestMapOverlay.class.getResourceAsStream("KOMEConquestMapOverlay.class")){
             new ClassReader(in).accept(node,0);
         }
-        for(MethodNode method:node.methods)if(method.name.startsWith(prefix))return method;
-        throw new AssertionError("Missing method starting "+prefix);
+        int count=0;
+        for(MethodNode method:node.methods)if(method.name.startsWith(prefix))count+=calls(method,name);
+        return count;
     }
     private static int calls(MethodNode method,String name) {
         int count=0;

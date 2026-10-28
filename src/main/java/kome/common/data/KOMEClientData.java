@@ -8,6 +8,10 @@ public class KOMEClientData extends KOMEWorldData {
     public final java.util.Map<String, String> capitalTilesByFaction =
         new java.util.HashMap<String, String>();
     public int conquestRevision;
+    /** Presentation-only fence for GUIs created in an earlier connection/world session. */
+    public volatile long clientSessionEpoch;
+    /** Fence map-only inspection immediately on connection/world transitions. */
+    public synchronized void invalidateClientSessionEpoch() { clientSessionEpoch++; }
     /** Client-only baseline state; an empty completed snapshot proves absence, unlike initial loading. */
     private boolean completeConquestSnapshot;
     public boolean hasCompleteConquestSnapshot() { return completeConquestSnapshot; }
@@ -42,6 +46,7 @@ public class KOMEClientData extends KOMEWorldData {
     }
 
     public void resetClientState() {
+        invalidateClientSessionEpoch();
         completeConquestSnapshot = false;
         progressions.clear();
         hiredUnits.clear();

@@ -83,7 +83,9 @@ public class KOMEConquestPopulationRefreshTest {
         java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         net.minecraft.world.World remote=KOMEAccessFixture.allocate(KOMEAccessFixture.TestWorld.class);
         java.lang.reflect.Field flag=net.minecraft.world.World.class.getDeclaredField("isRemote");flag.setAccessible(true);flag.setBoolean(remote,true);
+        long rosterEpoch=client.clientSessionEpoch;
         lifecycle.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(remote));
+        assertTrue("World unload fences an open cluster roster immediately",client.clientSessionEpoch>rosterEpoch);
         assertTrue(client.armyCompanies.isEmpty());assertTrue(client.armyMovements.isEmpty());
         assertTrue(lines().isEmpty());proxy.queue.drain();assertTrue(lines().isEmpty());
         send(packet(false,true,summary("gondor",7777)));assertTrue(lines().isEmpty());
@@ -94,8 +96,14 @@ public class KOMEConquestPopulationRefreshTest {
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
         java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         java.lang.reflect.Field queue=KOMEClientProxy.class.getDeclaredField("clientTasks");queue.setAccessible(true);queue.set(lifecycle,proxy.queue);
-        lifecycle.onClientDisconnect(KOMEAccessFixture.clientDisconnected());proxy.queue.drain();assertTrue(lines().isEmpty());
-        lifecycle.onClientConnect(KOMEAccessFixture.clientConnected());proxy.queue.drain();assertTrue(lines().isEmpty());
+        long rosterEpoch=client.clientSessionEpoch;
+        lifecycle.onClientDisconnect(KOMEAccessFixture.clientDisconnected());
+        assertTrue("Disconnect fences the roster before queued reset",client.clientSessionEpoch>rosterEpoch);
+        proxy.queue.drain();assertTrue(lines().isEmpty());
+        rosterEpoch=client.clientSessionEpoch;
+        lifecycle.onClientConnect(KOMEAccessFixture.clientConnected());
+        assertTrue("Reconnect starts a new roster session",client.clientSessionEpoch>rosterEpoch);
+        proxy.queue.drain();assertTrue(lines().isEmpty());
         send(packet(false,true,summary("gondor",9999)));assertTrue(lines().isEmpty());
         send(packet(true,true,summary("rohan",100)));assertPopulation(100);
     }

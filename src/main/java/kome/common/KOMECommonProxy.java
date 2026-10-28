@@ -67,6 +67,7 @@ public class KOMECommonProxy {
 
     public long beginMapDetailRequest(String kind, String tile, String focus) { return 0L; }
     public void cancelMapDetailRequest(Object screen) {}
+    public void displayCompanyClusterRoster(java.util.List<String> memberIds,Object sourceMap) {}
 
     public void handleMapDetailResponse(long requestId, String kind, String tile, String focus,
             long publicationSerial, Object connection, Runnable publish) { }

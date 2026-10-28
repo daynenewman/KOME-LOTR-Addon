@@ -61,7 +61,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static final int BRIDGE_MARKER_HEIGHT = 3;
     private static final int RIVER_MARKER_WIDTH = 4;
     private static final int RIVER_MARKER_HEIGHT = 2;
-    private static final float TROOP_COUNT_TEXT_SCALE = 0.70F;
+    static final float TROOP_COUNT_TEXT_SCALE = 0.70F;
+    static final int CLUSTER_BADGE_TEXT_COLOR = 0xFFE2BD73;
     private static final int ROUTE_LINE_COLOR = 0xE0D6B45A;
     private static final int ROUTE_LINE_SHADOW = 0xCC3A2A12;
     private static final int ROUTE_COMPLETED_COLOR = 0xAA8C7440;
@@ -104,6 +105,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static boolean showRiverBlockMarkers = true;
     private static boolean showBridgeMarkers = true;
     private static boolean showTroopMarkers = true;
+    private static boolean nativeWaypointPicked;
     private static boolean showBuildMarkers = true;
     static KOMEMapPreferences mapPreferences() {
         return new KOMEMapPreferences(territoryStyle.palette,territoryStyle.mode,territoryStyle.opacity,territoryStyle.showTileBorders,
@@ -144,6 +146,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static KOMECompanyOriginWorkflow originWorkflow;
     private static KOMECompanyRallyClient rally;
     private static KOMECompanyUnitsBrowser unitsBrowser;
+    private static KOMEGuiCompanyClusterRoster clusterPanel;
     private static kome.client.gui.KOMEGuiJoinBattle directJoinScreen;
     private static boolean directJoinFromRoot;
     private static java.util.UUID directJoinViewCorrelation, directJoinSession;
@@ -233,6 +236,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     public static void resetClientMapState() {
         KOMEMapProfiler.close();
         resetDestinationSelection();
+        nativeWaypointPicked=false;
         activeMapInstance = null;
         hasSavedMapViewport = false;
         clearTileGeometry();
@@ -464,12 +468,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if (!(event.gui instanceof LOTRGuiMap)) return;
         LOTRGuiMap map=(LOTRGuiMap)event.gui;
         validateCompanySelectorLifecycle();
-        if (radialMap!=map || (!companySelectorOpen()&&!originActive()&&!unitsActive()) || shouldSkipMap(map)) return;
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        validateClusterPanelLifecycle();
+        boolean clusterOpen=clusterPanel!=null&&clusterPanelSourceIs(map);
+        if ((radialMap!=map || (!companySelectorOpen()&&!originActive()&&!unitsActive())) && !clusterOpen || shouldSkipMap(map)) return;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_CURRENT_BIT);
         try {
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             GL11.glDepthMask(false);
-            if(unitsActive())KOMECompanyUnitsPanel.draw(unitsBrowser,unitsLayout(map),KOMEMinecraftClient.fontRenderer(),event.mouseX,event.mouseY);
+            if(clusterOpen)clusterPanel.draw(clusterPanelLayout(map),
+                KOMEMinecraftClient.fontRenderer(),event.mouseX,event.mouseY);
+            else if(unitsActive())KOMECompanyUnitsPanel.draw(unitsBrowser,unitsLayout(map),KOMEMinecraftClient.fontRenderer(),event.mouseX,event.mouseY);
             else if(originPicking())drawOriginPrompt(map,event.mouseX,event.mouseY);
             else KOMECompanyDestinationPanel.draw(companySelector,selectorLayout(map),KOMEMinecraftClient.fontRenderer(),
                 event.mouseX,event.mouseY,previewClock());
@@ -484,6 +492,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         GuiScreen screen = KOMEMinecraftClient.currentScreen();
         updateMapViewportState(screen);
         validateCompanySelectorLifecycle();
+        validateClusterPanelLifecycle();
         if ((radialMap != null && screen != radialMap) || (radialDragMap != null && screen != radialDragMap)) closeRadialInteraction();
         if (screen == null) {
             if (isChoosingDestination()) {
@@ -515,7 +524,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 int screenHeight = KOMEMinecraftClient.screenHeight(screen);
                 int mouseX = Mouse.getX() * screenWidth / KOMEMinecraftClient.displayWidth();
                 int mouseY = screenHeight - Mouse.getY() * screenHeight / KOMEMinecraftClient.displayHeight() - 1;
-                if (unitsActive() || rallyActive() || originActive() || selectorOwnsPointer(map,mouseX,mouseY) || radialOwnsPointer(map,mouseX,mouseY)) {
+                if (unitsActive() || rallyActive() || originActive() || clusterPanelOwnsPointer(map,mouseX,mouseY)
+                        || selectorOwnsPointer(map,mouseX,mouseY) || radialOwnsPointer(map,mouseX,mouseY)) {
                     // Panel input cannot also activate the independently polled KOME controls.
                 } else if (isPreviewingRoute() && isOverRouteConfirmButton(map, mouseX, mouseY)) {
                     KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
@@ -526,10 +536,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 } else if (isPreviewingRoute() && isOverRouteCancelButton(map, mouseX, mouseY)) {
                     clearRoutePreview();
                 } else if (!isChoosingDestination() && !isOverMapControl(map, mouseX, mouseY)) {
-                    KOMEPlayerBuild build = buildMarkerAt(map, mouseX, mouseY);
-                    if (build != null) {
-                        KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(build.tileId, build.id));
-                    }
+                    requestBuildDetailsAt(map,mouseX,mouseY);
                 }
             }
         }
@@ -575,6 +582,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if(KOMEMapMarkerTrace.ENABLED&&!(event.gui instanceof LOTRGuiMap))KOMEMapMarkerTrace.close();
         if(KOMEMapProfiler.ENABLED&&!(event.gui instanceof LOTRGuiMap))KOMEMapProfiler.close();
         if ((radialMap != null && event.gui != radialMap) || (radialDragMap != null && event.gui != radialDragMap)) closeRadialInteraction();
+        if(clusterPanel!=null&&event.gui!=clusterPanelSource())clusterPanel=null;
     }
 
     private static void closeRadialInteraction() {
@@ -588,9 +596,17 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     /** Called after LOTR's native waypoint picker and controls, before its base GUI handler. */
     public static boolean onMapMouseClicked(LOTRGuiMap map, int mouseX, int mouseY, int button) {
         validateCompanySelectorLifecycle();
+        validateClusterPanelLifecycle();
         if (button == 0) releaseRadialCapture(); // A fresh press starts a new gesture, even between render frames.
         if (shouldSkipMap(map) || !showConquestTiles || isChoosingDestination() || isPreviewingRoute()
                 || !viewport(map).contains(mouseX, mouseY) || mapUiOwnsPointer(map, mouseX, mouseY)) return false;
+        if(button==0 && !nativeWaypointPicked) {
+            KOMECompanyShieldClusters.Group cluster=companyClusterAt(map,mouseX,mouseY);
+            if(cluster!=null){
+                kome.common.KOMEAddon.proxy.displayCompanyClusterRoster(cluster.ids(),map);
+                return true;
+            }
+        }
         if (button == 1) {
             int color = getHoveredTileColor(map, mouseX, mouseY);
             String tile = tileIdsByColor.get(color);
@@ -602,7 +618,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     private static boolean openRadialAt(LOTRGuiMap map,String tile) {
         if(!KOMEConquestTile.isCanonicalTileId(tile)||radialAnchorMapPosition(tile)==null)return false;
-        closeRadialInteraction();radialMenu.open(tile);radialMap=map;refreshRootJoinBattle();return true;
+        closeClusterPanel();closeRadialInteraction();radialMenu.open(tile);radialMap=map;refreshRootJoinBattle();return true;
     }
     /** Small future notification seam: an already-open map and a currently known tile only. */
     public static boolean focusRadialForTile(LOTRGuiMap map,String tile) {
@@ -675,6 +691,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static void sendUnits(kome.common.network.KOMEPacketCompanyOriginRequest request){if(request!=null)KOMEPacketHandler.network.sendToServer(request);}
     private static void openUnits(){
         if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        closeClusterPanel();
         closeCompanySelector();closeUnits();battleContextRequest=null;
         unitsBrowser=new KOMECompanyUnitsBrowser(((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions());
         selectorOnLeft=false;sendUnits(unitsBrowser.open(radialMenu.tileId()));
@@ -938,9 +955,22 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     /** Selector panel first, then the rendered radial button cells, before native picking. */
     public static boolean onMapSelectorMouseClicked(LOTRGuiMap map, int mouseX, int mouseY, int button) {
+        nativeWaypointPicked=false;
         validateCompanySelectorLifecycle();
+        validateClusterPanelLifecycle();
         if (button == 0) releaseRadialCapture();
         if (!shouldSkipMap(map) && handleTerritoryControl(map, mouseX, mouseY, button)) return true;
+        if(clusterPanelOwnsPointer(map,mouseX,mouseY)){
+            if(button==0){
+                KOMEGuiCompanyClusterRoster.PanelLayout layout=clusterPanelLayout(map);
+                if(layout.close.contains(mouseX,mouseY))closeClusterPanel();
+                else if(layout.up.contains(mouseX,mouseY))clusterPanel.scroll(-1,layout.capacity);
+                else if(layout.down.contains(mouseX,mouseY))clusterPanel.scroll(1,layout.capacity);
+                else clusterPanel.select(layout.rowAt(mouseX,mouseY,clusterPanel.memberIds().size()),layout.capacity);
+                radialLeftCaptured=true;radialDragMap=map;
+            }
+            return true;
+        }
         if(unitsActive()&&radialMap==map&&!shouldSkipMap(map)&&unitsInput(map,mouseX,mouseY,button))return true;
         if(originActive()&&radialMap==map&&!shouldSkipMap(map)&&originInput(map,mouseX,mouseY,button))return true;
         if (!selectorOwnsPointer(map,mouseX,mouseY)) return onMapRadialSegmentMouseClicked(map,mouseX,mouseY,button);
@@ -1015,6 +1045,11 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
     static boolean onMapSelectorWheel(LOTRGuiMap map,int x,int y,int delta) {
         validateCompanySelectorLifecycle();
+        validateClusterPanelLifecycle();
+        if(clusterPanelOwnsPointer(map,x,y)){
+            if(delta!=0)clusterPanel.scroll(delta>0?-1:1,clusterPanelLayout(map).capacity);
+            return true;
+        }
         if(unitsActive()&&radialMap==map&&unitsLayout(map).panel.contains(x,y)){if(delta!=0)sendUnits(unitsBrowser.scroll(delta>0?-1:1,unitsLayout(map).capacity,previewClock()));return true;}
         if (!selectorOwnsPointer(map,x,y)) return false;
         if (delta!=0) browseCompanies(delta>0?-1:1,selectorLayout(map).capacity);
@@ -1071,6 +1106,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     /** Native picker success, for ANY waypoint. No visibility/travel rules are duplicated here. */
     public static void onNativeWaypointClick(LOTRGuiMap map) {
+        nativeWaypointPicked=true;
         if(originActive())return;
         if (radialMap == map && radialMenu.isOpen()) closeRadialInteraction();
     }
@@ -1085,6 +1121,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     /** Escape dismisses the interaction first; native map/waypoint keys otherwise remain untouched. */
     public static boolean onMapKeyTyped(LOTRGuiMap map, int key) {
+        if(key==Keyboard.KEY_ESCAPE&&clusterPanelSourceIs(map)){closeClusterPanel();return true;}
         if (key != Keyboard.KEY_ESCAPE || radialMap != map || !radialMenu.isOpen() || shouldSkipMap(map)) return false;
         closeRadialInteraction(); return true;
     }
@@ -1161,7 +1198,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     /** Shared by event picking and independently polled destination selection. */
     private static boolean mapUiOwnsPointer(LOTRGuiMap map, int x, int y) {
-        return isOverMapControl(map, x, y) || selectorOwnsPointer(map, x, y) || radialOwnsPointer(map, x, y)
+        return isOverMapControl(map, x, y) || clusterPanelOwnsPointer(map,x,y)
+            || selectorOwnsPointer(map, x, y) || radialOwnsPointer(map, x, y)
             || unitsActive() || rallyActive() || originActive()
             || isOverRouteConfirmButton(map, x, y) || isOverRouteCancelButton(map, x, y);
     }
@@ -1836,25 +1874,92 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         return renderCompanyMarkers(map,mouseX,mouseY,(marker,art,bounds,presentation)->{
             if(KOMEMapMarkerTrace.ENABLED)drawTexturedMarker(KOMEMapMarkerTrace.Kind.COMPANY_SHIELD,marker.entityId,art,bounds);
             else drawTexturedMarker(art,bounds);
-            if(presentation.labels)drawTroopCount(KOMEMinecraftClient.fontRenderer(),bounds.x,bounds.y,bounds.width,bounds.height,marker.soldierCount);
+            if(presentation.labels)drawTroopCount(KOMEMinecraftClient.fontRenderer(),bounds.x,bounds.y,bounds.width,bounds.height,
+                marker.soldierCount,singletonUnitCountTextY(bounds.y));
+        },(group,presentation)->{
+            drawCompanyCluster(group,presentation);
         });
     }
 
     interface CompanyMarkerSink {
         void draw(KOMEUnitMapMarker marker,KOMEMapMarkerArt.Sprite art,KOMEMapIconPresentation.Bounds bounds,KOMEMapIconPresentation presentation);
     }
+    interface CompanyClusterSink {
+        void draw(KOMECompanyShieldClusters.Group group,KOMEMapIconPresentation presentation);
+    }
+
+    interface ClusterLayerSink {
+        void draw(KOMEMapMarkerArt.Sprite art,KOMEMapIconPresentation.Bounds bounds);
+    }
+    static void renderClusterLayers(KOMECompanyShieldClusters.Group group,ClusterLayerSink sink){
+        for(KOMEMapIconPresentation.Bounds layer:group.shieldLayers)sink.draw(group.art,layer);
+    }
+    private static void drawCompanyCluster(KOMECompanyShieldClusters.Group group,KOMEMapIconPresentation presentation){
+        if(!group.compositeNeedsClip()&&!group.badgeNeedsClip()){
+            drawCompanyClusterContent(group,presentation);return;
+        }
+        // Clip just this composite; a visible primary shield is never rejected for an offset layer or badge.
+        boolean previousClip=GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        int oldX=0,oldY=0,oldWidth=0,oldHeight=0;
+        if(previousClip){territoryScissor.clear();GL11.glGetInteger(GL11.GL_SCISSOR_BOX,territoryScissor);
+            oldX=territoryScissor.get(0);oldY=territoryScissor.get(1);
+            oldWidth=territoryScissor.get(2);oldHeight=territoryScissor.get(3);}
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_SCISSOR_BIT);
+        try{
+            KOMEMapViewport view=group.view;
+            KOMEGuiTheme.enableScissor(KOMEMinecraftClient.get(),(int)view.left,(int)view.top,
+                (int)(view.right-view.left),(int)(view.bottom-view.top));
+            if(previousClip){territoryScissor.clear();GL11.glGetInteger(GL11.GL_SCISSOR_BOX,territoryScissor);
+                int x=Math.max(oldX,territoryScissor.get(0)),y=Math.max(oldY,territoryScissor.get(1));
+                int right=Math.min(oldX+oldWidth,territoryScissor.get(0)+territoryScissor.get(2));
+                int bottom=Math.min(oldY+oldHeight,territoryScissor.get(1)+territoryScissor.get(3));
+                GL11.glScissor(x,y,Math.max(0,right-x),Math.max(0,bottom-y));}
+            drawCompanyClusterContent(group,presentation);
+        }finally{GL11.glPopAttrib();}
+    }
+    private static void drawCompanyClusterContent(KOMECompanyShieldClusters.Group group,KOMEMapIconPresentation presentation){
+        renderClusterLayers(group,KOMEConquestMapOverlay::drawTexturedMarker);
+        if(KOMECompanyShieldClusters.badgeVisible(presentation))
+            drawOutlinedMarkerText(KOMEMinecraftClient.fontRenderer(),String.valueOf(group.members.size()),
+                group.badgeTextX,group.badgeY,CLUSTER_BADGE_TEXT_COLOR);
+    }
 
     static List<String> renderCompanyMarkers(LOTRGuiMap map,int mouseX,int mouseY,CompanyMarkerSink sink) {
-        if (!showTroopMarkers || KOMEClientData.INSTANCE.unitMapMarkers.isEmpty()) {
-            return null;
+        return renderCompanyMarkers(map,mouseX,mouseY,sink,
+            (group,presentation)->sink.draw(group.members.get(0).marker,group.art,group.iconBounds,presentation));
+    }
+
+    static List<String> renderCompanyMarkers(LOTRGuiMap map,int mouseX,int mouseY,
+            CompanyMarkerSink sink,CompanyClusterSink clusterSink) {
+        if (!showTroopMarkers || KOMEClientData.INSTANCE.unitMapMarkers.isEmpty()) return null;
+        KOMEMapIconPresentation presentation=markerPresentation(map);
+        KOMECompanyShieldClusters.Group hovered=null;
+        boolean inspect=!mapUiOwnsPointer(map,mouseX,mouseY);
+        for(KOMECompanyShieldClusters.Group group:visibleCompanyGroups(map,presentation)) {
+            if(group.clustered())clusterSink.draw(group,presentation);
+            else {
+                KOMECompanyShieldClusters.Entry entry=group.members.get(0);
+                sink.draw(entry.marker,entry.art,entry.bounds,presentation);
+            }
+            if(inspect&&group.contains(mouseX,mouseY))hovered=group;
         }
-        KOMEMapIconPresentation presentation=markerPresentation(map);KOMEMapViewport view=viewport(map);
+        if(hovered==null)return null;
+        if(!hovered.clustered())return spottedCompany(hovered.members.get(0).marker)?null:
+            liveUnitTooltip(hovered.members.get(0).marker);
+        return hovered.mixedFactions
+            ?Arrays.asList(hovered.members.size()+" companies","Mixed factions","Left-click: inspect cluster")
+            :Arrays.asList(hovered.members.size()+" companies","Left-click: inspect cluster");
+    }
+
+    private static List<KOMECompanyShieldClusters.Group> visibleCompanyGroups(LOTRGuiMap map,
+            KOMEMapIconPresentation presentation) {
+        if(!showTroopMarkers||KOMEClientData.INSTANCE.unitMapMarkers.isEmpty())return java.util.Collections.emptyList();
+        KOMEMapViewport view=viewport(map);
         int mapXMin = mapInt("mapXMin");
         int mapXMax = mapInt("mapXMax");
         int mapYMin = mapInt("mapYMin");
         int mapYMax = mapInt("mapYMax");
-        KOMEUnitMapMarker tooltipMarker=null;
-        boolean inspect=!mapUiOwnsPointer(map,mouseX,mouseY);
+        List<KOMECompanyShieldClusters.Entry> candidates=new ArrayList<>();
         for (KOMEUnitMapMarker marker : orderedCompanyMarkers()) {
             if (marker == null || marker.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID || !companyMarkerCurrent(marker)) {
                 continue;
@@ -1869,10 +1974,54 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(art==null)continue;
             KOMEMapIconPresentation.Bounds bounds=art.bounds(presentation,screenX,screenY);
             if(!bounds.visible(view))continue;
-            sink.draw(marker,art,bounds,presentation);
-            if (inspect && !spottedCompany(marker) && bounds.contains(mouseX,mouseY)) tooltipMarker=marker;
+            KOMEArmyCompany company=KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
+            candidates.add(new KOMECompanyShieldClusters.Entry(marker,art,bounds,
+                company==null?"":company.faction,spottedCompany(marker)));
         }
-        return tooltipMarker==null?null:liveUnitTooltip(tooltipMarker);
+        if(candidates.isEmpty())return java.util.Collections.emptyList();
+        FontRenderer font=KOMEMinecraftClient.get()==null?null:KOMEMinecraftClient.fontRenderer();
+        List<KOMECompanyShieldClusters.Group> groups=font==null
+            ?KOMECompanyShieldClusters.group(candidates,presentation,view)
+            :KOMECompanyShieldClusters.group(candidates,presentation,view,
+                count->font.getStringWidth(String.valueOf(count)));
+        groups.removeIf(group->!group.visibleShield());
+        return groups;
+    }
+
+    private static KOMECompanyShieldClusters.Group companyClusterAt(LOTRGuiMap map,int x,int y) {
+        if(!showTroopMarkers||mapUiOwnsPointer(map,x,y))return null;
+        KOMECompanyShieldClusters.Group hit=null;
+        for(KOMECompanyShieldClusters.Group group:visibleCompanyGroups(map,markerPresentation(map)))
+            if(group.contains(x,y))hit=group;
+        return hit!=null&&hit.clustered()?hit:null;
+    }
+    /** Recheck the exact projected group before an open read-only roster exposes its rows. */
+    static boolean companyClusterMembersCurrent(LOTRGuiMap map,List<String> ids) {
+        if(map==null||ids==null||ids.size()<2||!showConquestTiles||shouldSkipMap(map))return false;
+        for(KOMECompanyShieldClusters.Group group:visibleCompanyGroups(map,markerPresentation(map)))
+            if(group.clustered()&&group.ids().equals(ids))return true;
+        return false;
+    }
+    /** UI-only selection seam for a future shared company editor; never a command capability. */
+    public static void openCompanyClusterPanel(LOTRGuiMap map,List<String> ids){
+        if(map==null||clusterPanelLayout(map).panel.height<80||!companyClusterMembersCurrent(map,ids))return;
+        closeRadialInteraction();
+        clusterPanel=new KOMEGuiCompanyClusterRoster(ids,map);
+    }
+    private static LOTRGuiMap clusterPanelSource(){return clusterPanel==null?null:clusterPanel.sourceMap();}
+    private static boolean clusterPanelSourceIs(LOTRGuiMap map){return clusterPanel!=null&&clusterPanel.sourceMap()==map;}
+    private static void closeClusterPanel(){clusterPanel=null;}
+    public static void validateClusterPanelLifecycle(){
+        if(clusterPanel!=null&&(!clusterPanel.stillCurrent()
+                ||clusterPanelLayout(clusterPanel.sourceMap()).panel.height<80))closeClusterPanel();
+    }
+    static boolean clusterPanelOwnsPointer(LOTRGuiMap map,int x,int y){
+        return clusterPanelSourceIs(map)&&clusterPanelLayout(map).panel.contains(x,y);
+    }
+    private static KOMEGuiCompanyClusterRoster.PanelLayout clusterPanelLayout(LOTRGuiMap map){
+        KOMEMapViewport view=viewport(map);
+        int top=Math.max((int)view.top+96,toggleButtonY(4)+TOGGLE_BUTTON_SIZE+8);
+        return new KOMEGuiCompanyClusterRoster.PanelLayout(view,top);
     }
 
     /** Stable company identity orders submission; the last actually visible overlap owns inspection. */
@@ -1943,6 +2092,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     private static KOMEPlayerBuild buildMarkerAt(LOTRGuiMap map, int mouseX, int mouseY) {
         if (buildSpritesMap!=map || !showBuildMarkers || !showConquestTiles || isChoosingDestination() || mapUiOwnsPointer(map,mouseX,mouseY)) return null;
+        // The native click hook and this tick poll may run in either order for one press.
+        // Company clusters draw above Builds, so their visible hit region owns the press.
+        if(companyClusterAt(map,mouseX,mouseY)!=null)return null;
         KOMEMapIconPresentation presentation=markerPresentation(map);KOMEMapViewport view=viewport(map);
         KOMEPlayerBuild target=null;
         for (Map.Entry<String,KOMEPlayerBuild> entry : orderedBuildMarkers()) {
@@ -1951,6 +2103,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(bounds!=null&&bounds.contains(mouseX,mouseY))target=build;
         }
         return target;
+    }
+    /** One polled click submission; tests exercise this same path with either native-event order. */
+    static boolean requestBuildDetailsAt(LOTRGuiMap map,int mouseX,int mouseY) {
+        KOMEPlayerBuild build=buildMarkerAt(map,mouseX,mouseY);
+        if(build==null)return false;
+        KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(build.tileId,build.id));
+        return true;
     }
 
     private static KOMEMapIconPresentation markerPresentation(LOTRGuiMap map){return KOMEMapIconPresentation.at(mapNumber(map,"zoomScale"));}
@@ -2050,7 +2209,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             :tileAnchorScreenPosition(map,marker.currentTile);
     }
 
-    private static boolean companyMarkerCurrent(KOMEUnitMapMarker marker) {
+    static boolean companyMarkerCurrent(KOMEUnitMapMarker marker) {
         KOMEArmyCompany company=KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
         // Neutral physical art is allowed only before the first canonical complete snapshot.
         // Afterwards, absence is authoritative even if an older marker packet arrives later.
@@ -2549,7 +2708,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         drawTexturedMarker(texture,bounds.x,bounds.y,bounds.width,bounds.height,bounds.alpha/255F);
     }
 
-    private static void drawTexturedMarker(KOMEMapMarkerArt.Sprite sprite,KOMEMapIconPresentation.Bounds bounds) {
+    static void drawTexturedMarker(KOMEMapMarkerArt.Sprite sprite,KOMEMapIconPresentation.Bounds bounds) {
         KOMEMapMarkerArt.Sprite art=KOMEMapMarkerArt.displayed(sprite);
         if(art!=null)drawTexturedMarker(art.texture,bounds.x,bounds.y,bounds.width,bounds.height,bounds.alpha/255F,art.u0,art.v0,art.u1,art.v1);
     }
@@ -2597,7 +2756,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         } finally {GL11.glPopAttrib();}
     }
 
+    static float genericTroopCountTextY(int markerY){return markerY-7.0F;}
+    static float singletonUnitCountTextY(int shieldY){return shieldY-5.0F;}
     private static void drawTroopCount(FontRenderer font, int markerX, int markerY, int markerWidth, int markerHeight, int population) {
+        drawTroopCount(font,markerX,markerY,markerWidth,markerHeight,population,genericTroopCountTextY(markerY));
+    }
+    private static void drawTroopCount(FontRenderer font, int markerX, int markerY, int markerWidth, int markerHeight,
+            int population,float textY) {
         if (population <= 0) {
             return;
         }
@@ -2605,12 +2770,18 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         String text = formatTroopCount(font, population, scaledMaxWidth);
         float textWidth = font.getStringWidth(text) * TROOP_COUNT_TEXT_SCALE;
         float textX = markerX + markerWidth / 2.0F - textWidth / 2.0F;
-        float textY = markerY - 7.0F;
+        drawOutlinedMarkerText(font,text,textX,textY);
+    }
+
+    private static void drawOutlinedMarkerText(FontRenderer font,String text,float textX,float textY) {
+        drawOutlinedMarkerText(font,text,textX,textY,0xFFF6EEC8);
+    }
+    private static void drawOutlinedMarkerText(FontRenderer font,String text,float textX,float textY,int textColor) {
         drawScaledMarkerText(font, text, textX - TROOP_COUNT_TEXT_SCALE, textY, 0xFF2A2116);
         drawScaledMarkerText(font, text, textX + TROOP_COUNT_TEXT_SCALE, textY, 0xFF2A2116);
         drawScaledMarkerText(font, text, textX, textY - TROOP_COUNT_TEXT_SCALE, 0xFF2A2116);
         drawScaledMarkerText(font, text, textX, textY + TROOP_COUNT_TEXT_SCALE, 0xFF2A2116);
-        drawScaledMarkerText(font, text, textX, textY, 0xFFF6EEC8);
+        drawScaledMarkerText(font, text, textX, textY, textColor);
     }
 
     private static void drawScaledMarkerText(FontRenderer font, String text, float x, float y, int color) {

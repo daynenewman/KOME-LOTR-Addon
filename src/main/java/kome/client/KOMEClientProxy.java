@@ -37,6 +37,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
                     || screen instanceof kome.client.gui.KOMEGuiConquestCapture
                     || screen instanceof kome.client.gui.KOMEGuiCompanyMoveConfirm)
                 KOMEMinecraftClient.closePlayerScreen();
+            KOMEConquestMapOverlay.validateClusterPanelLifecycle();
         });
     private KOMEMapDetailRequests mapDetailRequests = new KOMEMapDetailRequests();
     private synchronized KOMEMapDetailRequests mapDetailRequests() {
@@ -48,6 +49,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
         if(unitMarkers==null)unitMarkers=new KOMEUnitMapMarkerPublisher(clientTasks,markers->{
             KOMEClientData.INSTANCE.unitMapMarkers.clear();
             KOMEClientData.INSTANCE.unitMapMarkers.addAll(markers);
+            closeStaleCompanyClusterRoster();
         });
         return unitMarkers;
     }
@@ -111,6 +113,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
         unitMarkers().start(event == null ? null : event.handler);
         destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
@@ -126,6 +129,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        // Fence an open roster before the queued full client reset can run.
+        KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
         unitMarkers().start(null);
         destinationOptions().start(null);
         invalidateTacticalEditorPublications();
@@ -139,6 +144,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
             unitMarkers().invalidateWorld();
             KOMEClientData.INSTANCE.unitMapMarkers.clear();
             destinationOptions().close();
@@ -214,6 +220,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override public void cancelMapDetailRequest(Object screen) {
         mapDetailRequests().cancelFromScreen(screen);
+    }
+
+    @Override public void displayCompanyClusterRoster(java.util.List<String> memberIds,Object sourceMap) {
+        if(sourceMap instanceof LOTRGuiMap)
+            KOMEConquestMapOverlay.openCompanyClusterPanel((LOTRGuiMap)sourceMap,memberIds);
+    }
+    private static void closeStaleCompanyClusterRoster() {
+        KOMEConquestMapOverlay.validateClusterPanelLifecycle();
     }
 
     @Override

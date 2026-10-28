@@ -162,7 +162,7 @@ public class KOMEMapMarkerArtTest {
         for(MethodNode m:node.methods)for(AbstractInsnNode step:m.instructions.toArray())if(step instanceof MethodInsnNode){MethodInsnNode c=(MethodInsnNode)step;if(c.owner.equals("kome/client/KOMEMapMarkerArt"))calls.add(m.name+":"+c.name);
             if(m.name.equals("drawTroopMarkers"))assertFalse(c.owner.equals("kome/client/KOMEMapMarkerArt"));
             if(m.name.equals("drawTexturedMarker")&&m.desc.endsWith("FDDDD)V")&&c.name.equals("glPopAttrib")){uvScope=true;assertFalse(m.tryCatchBlocks.isEmpty());}}
-        assertTrue(calls.contains("renderCompanyMarkers:company"));assertTrue(calls.contains("drawBuildMarker:build"));assertTrue(calls.contains("onResourceManagerReload:reload"));assertTrue(uvScope);
+        assertTrue(calls.contains("visibleCompanyGroups:company"));assertTrue(calls.contains("drawBuildMarker:build"));assertTrue(calls.contains("onResourceManagerReload:reload"));assertTrue(uvScope);
     }
 
     private static void assertSprite(KOMEMapMarkerArt.Sprite s,String path,double u,double v,int w,int h){assertEquals(new ResourceLocation(path),s.texture);assertEquals(0,s.u0,0);assertEquals(0,s.v0,0);assertEquals(u,s.u1,0);assertEquals(v,s.v1,0);assertEquals(w,s.width);assertEquals(h,s.height);}
