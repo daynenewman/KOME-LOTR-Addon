@@ -51,7 +51,7 @@ Not every resource pack preserves these nonstandard layouts. The checks catch di
 
 ## Mapping inventory
 
-Among the 24 bundled keys, 22 have shields and 23 have banners. Bree, Angmar, Gundabad, Dale, Dorwinion, Dunland, Rohan, Gondor and Mordor use matching lowercase suffixes in both native families. Exceptional suffixes:
+Among the 24 bundled keys, 23 have shields and 23 have banners. Bree, Angmar, Gundabad, Dale, Dorwinion, Dunland, Rohan, Gondor and Mordor use matching lowercase suffixes in both native families. Exceptional suffixes:
 
 | KOME key | Shield suffix | Banner suffix |
 |---|---|---|
@@ -64,7 +64,7 @@ Among the 24 bundled keys, 22 have shields and 23 have banners. Bree, Angmar, Gu
 | durinsfolk | dwarf | durin |
 | lothlorien | galadhrim | lothlorien |
 | isengard | uruk_hai | isengard |
-| fangorn | neutral | neutral |
+| fangorn | defeat_mallorn_ent (Entslayer's Shield) | neutral |
 | rhudel | rhun | rhun |
 | harad | near_harad | nearHarad |
 | morwaith | moredain | moredain |
@@ -72,6 +72,8 @@ Among the 24 bundled keys, 22 have shields and 23 have banners. Bree, Angmar, Gu
 | halftroll | half_troll | halfTroll |
 
 Explicit extra mappings: Umbar uses native `umbar` shield/banner; Nomad has `haradNomad` banner only. Utumno, Far Harad, blank and unknown keys stay neutral. Canonical aliases such as RANGER_NORTH/NEAR_HARAD are normalized; regional native cosmetic variants are not selected by a first-match enum scan.
+
+Fangorn's native `FANGORN` code name normalizes to `fangorn`, which uses `LOTRShields.DEFEAT_MALLORN_ENT.getTexture()` (`lotr:shield/defeat_mallorn_ent.png`). LOTR v36.15 names it Entslayer's Shield and awards it for defeating the Mallorn Ent. This is display artwork only; shield-unlock permission is not required. Its banner remains neutral. Hobbits and unknown/generic company shields still use the Bronze Adventurer's Shield.
 
 Company marker IDs join exact client `armyCompanies` keys. A recognized `nativeFaction` takes precedence over `faction`; a known faction lacking a shield stays neutral. An unknown/empty native identity may fall back to the company's faction. Before the first completed conquest snapshot, a physical marker missing its company snapshot may use neutral art. Once a completed baseline exists, a missing company ID invalidates the marker immediately, including late unit packets; it cannot become a stale neutral shield. Matching current snapshots restore valid artwork without an asset reload. Strategic-only markers wait for a matching stationed company snapshot and an existing tile presentation anchor. Company names, viewer allegiance and tile ownership are never substitutes. Exact company IDs define ascending sprite draw order, and the last actually visible overlapping company owns the tooltip. Overlapping companies cluster only within their canonical faction; different-faction shields remain distinct with display-only offsets where needed. The deleted legacy troop PNG is not restored: aggregate totals retain existing text/zoom eligibility without an emblem, and active movement retains its existing neutral current-position diamond. Normal Builds use `populationFaction`; Defensive Builds use the castle. Null/unrecognized Build types use the neutral banner, without inferring authority.
 

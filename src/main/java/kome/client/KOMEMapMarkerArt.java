@@ -75,6 +75,7 @@ final class KOMEMapMarkerArt {
         add("lothlorien",LOTRShields.ALIGNMENT_GALADHRIM,BannerType.GALADHRIM);
         add("dunland",LOTRShields.ALIGNMENT_DUNLAND,BannerType.DUNLAND);
         add("isengard",LOTRShields.ALIGNMENT_URUK_HAI,BannerType.ISENGARD);
+        add("fangorn",LOTRShields.DEFEAT_MALLORN_ENT,null);
         add("rohan",LOTRShields.ALIGNMENT_ROHAN,BannerType.ROHAN);
         add("gondor",LOTRShields.ALIGNMENT_GONDOR,BannerType.GONDOR);
         add("mordor",LOTRShields.ALIGNMENT_MORDOR,BannerType.MORDOR);
@@ -87,7 +88,7 @@ final class KOMEMapMarkerArt {
         add("hobbit",null,BannerType.HOBBIT);
         add("umbar",LOTRShields.ALIGNMENT_UMBAR,BannerType.UMBAR);
         add("nomad",null,BannerType.HARAD_NOMAD);
-        KNOWN_KEYS.addAll(Arrays.asList("fangorn","utumno","farharad"));
+        KNOWN_KEYS.addAll(Arrays.asList("utumno","farharad"));
         ALL.addAll(Arrays.asList(CUSTOM_FALLBACK_SHIELD,NEUTRAL_SHIELD,NEUTRAL_BANNER,CASTLE));
         for(Sprite sprite:ALL)LOCATIONS.add(sprite.texture);
     }

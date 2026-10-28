@@ -27,15 +27,16 @@ public class KOMEMapMarkerArtTest {
     private static java.lang.reflect.Field state(String name)throws Exception{java.lang.reflect.Field field=KOMEMapMarkerArt.class.getDeclaredField(name);field.setAccessible(true);return field;}
     @After public void restoreAssets(){KOMEMapMarkerArt.reload(baseManager());}
 
-    @Test public void exactInventoryCovers22ShieldsAnd23BannersOf24BundledKeys() {
+    @Test public void exactInventoryCovers23ShieldsAnd23BannersOf24BundledKeys() {
         String[] keys={"hobbit","bree","dunedain","bluemountains","highelves","woodelf","gundabad","angmar","dolguldur","dale","durinsfolk","lothlorien","dunland","isengard","fangorn","rohan","gondor","mordor","dorwinion","rhudel","harad","morwaith","taurethrim","halftroll"};
         int shields=0,banners=0;
         for(String key:keys){if(KOMEMapMarkerArt.shield(key)!=KOMEMapMarkerArt.NEUTRAL_SHIELD)shields++;if(KOMEMapMarkerArt.banner(key)!=KOMEMapMarkerArt.NEUTRAL_BANNER)banners++;}
-        assertEquals(22,shields);assertEquals(23,banners);
+        assertEquals(23,shields);assertEquals(23,banners);
     }
 
     @Test public void nativeResourcesUseOriginalPathsAndVerifiedFrontFaceUvs() {
         assertSprite(KOMEMapMarkerArt.shield("gondor"),"lotr:shield/alignment_gondor.png",.5,1,11,11);
+        assertSprite(KOMEMapMarkerArt.shield("fangorn"),"lotr:shield/defeat_mallorn_ent.png",.5,1,11,11);
         assertSprite(KOMEMapMarkerArt.NEUTRAL_SHIELD,"lotr:shield/achievement_bronze.png",.5,1,11,11);
         assertSprite(KOMEMapMarkerArt.banner("gondor"),"lotr:item/banner/banner_gondor.png",.25,.5,7,14);
     }
@@ -46,11 +47,27 @@ public class KOMEMapMarkerArtTest {
     }
 
     @Test public void unsupportedFactionsNeverBorrowAnotherFactionsEmblem() {
-        for(String key:new String[]{null,"","unknown","fangorn","utumno","farharad"}){assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield(key));assertSame(KOMEMapMarkerArt.NEUTRAL_BANNER,KOMEMapMarkerArt.banner(key));}
+        for(String key:new String[]{null,"","unknown","utumno","farharad"}){assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield(key));assertSame(KOMEMapMarkerArt.NEUTRAL_BANNER,KOMEMapMarkerArt.banner(key));}
+        assertSame(KOMEMapMarkerArt.NEUTRAL_BANNER,KOMEMapMarkerArt.banner("fangorn"));
         assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield("hobbit"));
         assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield("nomad"));
         assertEquals(new ResourceLocation("lotr:item/banner/banner_hobbit.png"),KOMEMapMarkerArt.banner("hobbit").texture);
         assertEquals(new ResourceLocation("lotr:item/banner/banner_haradNomad.png"),KOMEMapMarkerArt.banner("nomad").texture);
+    }
+
+    @Test public void canonicalFangornAndSpottedPresentationSelectOnlyTheVerifiedNativeShield() {
+        assertEquals("FANGORN",lotr.common.fac.LOTRFaction.FANGORN.codeName());
+        assertEquals(new ResourceLocation("lotr:shield/defeat_mallorn_ent.png"),
+            lotr.common.LOTRShields.DEFEAT_MALLORN_ENT.getTexture());
+        assertSame(KOMEMapMarkerArt.shield("fangorn"),
+            KOMEMapMarkerArt.shield(lotr.common.fac.LOTRFaction.FANGORN.codeName()));
+        KOMEArmyCompany company=new KOMEArmyCompany();company.id="~recon:opaque";
+        company.faction="fangorn";company.nativeFaction="fangorn";
+        KOMEUnitMapMarker marker=new KOMEUnitMapMarker();marker.entityId=company.id;
+        Map<String,KOMEArmyCompany> rows=new HashMap<>();rows.put(company.id,company);
+        assertSame(KOMEMapMarkerArt.shield("fangorn"),KOMEMapMarkerArt.company(marker,rows));
+        assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield("hobbit"));
+        assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.shield("unknown"));
     }
 
     @Test public void companyJoinIsExactAndLateSnapshotsRecoverWithoutCachedFactionGuesses() {
@@ -94,6 +111,24 @@ public class KOMEMapMarkerArtTest {
         replacement.put(bronze.texture,hdShield());
         KOMEMapMarkerArt.reload(manager(pack("base",null),pack("repairedBronze",replacement)));
         assertSame(bronze,KOMEMapMarkerArt.displayed(bronze));
+    }
+
+    @Test public void fangornNativeShieldUsesPackPriorityAndRecoversAfterBrokenOverride()throws Exception{
+        KOMEMapMarkerArt.Sprite ent=KOMEMapMarkerArt.shield("fangorn");
+        KOMEMapMarkerArt.reload(baseManager());
+        assertSame("Bundled v36.15 texture must pass the audited front-face layout",ent,
+            KOMEMapMarkerArt.displayed(ent));
+        Map<ResourceLocation,byte[]> replacement=new HashMap<>();
+        replacement.put(ent.texture,hdShield());
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("hdEntslayer",replacement)));
+        assertSame(ent,KOMEMapMarkerArt.displayed(ent));
+        assertEquals("lotr",ent.texture.getResourceDomain());
+        replacement.put(ent.texture,new byte[]{1,2,3});
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("brokenEntslayer",replacement)));
+        assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.displayed(ent));
+        replacement.put(ent.texture,hdShield());
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("repairedEntslayer",replacement)));
+        assertSame(ent,KOMEMapMarkerArt.displayed(ent));
     }
 
     @Test public void nativePackPriorityReloadAndMissingAssetRecoveryUseNormalResourceManager()throws Exception {

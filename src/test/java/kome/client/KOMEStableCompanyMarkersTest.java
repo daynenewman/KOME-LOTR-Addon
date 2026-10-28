@@ -111,7 +111,7 @@ public class KOMEStableCompanyMarkersTest {
         world.loadedEntityList.clear();
         KOMEArmyCompany foreign=new KOMEArmyCompany();foreign.id="FOREIGN";
         foreign.name="Foreign guard";foreign.owner=UUID.randomUUID();
-        foreign.faction="gondor";foreign.nativeFaction="gondor";foreign.currentTile="T100";
+        foreign.faction="fangorn";foreign.nativeFaction="fangorn";foreign.currentTile="T100";
         data.armyCompanies.put(foreign.id,foreign);
         KOMEHiredUnitRecord member=new KOMEHiredUnitRecord();member.entity=UUID.randomUUID();member.owner=foreign.owner;
         NBTTagCompound saved=member.writeToNBT();saved.setString("UnitClass","CAMPAIGN");member.readFromNBT(saved);
