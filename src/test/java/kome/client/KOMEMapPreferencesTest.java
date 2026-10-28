@@ -10,6 +10,41 @@ import net.minecraftforge.common.config.Configuration;
 import static org.junit.Assert.*;
 
 public class KOMEMapPreferencesTest {
+    @Test public void threeCompanyModesMigrateLegacyChoiceAndSurviveRestart() throws Exception {
+        Configuration legacy=new Configuration(file);
+        legacy.get("map","troopMarkers",false).set(false);legacy.save();
+        KOMEClientConfig config=new KOMEClientConfig(file);
+        assertEquals(KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES,config.mapPreferences().companyDisplay);
+        KOMEMapPreferences descriptors=config.mapPreferences().withCompanyDisplay(KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS);
+        config.setMapPreferences(descriptors);
+        assertEquals(descriptors,new KOMEClientConfig(file).mapPreferences());
+        assertTrue(descriptors.troops);
+        assertEquals(KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES,descriptors.companyDisplay.next());
+        assertEquals(3,KOMEMapControlRenderer.spriteRow(7,true,true,new KOMETerritoryStyle(),descriptors.companyDisplay));
+        assertEquals(2,KOMEMapControlRenderer.spriteRow(7,true,false,new KOMETerritoryStyle(),descriptors.companyDisplay));
+    }
+    @Test public void existingNewModeWinsAndAbsentLegacyDefaultsToShieldsOnly() {
+        assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY,new KOMEClientConfig(file).mapPreferences().companyDisplay);
+        Configuration raw=new Configuration(file);raw.get("map","troopMarkers",true).set(false);
+        raw.get("map","companyDisplayMode","SHIELDS_ONLY").set("SHIELDS_AND_DESCRIPTORS");raw.save();
+        KOMEMapPreferences restored=new KOMEClientConfig(file).mapPreferences();
+        assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS,restored.companyDisplay);
+        assertTrue(restored.troops);
+        assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY,
+            KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES.next());
+        assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS,
+            KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY.next());
+    }
+    @Test public void descriptorStateUsesExistingShieldAndMovementGates() {
+        KOMEConquestMapOverlay.applyMapPreferences(new KOMEMapPreferences().withCompanyDisplay(
+            KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS));
+        assertTrue(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+        assertTrue(KOMEConquestMapOverlay.mapPreferences().troops);
+        KOMEConquestMapOverlay.applyMapPreferences(new KOMEMapPreferences().withCompanyDisplay(
+            KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES));
+        assertFalse(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+        assertFalse(KOMEConquestMapOverlay.mapPreferences().troops);
+    }
     @Rule public final TemporaryFolder temporary=new TemporaryFolder();
     private Object home,instance;private KOMEMapPreferences active;private File file;
     @Before public void setup()throws Exception {

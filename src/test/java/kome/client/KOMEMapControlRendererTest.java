@@ -87,7 +87,8 @@ public class KOMEMapControlRendererTest {
                 MethodInsnNode call=(MethodInsnNode)step;assertNotEquals("Pictogram pixels must not submit individually","drawRect",call.name);
                 if(call.name.equals("draw")&&call.owner.equals("net/minecraft/client/renderer/Tessellator"))submissions++;
             }
-            assertEquals("One native frame batch and one pictogram batch",2,submissions);
+            assertEquals("Only the rendering overload submits one native and one pictogram batch",
+                method.desc.contains("KOMEMapPreferences$CompanyDisplay")?2:0,submissions);
         }
         for(Class<?> type:new Class<?>[]{KOMEMapControlRenderer.class,KOMEConquestMapOverlay.class})for(MethodNode method:node(type).methods)
             if(method.name.startsWith("draw")||method.name.equals("prepareTerritoryColors"))for(AbstractInsnNode step:method.instructions.toArray())
@@ -99,6 +100,20 @@ public class KOMEMapControlRendererTest {
             boolean covered=false;for(AbstractInsnNode step:method.instructions.toArray())if(step instanceof MethodInsnNode&&((MethodInsnNode)step).name.equals("mapControlCovered"))covered=true;
             assertTrue("Tooltip and click picking share panel precedence",covered);
         }
+    }
+    @Test public void companyDescriptorModeUsesReservedFourthRowWithoutChangingLockedRow() {
+        KOMETerritoryStyle style=new KOMETerritoryStyle();
+        final int[] uv=new int[2];
+        KOMEMapControlRenderer.pictogram(7,10,20,true,true,style,
+            KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS,
+            (x,y,w,h,u,v)->{uv[0]=u;uv[1]=v;assertEquals(11,x);assertEquals(21,y);});
+        assertArrayEquals(new int[]{56,24},uv);
+        assertEquals(2,KOMEMapControlRenderer.spriteRow(7,true,false,style,
+            KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS));
+        assertEquals(0,KOMEMapControlRenderer.spriteRow(7,true,true,style,
+            KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY));
+        assertEquals(1,KOMEMapControlRenderer.spriteRow(7,false,true,style,
+            KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES));
     }
     private static ClassNode node(Class<?> type)throws Exception{ClassNode node=new ClassNode();try(InputStream in=type.getResourceAsStream(type.getSimpleName()+".class")){new ClassReader(in).accept(node,0);}return node;}
 }

@@ -19,7 +19,7 @@ public final class KOMEClientConfig {
             "Show the current geographic tile. Toggle through Controls > KOME > Toggle current tile HUD.").getBoolean(true);
         useRankTitles = configuration.get("factions", "useRankTitles", true,
             "Use KOME progression titles instead of vanilla alignment titles beneath alignment bars.").getBoolean(true);
-        for(String key:new String[]{"factionPalette","territoryMode","territoryOpacity","tileBorders","conquestLayer","riverMarkers","bridgeMarkers","troopMarkers","buildMarkers"}) {
+        for(String key:new String[]{"factionPalette","territoryMode","territoryOpacity","tileBorders","conquestLayer","riverMarkers","bridgeMarkers","troopMarkers","companyDisplayMode","buildMarkers"}) {
             net.minecraftforge.common.config.Property existing=configuration.getCategory("map").get(key);
             // Forge properties retain their scalar/list shape even after set(); replace malformed lists.
             if(existing!=null && existing.isList())configuration.getCategory("map").remove(key);
@@ -30,8 +30,12 @@ public final class KOMEClientConfig {
         KOMETerritoryStyle.Opacity opacity=KOMETerritoryStyle.Opacity.HALF;
         for(KOMETerritoryStyle.Opacity candidate:KOMETerritoryStyle.Opacity.values())if(candidate.percent==opacityProperty.getInt(50))opacity=candidate;
         if(!opacityProperty.getString().equals(Integer.toString(opacity.percent)))opacityProperty.set(opacity.percent);
+        boolean legacyTroops=readBoolean("troopMarkers",true);
+        KOMEMapPreferences.CompanyDisplay fallback=legacyTroops
+            ?KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES;
+        KOMEMapPreferences.CompanyDisplay companyDisplay=readEnum("companyDisplayMode",fallback);
         mapPreferences=new KOMEMapPreferences(palette,mode,opacity,readBoolean("tileBorders",false),readBoolean("conquestLayer",true),
-            readBoolean("riverMarkers",true),readBoolean("bridgeMarkers",true),readBoolean("troopMarkers",true),readBoolean("buildMarkers",true));
+            readBoolean("riverMarkers",true),readBoolean("bridgeMarkers",true),companyDisplay,readBoolean("buildMarkers",true));
         if (configuration.hasChanged()) configuration.save();
         instance = this;
     }
@@ -49,6 +53,7 @@ public final class KOMEClientConfig {
         configuration.get("map","riverMarkers",true).set(next.rivers);
         configuration.get("map","bridgeMarkers",true).set(next.bridges);
         configuration.get("map","troopMarkers",true).set(next.troops);
+        configuration.get("map","companyDisplayMode","SHIELDS_ONLY").set(next.companyDisplay.name());
         configuration.get("map","buildMarkers",true).set(next.builds);
         mapPreferences=next;configuration.save();
     }

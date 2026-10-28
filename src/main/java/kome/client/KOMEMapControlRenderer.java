@@ -18,17 +18,34 @@ final class KOMEMapControlRenderer extends GuiScreen {
         // Zoom Out's top/bottom rows are the native blank frame. Reuse a blank row for its minus sign.
         sink.blit(x,y,10,4,40,v);sink.blit(x,y+4,10,2,40,v+2);sink.blit(x,y+6,10,4,40,v+6);
     }
-    /** Columns are controls; rows are primary/on, alternate/off, and input-locked. See the asset README. */
+    /** Columns are controls; row 3 is the company descriptor state; row 2 remains input-locked. */
     static int spriteRow(int control,boolean active,boolean interactive,KOMETerritoryStyle style) {
+        return spriteRow(control,active,interactive,style,
+            active?KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES);
+    }
+    static int spriteRow(int control,boolean active,boolean interactive,KOMETerritoryStyle style,
+            KOMEMapPreferences.CompanyDisplay companyDisplay) {
         if(!interactive)return 2;
+        if(control==7)return companyDisplay==KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS?3:
+            companyDisplay==KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES?1:0;
         if(control==0)return style.palette==KOMETerritoryStyle.Palette.CLASSIC_LOTR?0:1;
         if(control==1)return style.mode.fillsTerritory()?0:1;
         return active?0:1;
     }
     static void pictogram(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style,Artwork sink) {
-        sink.blit(x+1,y+1,ICON_CELL,ICON_CELL,control*ICON_CELL,spriteRow(control,active,interactive,style)*ICON_CELL);
+        pictogram(control,x,y,active,interactive,style,
+            active?KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES,sink);
+    }
+    static void pictogram(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style,
+            KOMEMapPreferences.CompanyDisplay companyDisplay,Artwork sink) {
+        sink.blit(x+1,y+1,ICON_CELL,ICON_CELL,control*ICON_CELL,spriteRow(control,active,interactive,style,companyDisplay)*ICON_CELL);
     }
     static void draw(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style) {
+        draw(control,x,y,active,interactive,style,
+            active?KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES);
+    }
+    static void draw(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style,
+            KOMEMapPreferences.CompanyDisplay companyDisplay) {
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_CURRENT_BIT|GL11.GL_TEXTURE_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_DEPTH_BUFFER_BIT);
         try {
             GL11.glDisable(GL11.GL_DEPTH_TEST);GL11.glDepthMask(false);GL11.glEnable(GL11.GL_TEXTURE_2D);
@@ -37,7 +54,7 @@ final class KOMEMapControlRenderer extends GuiScreen {
             Tessellator tess=Tessellator.instance;tess.startDrawingQuads();
             artwork(control,x,y,interactive,KOMEMapControlRenderer::blit);tess.draw();
             KOMEMinecraftClient.textureManager().bindTexture(ICON_ATLAS);tess.startDrawingQuads();
-            pictogram(control,x,y,active,interactive,style,(xx,yy,w,h,u,v)->blit(xx,yy,w,h,u,v,ICON_WIDTH,ICON_HEIGHT));
+            pictogram(control,x,y,active,interactive,style,companyDisplay,(xx,yy,w,h,u,v)->blit(xx,yy,w,h,u,v,ICON_WIDTH,ICON_HEIGHT));
             tess.draw();
         } finally {GL11.glPopAttrib();}
     }

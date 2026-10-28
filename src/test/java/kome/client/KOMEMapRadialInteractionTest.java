@@ -85,6 +85,24 @@ public class KOMEMapRadialInteractionTest {
             assertTrue(network.sent.isEmpty());assertEquals(oldOpacity.next(),style.opacity);
         } finally {style.palette=oldPalette;style.mode=oldMode;style.opacity=oldOpacity;style.showTileBorders=oldEdges;}
     }
+    @Test public void companyControlCyclesThreeStatesWithoutSubmittingMovement() throws Exception {
+        KOMEMapPreferences prior=KOMEConquestMapOverlay.mapPreferences();
+        try {
+            KOMEConquestMapOverlay.applyMapPreferences(new KOMEMapPreferences());
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,785,63,0));
+            assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_AND_DESCRIPTORS,
+                KOMEConquestMapOverlay.mapPreferences().companyDisplay);
+            assertTrue(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,785,63,0));
+            assertEquals(KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES,
+                KOMEConquestMapOverlay.mapPreferences().companyDisplay);
+            assertFalse(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,785,63,0));
+            assertEquals(KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY,
+                KOMEConquestMapOverlay.mapPreferences().companyDisplay);
+            assertTrue(network.sent.isEmpty());
+        } finally {KOMEConquestMapOverlay.applyMapPreferences(prior);}
+    }
 
     @Test public void coincidentUnloadedCompaniesUseActualTopmostShieldForTooltipInEitherInputOrder()throws Exception {
         preserve(KOMEClientData.INSTANCE.armyCompanies);KOMEClientData.INSTANCE.armyCompanies.clear();

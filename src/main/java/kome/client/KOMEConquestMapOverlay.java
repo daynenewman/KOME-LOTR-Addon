@@ -97,16 +97,19 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static boolean showRiverBlockMarkers = true;
     private static boolean showBridgeMarkers = true;
     private static boolean showTroopMarkers = true;
+    private static KOMEMapPreferences.CompanyDisplay companyDisplayMode = KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY;
     private static boolean nativeWaypointPicked;
     private static boolean showBuildMarkers = true;
     static KOMEMapPreferences mapPreferences() {
         return new KOMEMapPreferences(territoryStyle.palette,territoryStyle.mode,territoryStyle.opacity,territoryStyle.showTileBorders,
-            showConquestTiles,showRiverBlockMarkers,showBridgeMarkers,showTroopMarkers,showBuildMarkers);
+            showConquestTiles,showRiverBlockMarkers,showBridgeMarkers,
+            showTroopMarkers?companyDisplayMode:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES,showBuildMarkers);
     }
     static void applyMapPreferences(KOMEMapPreferences preferences) {
         territoryStyle.palette=preferences.palette;territoryStyle.mode=preferences.mode;territoryStyle.opacity=preferences.opacity;
         territoryStyle.showTileBorders=preferences.tileBorders;showConquestTiles=preferences.conquest;
-        showRiverBlockMarkers=preferences.rivers;showBridgeMarkers=preferences.bridges;showTroopMarkers=preferences.troops;
+        showRiverBlockMarkers=preferences.rivers;showBridgeMarkers=preferences.bridges;
+        companyDisplayMode=preferences.companyDisplay;showTroopMarkers=preferences.troops;
         showBuildMarkers=preferences.builds;
         if(mapBorders!=null)mapBorders.territoryPresentation(territoryStyle);
         renderedPalette=null;renderedOpacity=null;claimTextureDirty=true;
@@ -1419,7 +1422,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             "Territory opacity: " + territoryStyle.opacity.percent + "% (full color)",
             "Individual tile borders: " + (territoryStyle.showTileBorders ? "On" : "Off"),
             showConquestTiles?"Hide conquest layer":"Show conquest layer",showRiverBlockMarkers?"Hide river blockers":"Show river blockers",
-            showBridgeMarkers?"Hide bridge markers":"Show bridge markers",showTroopMarkers?"Hide troop markers":"Show troop markers",
+            showBridgeMarkers?"Hide bridge markers":"Show bridge markers",
+            "Companies: "+(showTroopMarkers?companyDisplayMode:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES).label()
+                +" (click for next; descriptors coming later)",
             showBuildMarkers?"Hide Build markers":"Show Build markers"};
         boolean[] active={true,true,true,territoryStyle.showTileBorders,showConquestTiles,showRiverBlockMarkers,showBridgeMarkers,showTroopMarkers,showBuildMarkers};
         String tooltip=null;
@@ -1427,7 +1432,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             int row=control<4?control:control-4,x=control<4?territoryControlX():toggleButtonX(row);
             int y=control<4?territoryControlY(row):toggleButtonY(row);
             boolean interactive=control<4||!isChoosingDestination();
-            KOMEMapControlRenderer.draw(control,x,y,active[control],interactive,territoryStyle);
+            KOMEMapControlRenderer.draw(control,x,y,active[control],interactive,territoryStyle,companyDisplayMode);
             if(isOverToggleButton(x,y,mouseX,mouseY)&&!mapControlCovered(map,mouseX,mouseY))
                 tooltip=labels[control]+(interactive?"":" (unavailable while choosing a destination)");
         }
@@ -1455,7 +1460,11 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 if (layer == 0) showConquestTiles = !showConquestTiles;
                 else if (layer == 1) showRiverBlockMarkers = !showRiverBlockMarkers;
                 else if (layer == 2) showBridgeMarkers = !showBridgeMarkers;
-                else if (layer == 3) showTroopMarkers = !showTroopMarkers;
+                else if (layer == 3) {
+                    companyDisplayMode=(showTroopMarkers?companyDisplayMode:
+                        KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES).next();
+                    showTroopMarkers=companyDisplayMode.visible();
+                }
                 else if (layer == 4) showBuildMarkers = !showBuildMarkers;
             }
             if(row>=0 || !isChoosingDestination()) {
