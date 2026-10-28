@@ -26,20 +26,32 @@ final class KOMEMapMarkerArt {
         final int width,height;
         private final Layout layout;
         private final Sprite fallback;
+        /** Alpha footprint of the sampled shield front (or neutral square), refreshed with the pack. */
+        volatile VisibleRect visible=VisibleRect.FULL;
         Sprite(ResourceLocation texture,double u1,double v1,int width,int height,Layout layout,Sprite fallback) {
             this.texture=texture;this.u1=u1;this.v1=v1;this.width=width;this.height=height;this.layout=layout;this.fallback=fallback;
         }
         KOMEMapIconPresentation.Bounds bounds(KOMEMapIconPresentation presentation,int anchorX,int anchorY) {
             boolean banner=layout==Layout.BANNER||layout==Layout.PORTRAIT;
-            double shieldBump=layout==Layout.SHIELD||this==NEUTRAL_SHIELD?presentation.shieldBump:0;
+            double shieldBump=layout==Layout.SHIELD||this==CUSTOM_FALLBACK_SHIELD?presentation.shieldBump:0;
             int fullWidth=banner?10:this==CASTLE?10:18,fullHeight=banner?20:this==CASTLE?10:18;
             int w=Math.max(1,(int)Math.round(width*presentation.spriteScale+(fullWidth-width)*presentation.spriteEnlargement+shieldBump));
             int h=Math.max(1,(int)Math.round(height*presentation.spriteScale+(fullHeight-height)*presentation.spriteEnlargement+shieldBump));
             return new KOMEMapIconPresentation.Bounds(anchorX-w/2,anchorY-h/2,w,h,presentation.alpha);
         }
     }
+    static final class VisibleRect {
+        static final VisibleRect FULL=new VisibleRect(0F,1F,1F);
+        final float left,top,right,bottom;
+        VisibleRect(float left,float right,float bottom){this(left,0F,right,bottom);}
+        VisibleRect(float left,float top,float right,float bottom){
+            this.left=left;this.top=top;this.right=right;this.bottom=bottom;
+        }
+    }
     // Logical GUI sizes, independent of source resolution. Keep easy to tune after live acceptance.
-    static final Sprite NEUTRAL_SHIELD=custom("neutral_shield",11,11,Layout.SQUARE);
+    private static final Sprite CUSTOM_FALLBACK_SHIELD=custom("neutral_shield",11,11,Layout.SQUARE);
+    static final Sprite NEUTRAL_SHIELD=new Sprite(LOTRShields.ACHIEVEMENT_BRONZE.getTexture(),.5,1,
+        11,11,Layout.SHIELD,CUSTOM_FALLBACK_SHIELD);
     static final Sprite NEUTRAL_BANNER=custom("neutral_banner",7,14,Layout.PORTRAIT);
     static final Sprite CASTLE=custom("defensive_build",7,7,Layout.CUSTOM);
     private static final Map<String,Sprite> SHIELDS=new HashMap<>(),BANNERS=new HashMap<>();
@@ -76,7 +88,7 @@ final class KOMEMapMarkerArt {
         add("umbar",LOTRShields.ALIGNMENT_UMBAR,BannerType.UMBAR);
         add("nomad",null,BannerType.HARAD_NOMAD);
         KNOWN_KEYS.addAll(Arrays.asList("fangorn","utumno","farharad"));
-        ALL.addAll(Arrays.asList(NEUTRAL_SHIELD,NEUTRAL_BANNER,CASTLE));
+        ALL.addAll(Arrays.asList(CUSTOM_FALLBACK_SHIELD,NEUTRAL_SHIELD,NEUTRAL_BANNER,CASTLE));
         for(Sprite sprite:ALL)LOCATIONS.add(sprite.texture);
     }
     private static Sprite custom(String name,int w,int h,Layout layout) {
@@ -113,10 +125,15 @@ final class KOMEMapMarkerArt {
     /** One bounded decode/upload pass per reload through the highest-priority resource manager.
      * Only owned GL IDs, descriptors and availability survive. No native decoded pixels. */
     static void reload(IResourceManager resources) {
+        for(Sprite sprite:ALL)sprite.visible=VisibleRect.FULL;
         textures.reload(resources,ALL);
         if(resources==null){available=Collections.emptyMap();validated=false;return;}
         Map<Sprite,Sprite> ready=new IdentityHashMap<>();
-        for(Sprite sprite:ALL)ready.put(sprite,textures.ready(sprite)?sprite:sprite.fallback!=null&&textures.ready(sprite.fallback)?sprite.fallback:null);
+        for(Sprite sprite:ALL){
+            Sprite selected=sprite;
+            while(selected!=null&&!textures.ready(selected))selected=selected.fallback;
+            ready.put(sprite,selected);
+        }
         available=Collections.unmodifiableMap(ready);validated=true;
     }
     interface Upload {void accept(BufferedImage image,boolean blur,boolean clamp);}
@@ -139,15 +156,22 @@ final class KOMEMapMarkerArt {
                     if(art==null)return false;
                     try {
                         boolean front=false,back=false,frontClear=false,backClear=false;
+                        int regionWidth=sprite.layout==Layout.SHIELD?w/2:w;
+                        int firstX=regionWidth,firstY=h,lastX=-1,lastY=-1;
                         for(int y=0;y<h;y++)for(int x=0;x<w;x++) {
                             if((art.getRGB(x,y)>>>24)!=0) {
                                 if(sprite.layout==Layout.BANNER&&(x>=w/4||y>=h/2))return false;
                                 if(x<w/2)front=true;else back=true;
+                                if(x<regionWidth){firstX=Math.min(firstX,x);firstY=Math.min(firstY,y);
+                                    lastX=Math.max(lastX,x);lastY=Math.max(lastY,y);}
                             } else if(x<w/2)frontClear=true;else backClear=true;
                         }
                         boolean compatible=sprite.layout==Layout.SHIELD?front&&back&&frontClear&&backClear:front||back;
                         if(!compatible)return false;
                         upload.accept(art,metadata!=null&&metadata.getTextureBlur(),metadata!=null&&metadata.getTextureClamp());
+                        if((sprite.layout==Layout.SHIELD||sprite.layout==Layout.SQUARE)&&lastX>=firstX)
+                            sprite.visible=new VisibleRect(firstX/(float)regionWidth,firstY/(float)h,
+                                (lastX+1F)/regionWidth,(lastY+1F)/h);
                         return true;
                     } finally {art.flush();}
                 } finally {reader.dispose();}

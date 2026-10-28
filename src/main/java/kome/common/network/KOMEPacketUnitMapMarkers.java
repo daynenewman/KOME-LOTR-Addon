@@ -44,6 +44,8 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
     public void fromBytes(ByteBuf buf) {
         markers = new ArrayList();
         int count = buf.readInt();
+        if (count < 0 || count > KOMEPopulationWire.MAX_ROWS)
+            throw new IllegalArgumentException("Invalid unit marker count");
         for (int i = 0; i < count; i++) {
             KOMEUnitMapMarker marker = new KOMEUnitMapMarker();
             marker.readFromBytes(buf);
@@ -53,6 +55,8 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
+        if (markers.size() > KOMEPopulationWire.MAX_ROWS)
+            throw new IllegalArgumentException("Too many unit markers");
         buf.writeInt(markers.size());
         for (Object object : markers) {
             ((KOMEUnitMapMarker) object).writeToBytes(buf);
@@ -100,7 +104,7 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
                     || !visibility.visible(company)) continue;
             CompanyMarkerBuilder builder = new CompanyMarkerBuilder(
                 LOTRDimension.MIDDLE_EARTH.dimensionID, visibility.presentationId(company), company,
-                visibility.spotted(company));
+                visibility.spotted(company), visibility.directlyVisible(company));
             for (UUID id : new java.util.HashSet<UUID>(company.units)) {
                 KOMEHiredUnitRecord record = data.hiredUnits.get(id);
                 if (isCurrentCompanyMember(data, company, record)) builder.include(record);
@@ -154,6 +158,8 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
         private final String companyId;
         private final KOMEArmyCompany company;
         private final boolean spotted;
+        private final boolean directlyVisible;
+        private final List<KOMEHiredUnitRecord> descriptorMembers = new ArrayList<KOMEHiredUnitRecord>();
         private int soldierCount;
         private int campaignPopulation;
         private int campaignMountedPopulation;
@@ -165,15 +171,18 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
         private int unitCount;
         private boolean allHaltedProtected = true;
 
-        CompanyMarkerBuilder(int dimensionId, String companyId, KOMEArmyCompany company,boolean spotted) {
+        CompanyMarkerBuilder(int dimensionId, String companyId, KOMEArmyCompany company,
+                boolean spotted, boolean directlyVisible) {
             this.dimensionId = dimensionId;
             this.companyId = companyId == null ? "" : companyId;
             this.company = company;
             this.spotted = spotted;
+            this.directlyVisible = directlyVisible;
         }
 
         void include(KOMEHiredUnitRecord record) {
             soldierCount++;
+            if (directlyVisible) descriptorMembers.add(record);
             campaignPopulation = (int)Math.min(Integer.MAX_VALUE, (long)campaignPopulation + Math.max(0,record.cost));
             if(record.mounted) campaignMountedPopulation = (int)Math.min(Integer.MAX_VALUE,
                 (long)campaignMountedPopulation + Math.max(0,record.cost));
@@ -217,6 +226,10 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
             marker.population = spotted ? 0 : campaignPopulation;
             marker.mounted = !spotted && campaignMountedPopulation == campaignPopulation;
             marker.haltedProtected = !spotted && unitCount > 0 && allHaltedProtected;
+            if (directlyVisible) {
+                KOMECompanyMarkerDescriptors.projectMovement(marker, company);
+                KOMECompanyMarkerDescriptors.projectWeapons(marker, descriptorMembers);
+            }
             return marker;
         }
     }

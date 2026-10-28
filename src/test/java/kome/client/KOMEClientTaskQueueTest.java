@@ -394,6 +394,8 @@ public class KOMEClientTaskQueueTest {
         try {
             client.resetClientState();KOMEArmyCompany company=markerCompany();KOMEUnitMapMarker marker=physicalMarker();
             new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,company),null);proxy.queue.drain();
+            marker.meleeItemId="minecraft:iron_sword";
+            marker.movementItemId="minecraft:iron_horse_armor";
             client.unitMapMarkers.add(marker);assertTrue(markerCurrent(marker));assertEquals(Integer.valueOf(25),markerDeductions().get("T100"));
             KOMEPacketConquestData removal=companySnapshot(true);
             KOMETileTroopSummary summary=new KOMETileTroopSummary();summary.tileId="T100";summary.stationedPop=40;
@@ -401,7 +403,25 @@ public class KOMEClientTaskQueueTest {
             new KOMEPacketConquestData.Handler().onMessage(removal,null);
             assertTrue("Queued removal is not yet canonical",markerCurrent(marker));proxy.queue.drain();
             assertFalse("A completed removal must not turn an old physical marker into a neutral shield",markerCurrent(marker));
+            assertEquals("Revocation must erase retained descriptor data", "", marker.meleeItemId);
+            assertEquals("Revocation must erase saved armor identity", "", marker.movementItemId);
             assertTrue(markerDeductions().isEmpty());assertEquals(40,client.troopSummaries.get("T100").stationedPop);
+        }finally{saved.restore();KOMEAddon.proxy=previous;}
+    }
+
+    @Test public void unrelatedCompleteSnapshotPreservesReadableMarkerDescriptor()throws Exception {
+        SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;
+        try {
+            client.resetClientState();KOMEUnitMapMarker marker=physicalMarker();marker.meleeItemId="minecraft:iron_sword";
+            marker.movementItemId="minecraft:iron_horse_armor";
+            client.unitMapMarkers.add(marker);
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);proxy.queue.drain();
+            assertEquals("minecraft:iron_sword",marker.meleeItemId);
+            assertEquals("minecraft:iron_horse_armor",marker.movementItemId);
+            new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);proxy.queue.drain();
+            assertEquals("minecraft:iron_sword",marker.meleeItemId);
+            assertEquals("minecraft:iron_horse_armor",marker.movementItemId);
         }finally{saved.restore();KOMEAddon.proxy=previous;}
     }
 
@@ -515,13 +535,16 @@ public class KOMEClientTaskQueueTest {
     @Test public void lateUnitPublicationCannotResurrectRemovedCompanyAndReconnectRequiresNewSnapshot()throws Exception {
         SavedClientState saved=new SavedClientState();RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
         KOMEClientData client=KOMEClientData.INSTANCE;
-        KOMEUnitMapMarkerPublisher markers=new KOMEUnitMapMarkerPublisher(proxy.queue,rows->{client.unitMapMarkers.clear();client.unitMapMarkers.addAll(rows);});
+        KOMEUnitMapMarkerPublisher markers=new KOMEUnitMapMarkerPublisher(proxy.queue,client::replaceUnitMapMarkers);
         Object old=new Object(),next=new Object();markers.start(old);
         try {
-            client.resetClientState();KOMEUnitMapMarker marker=physicalMarker();
+            client.resetClientState();KOMEUnitMapMarker marker=physicalMarker();marker.meleeItemId="minecraft:iron_sword";
+            marker.movementItemId="minecraft:iron_horse_armor";
             new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);proxy.queue.drain();
             new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true),null);markers.accept(Arrays.asList(marker),old);proxy.queue.drain();
             assertFalse("A late unit packet cannot override completed company absence",markerCurrent(client.unitMapMarkers.get(0)));assertTrue(markerDeductions().isEmpty());
+            assertEquals("Late privileged packet must lose descriptor payload", "", client.unitMapMarkers.get(0).meleeItemId);
+            assertEquals("Late packet must lose armor identity", "", client.unitMapMarkers.get(0).movementItemId);
             new KOMEPacketConquestData.Handler().onMessage(companySnapshot(true,markerCompany()),null);
             markers.accept(Arrays.asList(marker),old);markers.start(null);proxy.resetSession(false,client::resetClientState);
             markers.start(next);proxy.resetSession(true,client::resetClientState);proxy.queue.drain();assertTrue(client.unitMapMarkers.isEmpty());assertTrue(client.armyCompanies.isEmpty());
@@ -536,6 +559,37 @@ public class KOMEClientTaskQueueTest {
     private static KOMEPacketConquestData companySnapshot(boolean complete,KOMEArmyCompany... companies){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=true;p.complete=complete;NBTTagList rows=new NBTTagList();for(KOMEArmyCompany c:companies)rows.appendTag(KOMECompanyMapProjection.companyTag(c));p.data.setTag("ArmyCompanies",rows);return p;}
     private static boolean markerCurrent(KOMEUnitMapMarker marker)throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("companyMarkerCurrent",KOMEUnitMapMarker.class);m.setAccessible(true);return (Boolean)m.invoke(null,marker);}
     private static Map markerDeductions()throws Exception{java.lang.reflect.Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("liveCompanyStationedPopulationByTile");m.setAccessible(true);return (Map)m.invoke(null);}
+    @Test public void dualFactionShieldTileDoesNotDrawStandalonePopulationCost()throws Exception{
+        SavedClientState saved=new SavedClientState();KOMEClientData client=KOMEClientData.INSTANCE;
+        try{
+            client.resetClientState();
+            KOMEArmyCompany own=markerCompany();own.faction="rohan";own.totalPopulation=45;
+            KOMEArmyCompany foreign=new KOMEArmyCompany();foreign.id="~recon:opaque";
+            foreign.faction="isengard";foreign.nativeFaction="isengard";
+            foreign.currentTile="T100";foreign.status=KOMECompanyMapProjection.SPOTTED_STATUS;
+            client.armyCompanies.put(own.id,own);client.armyCompanies.put(foreign.id,foreign);
+            KOMEUnitMapMarker ownMarker=physicalMarker();ownMarker.soldierCount=1;
+            KOMEUnitMapMarker foreignMarker=new KOMEUnitMapMarker();foreignMarker.entityId=foreign.id;
+            foreignMarker.currentTile="T100";foreignMarker.soldierCount=1;
+            foreignMarker.dimensionId=ownMarker.dimensionId;
+            client.unitMapMarkers.add(ownMarker);client.unitMapMarkers.add(foreignMarker);
+            assertTrue(markerCurrent(ownMarker));assertTrue(markerCurrent(foreignMarker));
+            KOMETileTroopSummary summary=new KOMETileTroopSummary();summary.tileId="T100";
+            summary.stationedPop=45;summary.movingPop=45;
+            assertEquals(45,markerDeductions().get("T100"));
+            assertEquals("Shield labels already identify both companies; the tile cost must not draw between them",
+                0,KOMEConquestMapOverlay.genericTroopMarkerPopulation(summary,markerDeductions()));
+            assertEquals(1,ownMarker.soldierCount);assertEquals(1,foreignMarker.soldierCount);
+            assertEquals(0,foreign.totalPopulation);
+            KOMETileTroopSummary elsewhere=new KOMETileTroopSummary();elsewhere.tileId="T200";
+            elsewhere.movingPop=45;
+            assertEquals("Unrelated summary tiles retain their existing marker",45,
+                KOMEConquestMapOverlay.genericTroopMarkerPopulation(elsewhere,markerDeductions()));
+            summary.stationedPop=55;
+            assertEquals("Independent stationed units still retain their aggregate marker",10,
+                KOMEConquestMapOverlay.genericTroopMarkerPopulation(summary,markerDeductions()));
+        }finally{saved.restore();}
+    }
     @Test public void startTickDrainsFifoSnapshotAndFailureDoesNotBlockLaterTasks() {
         KOMEClientTaskQueue queue = connected(); List<Integer> order = new ArrayList<Integer>();
         queue.enqueue(() -> { order.add(1); queue.enqueue(() -> order.add(4)); });

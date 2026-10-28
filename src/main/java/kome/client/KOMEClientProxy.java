@@ -47,8 +47,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private KOMEUnitMapMarkerPublisher unitMarkers;
     private synchronized KOMEUnitMapMarkerPublisher unitMarkers() {
         if(unitMarkers==null)unitMarkers=new KOMEUnitMapMarkerPublisher(clientTasks,markers->{
-            KOMEClientData.INSTANCE.unitMapMarkers.clear();
-            KOMEClientData.INSTANCE.unitMapMarkers.addAll(markers);
+            KOMEClientData.INSTANCE.replaceUnitMapMarkers(markers);
+            KOMECompanyDescriptorRenderer.clear();
             closeStaleCompanyClusterRoster();
         });
         return unitMarkers;
@@ -147,6 +147,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
             unitMarkers().invalidateWorld();
             KOMEClientData.INSTANCE.unitMapMarkers.clear();
+            KOMECompanyDescriptorRenderer.clear();
             destinationOptions().close();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
@@ -267,6 +268,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         tacticalEditorStatus = null;
         if (currentTileHud != null) currentTileHud.clear();
         KOMEClientData.INSTANCE.resetClientState();
+        KOMECompanyDescriptorRenderer.clear();
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();

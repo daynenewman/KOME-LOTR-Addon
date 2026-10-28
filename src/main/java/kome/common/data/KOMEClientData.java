@@ -31,6 +31,24 @@ public class KOMEClientData extends KOMEWorldData {
         conquestRenderOwners = java.util.Collections.unmodifiableMap(owners);
         conquestRevision++;
         completeConquestSnapshot = true;
+        sanitizeUnitMapMarkerDescriptors();
+    }
+
+    /** Drop optional private fields as soon as the completed recipient projection revokes them. */
+    public void sanitizeUnitMapMarkerDescriptors() {
+        if (!completeConquestSnapshot) return;
+        for (KOMEUnitMapMarker marker : unitMapMarkers) {
+            KOMEArmyCompany row = armyCompanies.get(marker.entityId);
+            if (row == null || kome.common.network.KOMECompanyMapProjection.SPOTTED_STATUS.equals(row.status))
+                marker.clearDescriptors();
+        }
+    }
+
+    /** Also sanitize late queued marker publications at their final client-thread application. */
+    public void replaceUnitMapMarkers(java.util.List<KOMEUnitMapMarker> markers) {
+        unitMapMarkers.clear();
+        unitMapMarkers.addAll(markers);
+        sanitizeUnitMapMarkerDescriptors();
     }
 
     /** Client-thread clearing; the client publisher owns pending batches and session tokens. */

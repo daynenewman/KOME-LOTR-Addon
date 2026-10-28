@@ -200,15 +200,174 @@ public class KOMECompanyShieldClustersTest {
         assertSame(farA.bounds,groups(.125,farA,farB).get(0).members.get(0).bounds);
         assertEquals(125,nearB.bounds.x+nearB.bounds.width/2);
     }
-    @Test public void mixedFactionsUseNeutralShieldAndUniqueIdsOnly(){
+    @Test public void overlappingFactionsRetainSeparateShieldsAndUniqueIds(){
         KOMECompanyShieldClusters.Entry a=at("~spot:1","mordor",100,100,50,1),
             b=at("own","gondor",101,100,3,1);
-        KOMECompanyShieldClusters.Group group=groups(1,b,a,a).get(0);
-        assertEquals(2,group.members.size());assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,group.art);
-        assertTrue(group.mixedFactions);
-        assertEquals(Arrays.asList("own","~spot:1"),group.ids());
-        KOMEConquestMapOverlay.renderClusterLayers(group,(art,bounds)->
-            assertSame("Every mixed-faction layer stays neutral",KOMEMapMarkerArt.NEUTRAL_SHIELD,art));
+        List<KOMECompanyShieldClusters.Group> result=groups(1,b,a,a);
+        assertEquals(2,result.size());
+        assertEquals(Arrays.asList("own"),result.get(0).ids());
+        assertEquals(Arrays.asList("~spot:1"),result.get(1).ids());
+        assertSame(b.art,result.get(0).art);
+        assertSame(a.art,result.get(1).art);
+        assertFalse(overlap(result.get(0).hitBounds,result.get(1).hitBounds));
+        assertTrue(result.get(0).contains(result.get(0).iconBounds.x+4,result.get(0).iconBounds.y+4));
+        assertFalse(result.get(1).contains(result.get(0).iconBounds.x+4,result.get(0).iconBounds.y+4));
+    }
+    private static boolean overlap(KOMEMapIconPresentation.Bounds a,KOMEMapIconPresentation.Bounds b){
+        return a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height;
+    }
+    @Test public void severalFactionsKeepHomogeneousCountsAndStableSeparatedHitboxes(){
+        KOMECompanyShieldClusters.Entry[] entries={
+            at("g1","gondor",100,100,3,1),at("g2","gondor",100,100,5,1),
+            at("r1","rohan",100,100,2,1),at("r2","rohan",100,100,4,1),
+            at("m1","mordor",100,100,7,1)};
+        List<KOMECompanyShieldClusters.Group> forward=groups(1,entries);
+        List<KOMECompanyShieldClusters.Entry> reverse=new ArrayList<KOMECompanyShieldClusters.Entry>(Arrays.asList(entries));
+        Collections.reverse(reverse);
+        List<KOMECompanyShieldClusters.Group> backward=KOMECompanyShieldClusters.group(reverse,
+            KOMEMapIconPresentation.at(1),view);
+        assertEquals(3,forward.size());
+        assertEquals(Arrays.asList("g1","g2"),forward.get(0).ids());
+        assertEquals(Arrays.asList("m1"),forward.get(1).ids());
+        assertEquals(Arrays.asList("r1","r2"),forward.get(2).ids());
+        for(int i=0;i<forward.size();i++){
+            assertEquals(forward.get(i).iconBounds.x,backward.get(i).iconBounds.x);
+            assertEquals(forward.get(i).iconBounds.y,backward.get(i).iconBounds.y);
+            assertSame(entries[i==0?0:i==1?4:2].art,forward.get(i).art);
+            for(int j=0;j<i;j++)assertFalse(overlap(forward.get(i).hitBounds,forward.get(j).hitBounds));
+        }
+        assertTrue(forward.get(0).clustered());assertTrue(forward.get(2).clustered());
+        assertFalse(forward.get(1).clustered());
+        assertEquals(7,forward.get(1).members.get(0).marker.soldierCount);
+    }
+    @Test public void sameStrategicFactionWithDistinctValidArtNeverBecomesGeneric(){
+        KOMECompanyShieldClusters.Entry nativeGondor=at("a","gondor",100,100,2,1);
+        KOMECompanyShieldClusters.Entry variant=new KOMECompanyShieldClusters.Entry(
+            at("b","gondor",100,100,4,1).marker,KOMEMapMarkerArt.shield("rohan"),
+            KOMEMapMarkerArt.shield("rohan").bounds(KOMEMapIconPresentation.at(1),100,100),"gondor",false);
+        List<KOMECompanyShieldClusters.Group> result=groups(1,nativeGondor,variant);
+        assertEquals(2,result.size());
+        assertSame(nativeGondor.art,result.get(0).art);
+        assertSame(variant.art,result.get(1).art);
+        assertFalse(overlap(result.get(0).hitBounds,result.get(1).hitBounds));
+    }
+    @Test public void separateFactionShieldsStayAtTheirOriginalAnchorsAtEveryZoom(){
+        for(double zoom:new double[]{.125,.25,.5,1,2,4,8,16}){
+            KOMECompanyShieldClusters.Entry a=at("a","gondor",100,100,3,zoom),
+                b=at("b","mordor",180,100,4,zoom);
+            List<KOMECompanyShieldClusters.Group> result=groups(zoom,a,b);
+            assertEquals(2,result.size());
+            assertSame(a.bounds,result.get(0).iconBounds);
+            assertSame(b.bounds,result.get(1).iconBounds);
+        }
+    }
+    @Test public void paintedGapDoesNotMoveNearbyDifferentFactionShields(){
+        KOMEMapMarkerArt.Sprite gondor=KOMEMapMarkerArt.shield("gondor"),
+            rohan=KOMEMapMarkerArt.shield("rohan");
+        KOMEMapMarkerArt.VisibleRect oldG=gondor.visible,oldR=rohan.visible;
+        try{
+            gondor.visible=rohan.visible=new KOMEMapMarkerArt.VisibleRect(.25F,.75F,1F);
+            KOMECompanyShieldClusters.Entry a=at("a","gondor",100,100,1,1),
+                b=at("b","rohan",108,100,1,1);
+            List<KOMECompanyShieldClusters.Group> result=groups(1,a,b);
+            assertSame(a.bounds,result.get(0).iconBounds);
+            assertSame("A positive painted gap must preserve the original anchor",b.bounds,result.get(1).iconBounds);
+        }finally{gondor.visible=oldG;rohan.visible=oldR;}
+    }
+    @Test public void separatedReplacementDropsPreviousCollisionOffset(){
+        List<KOMECompanyShieldClusters.Group> collision=groups(1,
+            at("a","gondor",100,100,1,1),at("b","rohan",100,100,1,1));
+        assertEquals(2,collision.size());
+        KOMECompanyShieldClusters.Entry a=at("a","gondor",100,100,1,1),
+            b=at("b","rohan",115,100,1,1);
+        List<KOMECompanyShieldClusters.Group> separated=groups(1,a,b);
+        assertSame("Current noncolliding marker keeps its original submitted bounds",a.bounds,separated.get(0).iconBounds);
+        assertSame("Old separation is never cached on the replacement",b.bounds,separated.get(1).iconBounds);
+    }
+    @Test public void descriptorExtentDoesNotMoveVerticallySeparatedShieldFaces(){
+        KOMECompanyShieldClusters.Entry upper=at("a","gondor",100,100,1,1),
+            lower=at("b","rohan",100,110,1,1);
+        upper.marker.movementItemId="minecraft:iron_boots";
+        int movementTop=KOMECompanyDescriptorRenderer.movementY(upper.bounds,upper.art);
+        int movementSize=KOMECompanyDescriptorRenderer.movementSize(upper.bounds);
+        assertTrue("The lower movement decoration reaches the neighboring shield rectangle",
+            movementTop+movementSize>lower.bounds.y);
+        List<KOMECompanyShieldClusters.Group> result=groups(1,upper,lower);
+        assertSame(upper.bounds,result.get(0).iconBounds);
+        assertSame(lower.bounds,result.get(1).iconBounds);
+    }
+    @Test public void collidingFactionsSeparateMinimallyAndKeepTheirMidpoint(){
+        KOMEMapMarkerArt.Sprite gondor=KOMEMapMarkerArt.shield("gondor"),
+            rohan=KOMEMapMarkerArt.shield("rohan");
+        KOMEMapMarkerArt.VisibleRect oldG=gondor.visible,oldR=rohan.visible;
+        try{
+            gondor.visible=rohan.visible=new KOMEMapMarkerArt.VisibleRect(.25F,.75F,1F);
+            List<KOMECompanyShieldClusters.Group> result=groups(1,
+                at("a","gondor",100,100,1,1),at("b","rohan",100,100,1,1));
+            double leftRight=result.get(0).iconBounds.x+result.get(0).iconBounds.width*.75;
+            double rightLeft=result.get(1).iconBounds.x+result.get(1).iconBounds.width*.25;
+            assertTrue("Painted faces need a visible gap",rightLeft-leftRight>=1);
+            assertTrue("Gap stays compact",rightLeft-leftRight<=2.5);
+            int paintedRightPixel=(int)Math.floor(result.get(0).paintedBounds.right-.01);
+            int paintedY=(int)Math.floor((result.get(0).paintedBounds.top
+                +result.get(0).paintedBounds.bottom)/2);
+            assertTrue(result.get(0).contains(paintedRightPixel,paintedY));
+            assertFalse("Transparent rectangle margin must not steal the neighboring shield's click",
+                result.get(1).contains(paintedRightPixel,paintedY));
+            double midpoint=(result.get(0).iconBounds.x+result.get(0).iconBounds.width/2.0
+                +result.get(1).iconBounds.x+result.get(1).iconBounds.width/2.0)/2;
+            assertEquals(100,midpoint,1.0);
+        }finally{gondor.visible=oldG;rohan.visible=oldR;}
+    }
+    @Test public void exactPaintedTouchSeparatesAndFactionOrderPersistsAcrossZoom(){
+        KOMEMapMarkerArt.Sprite isengard=KOMEMapMarkerArt.shield("isengard"),
+            rohan=KOMEMapMarkerArt.shield("rohan");
+        KOMEMapMarkerArt.VisibleRect oldI=isengard.visible,oldR=rohan.visible;
+        try{
+        isengard.visible=rohan.visible=KOMEMapMarkerArt.VisibleRect.FULL;
+        for(double zoom:new double[]{.125,.25,.5,1,2,4,8,16}){
+            KOMECompanyShieldClusters.Entry a=at("a","isengard",100,100,1,zoom),
+                b=at("b","rohan",100,100,1,zoom);
+            List<KOMECompanyShieldClusters.Group> result=groups(zoom,a,b);
+            assertTrue(result.get(0).iconBounds.x<result.get(1).iconBounds.x);
+            assertFalse(overlap(result.get(0).iconBounds,result.get(1).iconBounds));
+        }
+        KOMECompanyShieldClusters.Entry left=at("a","isengard",100,100,1,1),
+            right=at("b","rohan",109,100,1,1);
+        List<KOMECompanyShieldClusters.Group> touching=groups(1,left,right);
+        assertTrue("Exact painted-edge contact receives a small separating gap",
+            touching.get(1).iconBounds.x>right.bounds.x);
+        }finally{isengard.visible=oldI;rohan.visible=oldR;}
+    }
+    @Test public void sameTileOrderingIgnoresOpaqueIdOrderAndPansWithoutReshuffle(){
+        KOMECompanyShieldClusters.Entry isengard=at("z-opaque","isengard",100,100,1,1),
+            rohan=at("a-opaque","rohan",100,100,1,1);
+        List<KOMECompanyShieldClusters.Group> groups=groups(1,rohan,isengard);
+        assertEquals(2,groups.size());
+        KOMECompanyShieldClusters.Group left=groups.get(1),right=groups.get(0);
+        assertEquals("isengard",left.members.get(0).faction);
+        assertTrue(left.iconBounds.x<right.iconBounds.x);
+        List<KOMECompanyShieldClusters.Group> panned=groups(1,
+            at("z-opaque","isengard",137,111,1,1),at("a-opaque","rohan",137,111,1,1));
+        assertEquals(left.iconBounds.x+37,panned.get(1).iconBounds.x);
+        assertEquals(right.iconBounds.x+37,panned.get(0).iconBounds.x);
+        assertEquals(left.iconBounds.y+11,panned.get(1).iconBounds.y);
+    }
+    @Test public void edgeCollisionKeepsBothShieldsInsideViewportWithoutGhostClicks(){
+        KOMEMapViewport narrow=new KOMEMapViewport(0,0,50,50,0,0,1);
+        for(int x:new int[]{5,44}){
+            KOMECompanyShieldClusters.Entry a=at("a","isengard",x,25,1,1),
+                b=at("b","rohan",x,25,1,1);
+            List<KOMECompanyShieldClusters.Group> result=KOMECompanyShieldClusters.group(
+                Arrays.asList(a,b),KOMEMapIconPresentation.at(1),narrow);
+            assertEquals(2,result.size());
+            for(KOMECompanyShieldClusters.Group group:result){
+                assertTrue(group.visibleShield());
+                assertFalse(group.contains(-1,25));
+                assertFalse(group.contains(50,25));
+            }
+            assertTrue(result.get(0).paintedBounds.right<result.get(1).paintedBounds.left);
+        }
     }
     @Test public void duplicateIdentityPrefersLoadedMarkerIndependentOfPacketOrder(){
         KOMECompanyShieldClusters.Entry strategic=at("A","gondor",100,100,3,1);

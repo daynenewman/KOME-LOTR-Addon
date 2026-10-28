@@ -116,11 +116,21 @@ public class KOMEStableCompanyMarkersTest {
         KOMEHiredUnitRecord member=new KOMEHiredUnitRecord();member.entity=UUID.randomUUID();member.owner=foreign.owner;
         NBTTagCompound saved=member.writeToNBT();saved.setString("UnitClass","CAMPAIGN");member.readFromNBT(saved);
         member.companyId=foreign.id;member.currentTile="T100";member.cost=50;
+        net.minecraft.nbt.NBTTagCompound foreignBow = new net.minecraft.item.ItemStack(net.minecraft.init.Items.bow)
+            .writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+        foreignBow.setByte("Slot", (byte)2);
+        net.minecraft.nbt.NBTTagList foreignItems = new net.minecraft.nbt.NBTTagList();foreignItems.appendTag(foreignBow);
+        member.stationedEntityData = new net.minecraft.nbt.NBTTagCompound();
+        member.stationedEntityData.setTag("NPCItemsInv",foreignItems);
         data.hiredUnits.put(member.entity,member);foreign.units.add(member.entity);
         assertEquals(2,publish().size());
         KOMEUnitMapMarker spotted=publish().stream().filter(m->!"C1".equals(m.entityId)).findFirst().get();
         assertNotEquals("FOREIGN",spotted.entityId);assertEquals("",spotted.companyName);
         assertEquals(0,spotted.population);assertEquals(1,spotted.soldierCount);
+        assertEquals("",spotted.meleeItemId);assertEquals("",spotted.rangedItemId);
+        assertEquals("",spotted.movementItemId);
+        assertEquals(KOMEUnitMapMarker.ENTITLEMENT_UNKNOWN,spotted.movementEntitlement);
+        assertEquals(KOMEUnitMapMarker.CREDIT_UNKNOWN,spotted.movementCredit);
         load(member,999,777);
         assertEquals(0,publish().stream().filter(m->!"C1".equals(m.entityId)).findFirst().get().unitCount);
         foreign.currentTile="T101";
@@ -128,6 +138,55 @@ public class KOMEStableCompanyMarkersTest {
         foreign.currentTile="T100";
         unit.currentTile="T101";company.currentTile="T101";
         assertEquals(1,publish().size());assertEquals("C1",publish().get(0).entityId);
+    }
+
+    @Test public void opposingViewersUsePhysicalOwnFixAndStrategicSpottedAnchorFromSameServerState()throws Exception {
+        UUID firstViewer=viewer;
+        KOMEArmyCompany opposing=new KOMEArmyCompany();opposing.id="OPPOSING";
+        opposing.name="Private opposing company";opposing.owner=UUID.randomUUID();
+        opposing.faction="gondor";opposing.nativeFaction="gondor";opposing.currentTile="T100";
+        data.armyCompanies.put(opposing.id,opposing);
+        KOMEHiredUnitRecord other=new KOMEHiredUnitRecord();other.entity=UUID.randomUUID();
+        other.owner=opposing.owner;
+        NBTTagCompound saved=other.writeToNBT();saved.setString("UnitClass","CAMPAIGN");
+        other.readFromNBT(saved);other.companyId=opposing.id;other.currentTile="T100";other.cost=50;
+        data.hiredUnits.put(other.entity,other);opposing.units.add(other.entity);
+        load(other,999,777);
+
+        List<KOMEUnitMapMarker> first=publish();
+        assertEquals(2,first.size());
+        KOMEUnitMapMarker firstOwn=first.stream().filter(m->"C1".equals(m.entityId)).findFirst().get();
+        KOMEUnitMapMarker firstSpotted=first.stream().filter(m->!"C1".equals(m.entityId)).findFirst().get();
+        assertEquals(1,firstOwn.unitCount);assertEquals(123,firstOwn.x,0);
+        assertEquals(0,firstSpotted.unitCount);assertEquals(0,firstSpotted.x,0);
+        assertEquals("T100",firstSpotted.currentTile);
+        assertNotEquals(opposing.id,firstSpotted.entityId);
+
+        viewer=opposing.owner;viewerFaction="gondor";
+        List<KOMEUnitMapMarker> second=publish();
+        assertEquals(2,second.size());
+        KOMEUnitMapMarker secondOwn=second.stream().filter(m->opposing.id.equals(m.entityId)).findFirst().get();
+        KOMEUnitMapMarker secondSpotted=second.stream().filter(m->!opposing.id.equals(m.entityId)).findFirst().get();
+        assertEquals(1,secondOwn.unitCount);assertEquals(999,secondOwn.x,0);
+        assertEquals(0,secondSpotted.unitCount);assertEquals(0,secondSpotted.x,0);
+        assertEquals("T100",secondSpotted.currentTile);
+        assertNotEquals(company.id,secondSpotted.entityId);
+        assertEquals(firstViewer,company.owner);
+    }
+
+    @Test public void directReaderReceivesSavedDescriptorAndRevocationRemovesIt()throws Exception {
+        world.loadedEntityList.clear();
+        net.minecraft.nbt.NBTTagList items = new net.minecraft.nbt.NBTTagList();
+        net.minecraft.nbt.NBTTagCompound sword = new net.minecraft.item.ItemStack(net.minecraft.init.Items.iron_sword)
+            .writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+        sword.setByte("Slot", (byte)1);items.appendTag(sword);
+        unit.stationedEntityData = new net.minecraft.nbt.NBTTagCompound();
+        unit.stationedEntityData.setTag("NPCItemsInv",items);
+        String itemId=String.valueOf(net.minecraft.item.Item.itemRegistry.getNameForObject(net.minecraft.init.Items.iron_sword));
+        assertEquals(itemId,publish().get(0).meleeItemId);
+        viewerFaction="gondor";viewer=UUID.randomUUID();
+        assertTrue(publish().isEmpty());
+        assertEquals(itemId,publish(true).get(0).meleeItemId);
     }
 
     @Test public void soldierBadgeCountsCommittedRecordsRegardlessOfCostDamageOrChunkLoading()throws Exception {

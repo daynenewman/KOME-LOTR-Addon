@@ -71,7 +71,7 @@ public class KOMEMapMarkerTextureRecoveryTest implements Opcodes {
         Class<?> art=loader.loadClass("kome.client.KOMEMapMarkerArt");Field field=art.getDeclaredField("textures");field.setAccessible(true);field.set(null,owned);
         staticCall(art,"reload",resources);assertSame(sprite,staticCall(art,"displayed",sprite));assertEquals(true,staticCall(art,"bind",gondor));
         resources.broken.put(gondor,null);call(global,"onResourceManagerReload",resources);staticCall(art,"reload",resources);
-        Object fallback=staticCall(art,"displayed",sprite);assertEquals(new ResourceLocation("kome:textures/gui/neutral_shield.png"),location(fallback));assertEquals(true,staticCall(art,"bind",location(fallback)));
+        Object fallback=staticCall(art,"displayed",sprite);assertEquals(new ResourceLocation("lotr:shield/achievement_bronze.png"),location(fallback));assertEquals(true,staticCall(art,"bind",location(fallback)));
         resources.broken.put(gondor,hd());call(global,"onResourceManagerReload",resources);staticCall(art,"reload",resources);
         Object missing=loader.loadClass("net.minecraft.client.renderer.texture.TextureUtil").getField("missingTexture").get(null);
         assertSame(missing,call(global,"getTexture",gondor));assertSame(sprite,staticCall(art,"displayed",sprite));assertEquals(true,staticCall(art,"bind",gondor));assertEquals(128,Probe.width);

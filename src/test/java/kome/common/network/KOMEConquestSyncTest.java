@@ -227,6 +227,31 @@ public class KOMEConquestSyncTest {
         assertFalse(foreign.mounted);
     }
 
+    @Test public void dualFactionSingleUnitTileDoesNotSerializeForeignCostAsFortyFive() throws Exception {
+        fixture.pledge(LOTRFaction.ROHAN);
+        UUID viewer=fixture.player.getUniqueID();
+        KOMEArmyCompany own=companyWithMember("ROHAN_ONE","rohan","T132",viewer,45);
+        KOMEArmyCompany foreign=companyWithMember("ISENGARD_ONE","isengard","T132",UUID.randomUUID(),50);
+        NBTTagCompound snapshot=assembled(sendAndTake());
+        assertEquals(45,summary(snapshot,"T132").getInteger("StationedPop"));
+        assertEquals(45,companyRow(snapshot,own.id).getInteger("Population"));
+        assertFalse(companyIds(snapshot).contains(foreign.id));
+        assertFalse(spottedRow(snapshot,"isengard").hasKey("Population"));
+        List markers=KOMEPacketUnitMapMarkers.buildMarkers(fixture.data,viewer,"rohan",false,
+            new net.minecraft.world.WorldServer[0]);
+        assertEquals(2,markers.size());
+        for(Object object:markers){
+            KOMEUnitMapMarker marker=(KOMEUnitMapMarker)object;
+            assertEquals(1,marker.soldierCount);
+            if(!own.id.equals(marker.entityId)){
+                assertEquals(0,marker.population);
+                assertEquals("",marker.companyName);
+                assertEquals("",marker.meleeItemId);
+                assertEquals("",marker.movementItemId);
+            }
+        }
+    }
+
     @Test public void tileUnitsAndCompanyBrowsersDoNotUpgradeReconnaissanceToPrivateDetail() throws Exception {
         fixture.pledge(LOTRFaction.GONDOR);
         UUID viewer=fixture.player.getUniqueID();

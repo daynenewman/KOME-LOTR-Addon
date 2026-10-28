@@ -24,7 +24,7 @@ public class KOMEPopulationProtocolTest {
                 assertFalse(old + " / " + side, addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", old), side));
         }
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g14"));
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g18"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g20"));
     }
     @Test public void preJoinBattleG4CannotHandshakeWithTheExtendedPacketTable() {
         KOMEAddon addon = new KOMEAddon();
@@ -38,7 +38,7 @@ public class KOMEPopulationProtocolTest {
     }
 
     @Test public void g13PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g18", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));
+        assertEquals("1.0.9-integration-g20", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g19"));
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();

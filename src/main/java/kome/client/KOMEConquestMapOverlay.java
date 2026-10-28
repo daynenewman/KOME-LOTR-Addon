@@ -1318,6 +1318,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         desertShadeTextureLocation = labelTextureLocation = null;
         desertShadeTexture = labelTexture = null;
         KOMEMapMarkerArt.reload(resources);
+        KOMECompanyDescriptorRenderer.clear();
         // Bundled authoritative geometry is not replaced by client resource packs.
     }
 
@@ -1424,7 +1425,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             showConquestTiles?"Hide conquest layer":"Show conquest layer",showRiverBlockMarkers?"Hide river blockers":"Show river blockers",
             showBridgeMarkers?"Hide bridge markers":"Show bridge markers",
             "Companies: "+(showTroopMarkers?companyDisplayMode:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES).label()
-                +" (click for next; descriptors coming later)",
+                +" (click for next)",
             showBuildMarkers?"Hide Build markers":"Show Build markers"};
         boolean[] active={true,true,true,territoryStyle.showTileBorders,showConquestTiles,showRiverBlockMarkers,showBridgeMarkers,showTroopMarkers,showBuildMarkers};
         String tooltip=null;
@@ -1826,9 +1827,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 continue;
             }
             String tileId = KOMEConquestTile.normalizeId(summary.tileId);
-            int hiddenStationedPop = mapIntValue(hiddenStationedPopulationByTile, tileId);
-            int visibleStationedPop = Math.max(0, summary.stationedPop - hiddenStationedPop);
-            if (visibleStationedPop <= 0 && summary.movingPop <= 0 && summary.incomingPop <= 0) {
+            int primaryPop = genericTroopMarkerPopulation(summary,hiddenStationedPopulationByTile);
+            if (primaryPop <= 0) {
                 continue;
             }
             int[] screen = tileAnchorScreenPosition(map, tileId);
@@ -1845,23 +1845,27 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             int markerX=bounds.x,markerY=bounds.y;
             if(!presentation.labels)continue;
             FontRenderer font = KOMEMinecraftClient.fontRenderer();
-            int primaryPop = visibleStationedPop > 0 ? visibleStationedPop : summary.incomingPop > 0 ? summary.incomingPop : summary.movingPop;
             drawTroopCount(font, markerX, markerY, bounds.width, bounds.height, primaryPop);
             int sideTextY = markerY + 4;
-            if (summary.movingPop > 0 && primaryPop != summary.movingPop) {
+            if (!hiddenStationedPopulationByTile.containsKey(tileId)
+                    && summary.movingPop > 0 && primaryPop != summary.movingPop) {
                 font.drawStringWithShadow(">" + abbreviatePop(summary.movingPop), markerX + bounds.width + 2, sideTextY, 0xFFFFD966);
                 sideTextY += 10;
             }
-            if (summary.incomingPop > 0 && primaryPop != summary.incomingPop) {
+            if (!hiddenStationedPopulationByTile.containsKey(tileId)
+                    && summary.incomingPop > 0 && primaryPop != summary.incomingPop) {
                 font.drawStringWithShadow("<" + abbreviatePop(summary.incomingPop), markerX + bounds.width + 2, sideTextY, 0xFF6FCBFF);
             }
         }
     }
 
     private static List<String> drawLiveUnitMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
+        KOMEMapViewport view=viewport(map);
         return renderCompanyMarkers(map,mouseX,mouseY,(marker,art,bounds,presentation)->{
             if(KOMEMapMarkerTrace.ENABLED)drawTexturedMarker(KOMEMapMarkerTrace.Kind.COMPANY_SHIELD,marker.entityId,art,bounds);
             else drawTexturedMarker(art,bounds);
+            KOMECompanyDescriptorRenderer.draw(marker,art,bounds,view,companyDisplayMode,
+                KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId)==null||spottedCompany(marker));
             if(presentation.labels)drawTroopCount(KOMEMinecraftClient.fontRenderer(),bounds.x,bounds.y,bounds.width,bounds.height,
                 marker.soldierCount,singletonUnitCountTextY(bounds.y));
         },(group,presentation)->{
@@ -1927,7 +1931,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(group.clustered())clusterSink.draw(group,presentation);
             else {
                 KOMECompanyShieldClusters.Entry entry=group.members.get(0);
-                sink.draw(entry.marker,entry.art,entry.bounds,presentation);
+                sink.draw(entry.marker,entry.art,group.iconBounds,presentation);
             }
             if(inspect&&group.contains(mouseX,mouseY))hovered=group;
         }
@@ -1964,7 +1968,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(!bounds.visible(view))continue;
             KOMEArmyCompany company=KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
             candidates.add(new KOMECompanyShieldClusters.Entry(marker,art,bounds,
-                company==null?"":company.faction,spottedCompany(marker)));
+                company==null?"":company.faction,spottedCompany(marker),companyMarkerMapX(marker)));
         }
         if(candidates.isEmpty())return java.util.Collections.emptyList();
         FontRenderer font=KOMEMinecraftClient.get()==null?null:KOMEMinecraftClient.fontRenderer();
@@ -2132,12 +2136,24 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             String tileId = markerStationedTile(marker);
             KOMEArmyCompany company=KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
             int population = company==null || spottedCompany(marker)?0:Math.max(0,company.totalPopulation);
+            if(tileId.length()>0&&!populationByTile.containsKey(tileId))
+                populationByTile.put(tileId,Integer.valueOf(0));
             if (tileId.length() > 0 && population > 0) {
                 populationByTile.put(tileId, Integer.valueOf((int)Math.min(Integer.MAX_VALUE,
                     (long)mapIntValue(populationByTile, tileId) + population)));
             }
         }
         return populationByTile;
+    }
+
+    static int genericTroopMarkerPopulation(KOMETileTroopSummary summary,Map<String,Integer> companyPopulationByTile){
+        if(summary==null)return 0;
+        String tile=KOMEConquestTile.normalizeId(summary.tileId);
+        int visibleStationedPop=Math.max(0,summary.stationedPop-mapIntValue(companyPopulationByTile,tile));
+        // Company shields already represent their own tile presence. Keep any independent
+        // stationary Campaign aggregate, but not a second company movement-cost label.
+        if(companyPopulationByTile.containsKey(tile))return visibleStationedPop;
+        return visibleStationedPop>0?visibleStationedPop:summary.incomingPop>0?summary.incomingPop:summary.movingPop;
     }
 
     private static String markerStationedTile(KOMEUnitMapMarker marker) {
@@ -2195,6 +2211,17 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if(!companyMarkerCurrent(marker))return null;
         return marker.unitCount>0?new int[]{worldScreenX(map,marker.x),worldScreenY(map,marker.z)}
             :tileAnchorScreenPosition(map,marker.currentTile);
+    }
+
+    /** Unrounded native map X keeps the display-only left/right order stable through zoom. */
+    private static double companyMarkerMapX(KOMEUnitMapMarker marker){
+        if(marker.unitCount>0)return marker.x/LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originX;
+        String tile=KOMEConquestTile.normalizeId(marker.currentTile);
+        KOMETileWaypointLink link=(KOMETileWaypointLink)KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tile);
+        if(link!=null&&(Math.abs(link.waypointWorldX)>.001D||Math.abs(link.waypointWorldZ)>.001D))
+            return link.waypointWorldX/LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originX;
+        int[] center=tileCentersById.get(tile);
+        return center==null?0:center[0]*(double)LOTRGenLayerWorld.imageWidth/tileRaster.width;
     }
 
     static boolean companyMarkerCurrent(KOMEUnitMapMarker marker) {

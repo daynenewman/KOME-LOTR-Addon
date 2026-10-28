@@ -117,7 +117,7 @@ public class KOMEMapRadialInteractionTest {
             KOMEClientData.INSTANCE.tileWaypointLinksByTileId.remove("T001");
             KOMETileRasterSnapshot raster=(KOMETileRasterSnapshot)field(KOMEConquestMapOverlay.class,"tileRaster").get(null);
             pan((float)(2292D*LOTRGenLayerWorld.imageWidth/raster.width),(float)(58D*LOTRGenLayerWorld.imageHeight/raster.height),1);
-            KOMEUnitMapMarker a=companyMarker("company-A","Riders","rohan",30),z=companyMarker("company-Z","Guard","gondor",70);
+            KOMEUnitMapMarker a=companyMarker("company-A","Riders","rohan",30),z=companyMarker("company-Z","Guard","rohan",70);
             for(boolean reverse:new boolean[]{false,true}) {
                 KOMEClientData.INSTANCE.unitMapMarkers.clear();KOMEClientData.INSTANCE.unitMapMarkers.addAll(reverse?Arrays.asList(z,a):Arrays.asList(a,z));
                 List<KOMEUnitMapMarker> drawn=new ArrayList<>();List<KOMEMapMarkerArt.Sprite> art=new ArrayList<>();
@@ -127,14 +127,14 @@ public class KOMEMapRadialInteractionTest {
                 assertEquals("Overlapping shields should submit one cluster",1,drawn.size());
                 assertEquals("2 companies",tooltip.get(0));
                 assertFalse(tooltip.toString().contains("Campaign population"));
-                assertEquals(Arrays.asList(a),drawn);assertEquals(Arrays.asList(KOMEMapMarkerArt.NEUTRAL_SHIELD),art);
+                assertEquals(Arrays.asList(a),drawn);assertEquals(Arrays.asList(KOMEMapMarkerArt.shield("rohan")),art);
                 List<KOMEUnitMapMarker> singletonDraws=new ArrayList<>();
                 List<KOMECompanyShieldClusters.Group> clusterDraws=new ArrayList<>();
                 KOMEConquestMapOverlay.renderCompanyMarkers(map,400,300,
                     (m,s,b,p)->singletonDraws.add(m),(group,p)->clusterDraws.add(group));
                 assertTrue("Clustered member labels must not use the singleton draw path",singletonDraws.isEmpty());
                 assertEquals(1,clusterDraws.size());assertEquals(2,clusterDraws.get(0).members.size());
-                assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,clusterDraws.get(0).art);
+                assertSame(KOMEMapMarkerArt.shield("rohan"),clusterDraws.get(0).art);
                 List<String> clicked=new ArrayList<>();
                 kome.common.KOMEAddon.proxy=new kome.common.KOMECommonProxy(){
                     @Override public void displayCompanyClusterRoster(List<String> ids,Object sourceMap){assertSame(map,sourceMap);clicked.addAll(ids);}
@@ -148,6 +148,22 @@ public class KOMEMapRadialInteractionTest {
                 assertEquals(2,clicked.size());
                 field(KOMEConquestMapOverlay.class,"nativeWaypointPicked").setBoolean(null,false);
             }
+            KOMEArmyCompany foreign=KOMEClientData.INSTANCE.armyCompanies.get("company-Z");
+            foreign.faction="gondor";foreign.nativeFaction="gondor";
+            List<KOMEUnitMapMarker> mixedDraws=new ArrayList<>();
+            List<KOMEMapMarkerArt.Sprite> mixedArt=new ArrayList<>();
+            List<KOMEMapIconPresentation.Bounds> mixedBounds=new ArrayList<>();
+            List<KOMECompanyShieldClusters.Group> mixedClusters=new ArrayList<>();
+            KOMEConquestMapOverlay.renderCompanyMarkers(map,400,300,
+                (m,s,b,p)->{mixedDraws.add(m);mixedArt.add(s);mixedBounds.add(b);},
+                (group,p)->mixedClusters.add(group));
+            assertEquals(Arrays.asList(a,z),mixedDraws);
+            assertEquals(Arrays.asList(KOMEMapMarkerArt.shield("rohan"),KOMEMapMarkerArt.shield("gondor")),mixedArt);
+            assertTrue(mixedClusters.isEmpty());
+            assertFalse("Different faction shields must be separately selectable",
+                mixedBounds.get(0).contains(mixedBounds.get(1).x+mixedBounds.get(1).width/2,
+                    mixedBounds.get(1).y+mixedBounds.get(1).height/2));
+            foreign.faction="rohan";foreign.nativeFaction="rohan";
             float x=field(LOTRGuiMap.class,"posX").getFloat(map),y=field(LOTRGuiMap.class,"posY").getFloat(map);
             pan(x+389,y+261,1);
             java.lang.reflect.Method owns=KOMEConquestMapOverlay.class.getDeclaredMethod("mapUiOwnsPointer",LOTRGuiMap.class,int.class,int.class);owns.setAccessible(true);assertEquals(true,owns.invoke(null,map,11,39));
@@ -162,10 +178,37 @@ public class KOMEMapRadialInteractionTest {
     }
 
     private KOMEUnitMapMarker companyMarker(String id,String name,String faction,int population) {
-        KOMEArmyCompany company=new KOMEArmyCompany();company.id=id;company.name=name;company.nativeFaction=faction;company.currentTile="T001";
+        KOMEArmyCompany company=new KOMEArmyCompany();company.id=id;company.name=name;company.faction=faction;company.nativeFaction=faction;company.currentTile="T001";
         KOMEClientData.INSTANCE.armyCompanies.put(id,company);
         KOMEUnitMapMarker marker=new KOMEUnitMapMarker();marker.entityId=id;marker.companyName=name;marker.currentTile="T001";
         marker.population=population;marker.dimensionId=lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID;return marker;
+    }
+
+    @Test public void physicalAndSpottedMarkersUseDistinctExistingProjectionSources()throws Exception{
+        preserve(KOMEClientData.INSTANCE.armyCompanies);
+        KOMEUnitMapMarker own=companyMarker("own-physical","Own","rohan",45);
+        own.unitCount=1;own.x=0;own.z=0;
+        KOMEUnitMapMarker foreign=companyMarker("~recon:opaque","","isengard",0);
+        KOMEClientData.INSTANCE.armyCompanies.get(foreign.entityId).status=KOMECompanyMapProjection.SPOTTED_STATUS;
+        foreign.unitCount=0;
+        java.lang.reflect.Method position=KOMEConquestMapOverlay.class.getDeclaredMethod(
+            "companyMarkerScreenPosition",LOTRGuiMap.class,KOMEUnitMapMarker.class);
+        position.setAccessible(true);
+        java.lang.reflect.Method tileAnchor=KOMEConquestMapOverlay.class.getDeclaredMethod(
+            "tileAnchorScreenPosition",LOTRGuiMap.class,String.class);
+        tileAnchor.setAccessible(true);
+        java.lang.reflect.Method worldX=KOMEConquestMapOverlay.class.getDeclaredMethod(
+            "worldScreenX",LOTRGuiMap.class,double.class);
+        worldX.setAccessible(true);
+        java.lang.reflect.Method worldY=KOMEConquestMapOverlay.class.getDeclaredMethod(
+            "worldScreenY",LOTRGuiMap.class,double.class);
+        worldY.setAccessible(true);
+        int[] actualOwn=(int[])position.invoke(null,map,own);
+        int[] actualForeign=(int[])position.invoke(null,map,foreign);
+        assertArrayEquals(new int[]{(Integer)worldX.invoke(null,map,own.x),
+            (Integer)worldY.invoke(null,map,own.z)},actualOwn);
+        assertArrayEquals((int[])tileAnchor.invoke(null,map,"T001"),actualForeign);
+        assertFalse(Arrays.equals(actualOwn,actualForeign));
     }
     @Test public void tenCompanyBadgeCannotHideVisibleShieldAtLeftViewportEdge() throws Exception {
         preserve(KOMEClientData.INSTANCE.armyCompanies);
@@ -380,7 +423,9 @@ public class KOMEMapRadialInteractionTest {
             java.lang.reflect.Method tooltip=KOMEConquestMapOverlay.class.getDeclaredMethod("liveUnitTooltip",KOMEUnitMapMarker.class);
             tooltip.setAccessible(true);assertNull(tooltip.invoke(null,marker));
             java.lang.reflect.Method counts=KOMEConquestMapOverlay.class.getDeclaredMethod("liveCompanyStationedPopulationByTile");
-            counts.setAccessible(true);assertTrue(((Map)counts.invoke(null)).isEmpty());
+            counts.setAccessible(true);
+            assertEquals("Spotted marker reserves its visible tile but contributes no private cost",
+                Integer.valueOf(0),((Map)counts.invoke(null)).get("T001"));
         }finally{KOMEClientData.INSTANCE.unitMapMarkers.clear();KOMEClientData.INSTANCE.unitMapMarkers.addAll(old);}
     }
     @Test public void nativeZoomStopsSubmitProgressiveCompanyAndBuildBounds()throws Exception {

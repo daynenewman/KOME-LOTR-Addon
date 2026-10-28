@@ -36,6 +36,7 @@ public class KOMEMapMarkerArtTest {
 
     @Test public void nativeResourcesUseOriginalPathsAndVerifiedFrontFaceUvs() {
         assertSprite(KOMEMapMarkerArt.shield("gondor"),"lotr:shield/alignment_gondor.png",.5,1,11,11);
+        assertSprite(KOMEMapMarkerArt.NEUTRAL_SHIELD,"lotr:shield/achievement_bronze.png",.5,1,11,11);
         assertSprite(KOMEMapMarkerArt.banner("gondor"),"lotr:item/banner/banner_gondor.png",.25,.5,7,14);
     }
 
@@ -72,11 +73,27 @@ public class KOMEMapMarkerArtTest {
 
     @Test public void everyMappedNativeAssetExistsAndPassesItsAuditedLayout() {
         KOMEMapMarkerArt.reload(baseManager());
+        assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.displayed(KOMEMapMarkerArt.NEUTRAL_SHIELD));
         for(String key:new String[]{"gondor","rohan","mordor","bree","angmar","dunland","dale","dorwinion","gundabad","dunedain","harad","durinsfolk","woodelf","lothlorien","isengard","morwaith","taurethrim","rhudel","bluemountains","highelves","dolguldur","halftroll","umbar"}) {
             assertSame(key,KOMEMapMarkerArt.shield(key),KOMEMapMarkerArt.displayed(KOMEMapMarkerArt.shield(key)));
             assertSame(key,KOMEMapMarkerArt.banner(key),KOMEMapMarkerArt.displayed(KOMEMapMarkerArt.banner(key)));
         }
         for(String key:new String[]{"hobbit","nomad"})assertSame(key,KOMEMapMarkerArt.banner(key),KOMEMapMarkerArt.displayed(KOMEMapMarkerArt.banner(key)));
+    }
+    @Test public void bronzeAdventurerShieldFollowsResourcePackReloadAndCustomLastResort()throws Exception{
+        KOMEMapMarkerArt.Sprite bronze=KOMEMapMarkerArt.NEUTRAL_SHIELD;
+        Map<ResourceLocation,byte[]> replacement=new HashMap<>();
+        replacement.put(bronze.texture,hdShield());
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("hdBronze",replacement)));
+        assertSame(bronze,KOMEMapMarkerArt.displayed(bronze));
+        assertEquals("lotr",KOMEMapMarkerArt.displayed(bronze).texture.getResourceDomain());
+        replacement.put(bronze.texture,new byte[]{1,2,3});
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("brokenBronze",replacement)));
+        assertEquals(new ResourceLocation("kome:textures/gui/neutral_shield.png"),
+            KOMEMapMarkerArt.displayed(bronze).texture);
+        replacement.put(bronze.texture,hdShield());
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("repairedBronze",replacement)));
+        assertSame(bronze,KOMEMapMarkerArt.displayed(bronze));
     }
 
     @Test public void nativePackPriorityReloadAndMissingAssetRecoveryUseNormalResourceManager()throws Exception {
@@ -106,13 +123,30 @@ public class KOMEMapMarkerArtTest {
         assertEquals(initial,reads[0]);assertEquals("lotr",shield.texture.getResourceDomain());
     }
 
+    @Test public void paintedFrontFaceBoundsFollowNativeArtAndPackReloads()throws Exception {
+        KOMEMapMarkerArt.Sprite gondor=KOMEMapMarkerArt.shield("gondor");
+        KOMEMapMarkerArt.reload(baseManager());
+        assertEquals(7F/32F,gondor.visible.left,.001F);
+        assertEquals(25F/32F,gondor.visible.right,.001F);
+        assertEquals(31F/32F,gondor.visible.bottom,.001F);
+        Map<ResourceLocation,byte[]> replacement=new HashMap<>();
+        replacement.put(gondor.texture,shieldWithFrontFace(8,23,4,27));
+        KOMEMapMarkerArt.reload(manager(pack("base",null),pack("replacement",replacement)));
+        assertEquals(8F/32F,gondor.visible.left,.001F);
+        assertEquals(24F/32F,gondor.visible.right,.001F);
+        assertEquals(28F/32F,gondor.visible.bottom,.001F);
+        KOMEMapMarkerArt.reload(baseManager());
+        assertEquals(25F/32F,gondor.visible.right,.001F);
+    }
+
     @Test public void incompatibleShieldCanvasAndMissingNativeAssetUseNeutralArt()throws Exception {
         KOMEMapMarkerArt.Sprite shield=KOMEMapMarkerArt.shield("gondor");Map<ResourceLocation,byte[]> overrides=new HashMap<>();
         overrides.put(shield.texture,png(64,32,64,32));KOMEMapMarkerArt.reload(manager(pack("base",null),pack("singleCanvas",overrides)));
         assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.displayed(shield));
         Map<ResourceLocation,byte[]> onlyFallback=new HashMap<>();
-        try(InputStream in=getClass().getResourceAsStream("/assets/kome/textures/gui/neutral_shield.png")){onlyFallback.put(KOMEMapMarkerArt.NEUTRAL_SHIELD.texture,read(in));}
-        KOMEMapMarkerArt.reload(manager(pack("onlyFallback",onlyFallback)));assertSame(KOMEMapMarkerArt.NEUTRAL_SHIELD,KOMEMapMarkerArt.displayed(shield));
+        try(InputStream in=getClass().getResourceAsStream("/assets/kome/textures/gui/neutral_shield.png")){onlyFallback.put(new ResourceLocation("kome:textures/gui/neutral_shield.png"),read(in));}
+        KOMEMapMarkerArt.reload(manager(pack("onlyFallback",onlyFallback)));
+        assertEquals(new ResourceLocation("kome:textures/gui/neutral_shield.png"),KOMEMapMarkerArt.displayed(shield).texture);
     }
 
     @Test public void customCastleAndFallbackArtAlsoHonorResourcePacksAndReload()throws Exception {
@@ -168,6 +202,7 @@ public class KOMEMapMarkerArtTest {
     private static void assertSprite(KOMEMapMarkerArt.Sprite s,String path,double u,double v,int w,int h){assertEquals(new ResourceLocation(path),s.texture);assertEquals(0,s.u0,0);assertEquals(0,s.v0,0);assertEquals(u,s.u1,0);assertEquals(v,s.v1,0);assertEquals(w,s.width);assertEquals(h,s.height);}
     private static byte[] png(int w,int h,int inkW,int inkH)throws Exception{BufferedImage image=new BufferedImage(w,h,BufferedImage.TYPE_INT_ARGB);for(int y=0;y<inkH;y++)for(int x=0;x<inkW;x++)image.setRGB(x,y,0xFFD0BFA0);ByteArrayOutputStream out=new ByteArrayOutputStream();ImageIO.write(image,"png",out);return out.toByteArray();}
     private static byte[] hdShield()throws Exception{try(InputStream in=KOMEMapMarkerArtTest.class.getResourceAsStream("/assets/lotr/shield/alignment_gondor.png")){BufferedImage original=ImageIO.read(in),hd=new BufferedImage(128,64,BufferedImage.TYPE_INT_ARGB);for(int y=0;y<64;y++)for(int x=0;x<128;x++)hd.setRGB(x,y,original.getRGB(x/2,y/2));ByteArrayOutputStream out=new ByteArrayOutputStream();ImageIO.write(hd,"png",out);return out.toByteArray();}}
+    private static byte[] shieldWithFrontFace(int left,int right,int top,int bottom)throws Exception{BufferedImage art=new BufferedImage(64,32,BufferedImage.TYPE_INT_ARGB);for(int y=top;y<=bottom;y++)for(int x=left;x<=right;x++){art.setRGB(x,y,0xFFBBAA88);art.setRGB(x+32,y,0xFFBBAA88);}ByteArrayOutputStream out=new ByteArrayOutputStream();ImageIO.write(art,"png",out);return out.toByteArray();}
     private static byte[] read(InputStream in)throws IOException{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1)out.write(b,0,n);return out.toByteArray();}
     private static IResourcePack pack(String name,Map<ResourceLocation,byte[]> images){return (IResourcePack)Proxy.newProxyInstance(IResourcePack.class.getClassLoader(),new Class[]{IResourcePack.class},(p,m,args)->{
         if(m.getName().equals("getPackName")||m.getName().equals("toString"))return name;

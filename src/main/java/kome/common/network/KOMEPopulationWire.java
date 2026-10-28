@@ -7,7 +7,7 @@ import kome.common.data.KOMEPopulationProjection;
 
 /** Shared exact projection codec and one matching-artifact protocol identity. */
 public final class KOMEPopulationWire {
-    // g18 retains g14's discriminator layout: progression identities use ID 59; ID 60 stays unused.
+    // g20 retains g14's discriminator layout: progression identities use ID 59; ID 60 stays unused.
     // Destination queries use 61/62; confirmed movement uses 63/64; source queries use 65/66.
     // Rally retains its g11 payloads on 67/68; g12 source-scoped query semantics are preserved.
     // KOM-84 correlations on Join Battle IDs 53-58 and embedded views remain unchanged.
@@ -15,7 +15,8 @@ public final class KOMEPopulationWire {
     // Conquest company/movement sections now carry recipient-scoped presentation rows,
     // and conquest chunks include a publication serial. Older clients must not decode them.
     // g18 correlates map detail requests and bounded read-only refreshes; g17 is wire-incompatible.
-    public static final String VERSION = "1.0.9-integration-g18";
+    // g20 adds one bounded saved armor item ID/metadata to g19's fixed unit-map marker.
+    public static final String VERSION = "1.0.9-integration-g20";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;
