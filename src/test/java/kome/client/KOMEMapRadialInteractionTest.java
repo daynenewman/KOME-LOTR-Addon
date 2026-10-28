@@ -968,6 +968,23 @@ public class KOMEMapRadialInteractionTest {
         try {routes.add("T001");assertFalse(click(400,300,1));assertFalse(menu.isOpen());}finally{routes.clear();routes.addAll(previous);}
         assertTrue(network.sent.isEmpty());
     }
+    @Test public void hidingCompanyRoutesKeepsAnOpenMovePreviewAndSendsNoMovement() throws Exception {
+        save(field(KOMEConquestMapOverlay.class,"showTroopMarkers"));
+        KOMEPacketCompanyMoveConfirmGui preview=new KOMEPacketCompanyMoveConfirmGui();
+        preview.companyId="C1";preview.routeTiles.add("T001");preview.routeTiles.add("T002");
+        KOMEConquestMapOverlay.beginRoutePreview(preview);
+        field(KOMEConquestMapOverlay.class,"showTroopMarkers").setBoolean(null,false);
+        assertFalse(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+        assertSame(preview,field(KOMEConquestMapOverlay.class,"routePreviewMove").get(null));
+        assertEquals(2,((List)field(KOMEConquestMapOverlay.class,"routePreviewTiles").get(null)).size());
+        assertTrue(KOMEConquestMapOverlay.routePreviewDisplayText().contains("hidden"));
+        assertTrue(network.sent.isEmpty());
+        field(KOMEConquestMapOverlay.class,"showTroopMarkers").setBoolean(null,true);
+        assertTrue(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+        assertSame(preview,field(KOMEConquestMapOverlay.class,"routePreviewMove").get(null));
+        assertFalse(KOMEConquestMapOverlay.routePreviewDisplayText().contains("hidden"));
+        assertTrue(network.sent.isEmpty());
+    }
     @Test public void inspectionSuppressionCoversTheWholeInteractionAndRestoresAfterClose() {
         assertFalse(KOMEConquestMapOverlay.suppressMapInspection(map));
         assertFalse(KOMEConquestMapOverlay.suppressMapInspection(null));

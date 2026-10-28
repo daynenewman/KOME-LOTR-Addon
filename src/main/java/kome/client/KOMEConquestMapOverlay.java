@@ -63,14 +63,6 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static final int RIVER_MARKER_HEIGHT = 2;
     static final float TROOP_COUNT_TEXT_SCALE = 0.70F;
     static final int CLUSTER_BADGE_TEXT_COLOR = 0xFFE2BD73;
-    private static final int ROUTE_LINE_COLOR = 0xE0D6B45A;
-    private static final int ROUTE_LINE_SHADOW = 0xCC3A2A12;
-    private static final int ROUTE_COMPLETED_COLOR = 0xAA8C7440;
-    private static final int ROUTE_REMAINING_COLOR = 0xE8E8C46A;
-    private static final int ROUTE_CURRENT_COLOR = 0xFF6FCBFF;
-    private static final int ROUTE_GOLD = 0xFFE8C46A;
-    private static final int ROUTE_DARK = 0xFF3A2A12;
-    private static final int ROUTE_DESTINATION = 0xFF7A1F25;
     private static final int TOGGLE_BUTTON_SIZE = 10;
     private static final int TOGGLE_BUTTON_GAP = 4;
     private static final int TOGGLE_BUTTON_TOP_MARGIN = 34; // Native Zoom Out ends at map-relative Y=30.
@@ -328,15 +320,17 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if(isPreviewingRoute())drawRouteBridgeIcons(map,routePreviewTiles);
         for(Object object:KOMEClientData.INSTANCE.armyMovements.values())if(object instanceof KOMEArmyMovementOrder) {
             KOMEArmyMovementOrder order=(KOMEArmyMovementOrder)object;
-            if(order.isMoving()&&order.routeTiles.size()>=2)drawRouteBridgeIcons(map,order.routeTiles);
+            List<String> remaining=KOMEMapMarchingTrails.remainingTiles(order);
+            if(remaining.size()>=2)drawRouteBridgeIcons(map,remaining);
         }
     }
 
     private static void drawRouteBridgeIcons(LOTRGuiMap map,Iterable<String> route) {
+        if(!companyMovementVisualsVisible())return;
         List<String> tiles=new ArrayList<>();List<int[]> points=new ArrayList<>();
         for(String tile:route) {
             String normalized=KOMEConquestTile.normalizeId(tile);int[] point=tileAnchorScreenPosition(map,normalized);
-            if(point!=null){tiles.add(normalized);points.add(point);}
+            tiles.add(normalized);points.add(point);
         }
         drawRouteSpecialEdgeMarkers(map,tiles,points,true);
     }
@@ -1081,27 +1075,12 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         } finally {GL11.glPopAttrib();}
     }
     private static void drawCompanyDestinationPreview(LOTRGuiMap map) {
+        if(!companyMovementVisualsVisible())return;
         if (radialMap != map || !companySelectorOpen() || companyPreview.points.isEmpty()) return;
-        KOMEMapViewport view=viewport(map);
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_SCISSOR_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
-        try {
-            KOMEGuiTheme.enableScissor(KOMEMinecraftClient.get(),(int)view.left,(int)view.top,(int)(view.right-view.left),(int)(view.bottom-view.top));
-            for(int i=0;i<companyPreview.points.size();i++) {
-                KOMECompanyDestinationPreview.Point point=companyPreview.points.get(i);
-                if(point==null)continue;
-                int x=(int)Math.round(view.screenX(point.x)),y=(int)Math.round(view.screenY(point.y));
-                if(i>0) {
-                    KOMECompanyDestinationPreview.Point previous=companyPreview.points.get(i-1);
-                    if(previous!=null) {
-                        int px=(int)Math.round(view.screenX(previous.x)),py=(int)Math.round(view.screenY(previous.y));
-                        drawLine(px,py,x,y,ROUTE_LINE_SHADOW,2.25F);drawLine(px,py,x,y,ROUTE_LINE_COLOR,1.25F);
-                    }
-                }
-                if(i==0)drawRouteOriginMarker(x,y);
-                else if(i==companyPreview.points.size()-1)drawRouteDestinationMarker(x,y);
-                else drawRouteIntermediatePoint(x,y);
-            }
-        } finally { GL11.glPopAttrib(); }
+        List<double[]> points=new ArrayList<double[]>(companyPreview.points.size());
+        for(KOMECompanyDestinationPreview.Point point:companyPreview.points)
+            points.add(point==null?null:new double[]{point.x,point.y});
+        drawMarchingTrack(map,points,KOMEMapMarchingTrails.PREVIEW,false);
     }
 
     /** Native picker success, for ANY waypoint. No visibility/travel rules are duplicated here. */
@@ -2384,42 +2363,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     private static void drawRoutePreview(LOTRGuiMap map) {
+        if(!companyMovementVisualsVisible())return;
         if (!isPreviewingRoute() || !ensureTileMaskLoaded()) {
             return;
         }
-        List<int[]> points = new ArrayList<int[]>();
-        List<String> tiles = new ArrayList<String>();
-        for (String tile : routePreviewTiles) {
-            String normalized = KOMEConquestTile.normalizeId(tile);
-            int[] point = tileAnchorScreenPosition(map, normalized);
-            if (point != null) {
-                points.add(point);
-                tiles.add(normalized);
-            }
-        }
-        if (points.size() < 1) {
-            return;
-        }
-        for (int i = 1; i < points.size(); i++) {
-            int[] previous = points.get(i - 1);
-            int[] current = points.get(i);
-            drawLine(previous[0], previous[1], current[0], current[1], ROUTE_LINE_SHADOW, 2.25F);
-            drawLine(previous[0], previous[1], current[0], current[1], ROUTE_LINE_COLOR, 1.25F);
-        }
-        drawRouteSpecialEdgeMarkers(map, tiles, points);
-        for (int i = 0; i < points.size(); i++) {
-            int[] point = points.get(i);
-            if (i == 0) {
-                drawRouteOriginMarker(point[0], point[1]);
-            } else if (i == points.size() - 1) {
-                drawRouteDestinationMarker(point[0], point[1]);
-            } else {
-                drawRouteIntermediatePoint(point[0], point[1]);
-            }
-        }
+        drawMarchingTrack(map,projectRouteMapTiles(routePreviewTiles,KOMEConquestMapOverlay::routeAnchorMapPosition),
+            KOMEMapMarchingTrails.PREVIEW,false);
     }
 
     private static void drawActiveMovementRoutes(LOTRGuiMap map) {
+        if(!companyMovementVisualsVisible())return;
         if (KOMEClientData.INSTANCE.armyMovements.isEmpty() || !ensureTileMaskLoaded()) {
             return;
         }
@@ -2428,54 +2381,85 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 continue;
             }
             KOMEArmyMovementOrder order = (KOMEArmyMovementOrder) object;
-            if (order == null || !order.isMoving() || order.routeTiles.size() < 2) {
-                continue;
-            }
-            List<int[]> points = new ArrayList<int[]>();
-            List<String> tiles = new ArrayList<String>();
-            for (String tile : order.routeTiles) {
-                String normalized = KOMEConquestTile.normalizeId(tile);
-                int[] point = tileAnchorScreenPosition(map, normalized);
-                if (point != null) {
-                    points.add(point);
-                    tiles.add(normalized);
-                }
-            }
-            if (points.size() < 2) {
-                continue;
-            }
-            int currentIndex = Math.max(0, Math.min(order.currentRouteIndex, points.size() - 1));
-            for (int i = 1; i < points.size(); i++) {
-                int[] previous = points.get(i - 1);
-                int[] current = points.get(i);
-                int color = i <= currentIndex ? ROUTE_COMPLETED_COLOR : ROUTE_REMAINING_COLOR;
-                float width = i <= currentIndex ? 1.0F : 1.35F;
-                drawLine(previous[0], previous[1], current[0], current[1], ROUTE_LINE_SHADOW, width + 1.0F);
-                drawLine(previous[0], previous[1], current[0], current[1], color, width);
-            }
-            drawRouteSpecialEdgeMarkers(map, tiles, points);
-            for (int i = 0; i < points.size(); i++) {
-                int[] point = points.get(i);
-                if (i == 0) {
-                    drawRouteOriginMarker(point[0], point[1]);
-                } else if (i == points.size() - 1) {
-                    drawRouteDestinationMarker(point[0], point[1]);
-                } else if (i == currentIndex) {
-                    drawDiamond(point[0], point[1], 4, ROUTE_DARK);
-                    drawDiamond(point[0], point[1], 3, ROUTE_CURRENT_COLOR);
-                } else {
-                    drawRouteIntermediatePoint(point[0], point[1]);
-                }
-            }
+            List<String> remaining=KOMEMapMarchingTrails.remainingTiles(order);
+            if(remaining.size()<2)continue;
+            drawMarchingTrack(map,projectRouteMapTiles(remaining,KOMEConquestMapOverlay::routeAnchorMapPosition),
+                KOMEMapMarchingTrails.ACTIVE,KOMEMapMarchingTrails.animates(order));
         }
     }
 
-    private static void drawRouteSpecialEdgeMarkers(LOTRGuiMap map, List<String> tiles, List<int[]> points) {
-        drawRouteSpecialEdgeMarkers(map,tiles,points,false);
+    private static double[] routeAnchorMapPosition(String tileId){
+        String tile=KOMEConquestTile.normalizeId(tileId);
+        KOMETileWaypointLink link=(KOMETileWaypointLink)KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tile);
+        if(link!=null&&(Math.abs(link.waypointWorldX)>0.001D||Math.abs(link.waypointWorldZ)>0.001D))
+            return new double[]{link.waypointWorldX/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originX,
+                link.waypointWorldZ/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originZ};
+        int[] center=tileCentersById.get(tile);
+        if(center==null||tileRaster==null)return null;
+        return new double[]{center[0]*(double)LOTRGenLayerWorld.imageWidth/tileRaster.width,
+            center[1]*(double)LOTRGenLayerWorld.imageHeight/tileRaster.height};
+    }
+
+    static List<double[]> projectRouteMapTiles(List<String> tiles,java.util.function.Function<String,double[]> anchor){
+        List<double[]> points=new ArrayList<double[]>(tiles.size());
+        for(String tile:tiles)points.add(anchor.apply(KOMEConquestTile.normalizeId(tile)));
+        return points; // Null anchors keep their place; never join nonadjacent legal legs.
+    }
+
+    private static void drawMarchingTrack(LOTRGuiMap map,List<double[]> points,
+            KOMEMapMarchingTrails.Style style,boolean animate){
+        if(points.size()<2)return;
+        KOMEMapViewport view=viewport(map);
+        boolean clipped=GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+        int oldX=0,oldY=0,oldWidth=0,oldHeight=0;
+        if(clipped){territoryScissor.clear();GL11.glGetInteger(GL11.GL_SCISSOR_BOX,territoryScissor);
+            oldX=territoryScissor.get(0);oldY=territoryScissor.get(1);
+            oldWidth=territoryScissor.get(2);oldHeight=territoryScissor.get(3);}
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_SCISSOR_BIT|GL11.GL_COLOR_BUFFER_BIT
+            |GL11.GL_CURRENT_BIT);
+        try{
+            KOMEGuiTheme.enableScissor(KOMEMinecraftClient.get(),(int)view.left,(int)view.top,
+                (int)(view.right-view.left),(int)(view.bottom-view.top));
+            if(clipped){territoryScissor.clear();GL11.glGetInteger(GL11.GL_SCISSOR_BOX,territoryScissor);
+                int x=Math.max(oldX,territoryScissor.get(0)),y=Math.max(oldY,territoryScissor.get(1));
+                int right=Math.min(oldX+oldWidth,territoryScissor.get(0)+territoryScissor.get(2));
+                int bottom=Math.min(oldY+oldHeight,territoryScissor.get(1)+territoryScissor.get(3));
+                GL11.glScissor(x,y,Math.max(0,right-x),Math.max(0,bottom-y));}
+            drawMarchingStroke(points,view,style,animate);
+        }finally{GL11.glPopAttrib();}
+    }
+
+    private static void drawMarchingStroke(List<double[]> points,KOMEMapViewport view,
+            KOMEMapMarchingTrails.Style style,boolean animate){
+        GL11.glDisable(GL11.GL_TEXTURE_2D);GL11.glEnable(GL11.GL_BLEND);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);
+        final int firstColor=style.colorAt(view.zoom,0),futureColor=style.colorAt(view.zoom,1);
+        final int firstLegDashes=animate&&points.get(0)!=null&&points.get(1)!=null
+            ?KOMEMapMarchingTrails.firstLegDashCount(Math.hypot(
+                points.get(1)[0]-points.get(0)[0],points.get(1)[1]-points.get(0)[1])):0;
+        final int illuminated=animate?KOMEMapMarchingTrails.illuminatedDashes(firstLegDashes,
+            System.nanoTime()/1000000L):0;
+        final int[] lastColor={-1};
+        GL11.glBegin(GL11.GL_QUADS);
+        try{
+            KOMEMapMarchingTrails.emitRouteQuadsIndexed(points,view,style.width,
+                (leg,dash,ax,ay,bx,by,cx,cy,dx,dy)->{
+                    int argb=KOMEMapMarchingTrails.colorForDash(firstColor,futureColor,
+                        leg,dash,illuminated,animate);
+                    if(argb!=lastColor[0]){
+                        GL11.glColor4f((argb>>>16&255)/255F,(argb>>>8&255)/255F,
+                            (argb&255)/255F,(argb>>>24&255)/255F);
+                        lastColor[0]=argb;
+                    }
+                    GL11.glVertex2d(ax,ay);GL11.glVertex2d(bx,by);
+                    GL11.glVertex2d(cx,cy);GL11.glVertex2d(dx,dy);
+                });
+        }finally{GL11.glEnd();}
     }
 
     private static void drawRouteSpecialEdgeMarkers(LOTRGuiMap map,List<String> tiles,List<int[]> points,boolean bridges) {
         for (int i = 1; i < tiles.size() && i < points.size(); i++) {
+            if(points.get(i-1)==null||points.get(i)==null)continue;
             KOMEConquestRouteEdge edge = (KOMEConquestRouteEdge) KOMEClientData.INSTANCE.routeEdges.get(KOMEConquestRouteEdge.key(tiles.get(i - 1), tiles.get(i)));
             if (edge == null || !edge.isSpecialPassage()) {
                 continue;
@@ -2494,54 +2478,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             }
             if (KOMEConquestRouteEdge.BRIDGE.equals(edge.edgeType)) {
                 drawGeographyTexture(map,getBridgeMarkerTextureLocation(),markerX,markerY,BRIDGE_MARKER_WIDTH,BRIDGE_MARKER_HEIGHT);
-            } else {
-                drawDiamond(markerX, markerY, 4, ROUTE_DARK);
-                drawDiamond(markerX, markerY, 3, ROUTE_GOLD);
-                drawDiamond(markerX, markerY, 1, ROUTE_DARK);
             }
         }
-    }
-
-    private static void drawRouteIntermediatePoint(int x, int y) {
-        drawDiamond(x, y, 2, ROUTE_DARK);
-        drawDiamond(x, y, 1, ROUTE_GOLD);
-    }
-
-    private static void drawRouteOriginMarker(int x, int y) {
-        drawDiamond(x, y, 4, ROUTE_DARK);
-        drawDiamond(x, y, 3, ROUTE_GOLD);
-        drawDiamond(x, y, 1, 0xFF4B3516);
-    }
-
-    private static void drawRouteDestinationMarker(int x, int y) {
-        drawDiamond(x, y, 5, ROUTE_DARK);
-        drawDiamond(x, y, 4, ROUTE_GOLD);
-        drawDiamond(x, y, 2, ROUTE_DESTINATION);
-    }
-
-    private static void drawDiamond(int centerX, int centerY, int radius, int color) {
-        for (int dy = -radius; dy <= radius; dy++) {
-            int halfWidth = radius - Math.abs(dy);
-            Gui.drawRect(centerX - halfWidth, centerY + dy, centerX + halfWidth + 1, centerY + dy + 1, color);
-        }
-    }
-
-    private static void drawLine(int x1, int y1, int x2, int y2, int argb, float width) {
-        float alpha = (argb >>> 24 & 255) / 255.0F;
-        float red = (argb >>> 16 & 255) / 255.0F;
-        float green = (argb >>> 8 & 255) / 255.0F;
-        float blue = (argb & 255) / 255.0F;
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_LINE_BIT);
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glLineWidth(width);
-        GL11.glColor4f(red, green, blue, alpha);
-        GL11.glBegin(GL11.GL_LINES);
-        GL11.glVertex2d(x1, y1);
-        GL11.glVertex2d(x2, y2);
-        GL11.glEnd();
-        GL11.glPopAttrib();
     }
 
     private static void drawRoutePreviewPanel(LOTRGuiMap map, int mouseX, int mouseY) {
@@ -2559,7 +2497,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             + " | " + routePreviewMove.distanceTiles + " step(s) | allowance "
             + routePreviewMove.remainingAllowance + "/" + routePreviewMove.tilesPerDay;
         font.drawString(KOMEGuiTheme.trimToWidth(font, route, w - 20), x + 10, y + 25, 0xFFFFFFFF);
-        font.drawString(KOMEGuiTheme.trimToWidth(font, formatRoutePreviewTiles(), w - 20), x + 10, y + 39, 0xFFBFE8FF);
+        font.drawString(KOMEGuiTheme.trimToWidth(font, routePreviewDisplayText(), w - 20), x + 10, y + 39, 0xFFBFE8FF);
         font.drawString(KOMEGuiTheme.trimToWidth(font, routePreviewMove.movementStatusText, w - 20),
             x + 10, y + 52, 0xFFBFA77A);
         String boundary = routePreviewMove.requiredMovementBoundaries == 0 ? "Arrival can complete with current allowance"
@@ -2570,6 +2508,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             + routePreviewMove.estimatedCompletionText, w - 220), x + 10, y + 80, 0xFFBFA77A);
         drawRouteButton(routeConfirmButtonX(), routeButtonY(), 92, 18, "Confirm", isOverRouteConfirmButton(map, mouseX, mouseY), 0xDD2E5D27);
         drawRouteButton(routeCancelButtonX(), routeButtonY(), 92, 18, "Cancel", isOverRouteCancelButton(map, mouseX, mouseY), 0xDD4F2A2A);
+    }
+
+    static boolean companyMovementVisualsVisible(){return showTroopMarkers;}
+
+    static String routePreviewDisplayText(){
+        return companyMovementVisualsVisible()?formatRoutePreviewTiles()
+            :"Route line hidden (show troop markers to view)";
     }
 
     private static void drawRouteButton(int x, int y, int w, int h, String label, boolean hover, int fill) {

@@ -87,12 +87,59 @@ public class KOMEMapLabelPassTest {
         assertBooleanCall(layer,"drawRouteEdgeMarkers",true);
         assertBooleanCall(method("drawRouteBridgeIcons"),"drawRouteSpecialEdgeMarkers",true);
         assertBooleanCall(method("drawRouteEdgeMarkers"),"drawRouteEdgeMarkers",false);
-        assertBooleanCall(method("drawRouteSpecialEdgeMarkers"),"drawRouteSpecialEdgeMarkers",false);
+        assertEquals("Route-specific geography never restores old passage diamonds",0,
+            count(method("drawRouteSpecialEdgeMarkers"),"drawDiamond"));
+        assertEquals("Active bridge icons follow committed remaining route",1,count(layer,"remainingTiles"));
         for(String type:new String[]{kome.common.data.KOMEConquestRouteEdge.BRIDGE,kome.common.data.KOMEConquestRouteEdge.MOUNTAIN_PASS}) {
             kome.common.data.KOMEConquestRouteEdge edge=new kome.common.data.KOMEConquestRouteEdge();edge.edgeType=type;
             assertEquals(type.equals(kome.common.data.KOMEConquestRouteEdge.BRIDGE),KOMEConquestMapOverlay.geographyEdgePass(edge,true));
             assertNotEquals(KOMEConquestMapOverlay.geographyEdgePass(edge,true),KOMEConquestMapOverlay.geographyEdgePass(edge,false));
         }
+    }
+
+    @Test public void productionRoutePassUsesRemainingTilesAndNoHistoricalDiamonds()throws Exception {
+        MethodNode active=method("drawActiveMovementRoutes");
+        assertEquals(1,count(active,"remainingTiles"));
+        assertEquals(1,count(active,"projectRouteMapTiles"));
+        assertEquals(1,count(active,"drawMarchingTrack"));
+        MethodNode preview=method("drawRoutePreview");
+        assertEquals(1,count(preview,"drawMarchingTrack"));
+        assertEquals(1,count(preview,"projectRouteMapTiles"));
+        assertEquals(1,count(method("drawCompanyDestinationPreview"),"drawMarchingTrack"));
+        for(String obsolete:new String[]{"drawRouteOriginMarker","drawRouteIntermediatePoint","drawDiamond"}){
+            assertEquals(obsolete,0,count(active,obsolete));
+            assertEquals(obsolete,0,count(preview,obsolete));
+        }
+        assertEquals("No route-specific destination diamond",0,
+            count(method("drawMarchingTrack"),"drawRouteDestinationMarker"));
+        assertEquals("A route has one colored stroke, without a dark underlay",1,
+            count(method("drawMarchingTrack"),"drawMarchingStroke"));
+        assertEquals(0,count(method("drawMarchingStroke"),"glLineWidth"));
+        assertEquals(1,count(method("drawMarchingStroke"),"glBegin"));
+        assertEquals(1,count(method("drawMarchingStroke"),"emitRouteQuadsIndexed"));
+        assertTrue("Committed orders use the active per-leg style",hasField(active,"ACTIVE"));
+        assertTrue("Unsubmitted routes use the opaque preview style",hasField(preview,"PREVIEW"));
+        for(AbstractInsnNode step:method("drawMarchingStroke").instructions.toArray())
+            if(step instanceof MethodInsnNode&&((MethodInsnNode)step).name.equals("glBegin"))
+                assertEquals("Reliable GUI-pixel thickness uses filled quads",GL11.GL_QUADS,number(previous(step)));
+    }
+    @Test public void troopDisplayPreferenceOwnsEveryCompanyRouteVisualButNotGeography() throws Exception {
+        for(String method:new String[]{"drawActiveMovementRoutes","drawRoutePreview",
+                "drawCompanyDestinationPreview","drawRouteBridgeIcons"})
+            assertEquals(method,1,count(method(method),"companyMovementVisualsVisible"));
+        assertEquals(0,count(method("drawRouteEdgeMarkers"),"companyMovementVisualsVisible"));
+        assertEquals(0,count(method("drawAutomaticBridgeMarkers"),"companyMovementVisualsVisible"));
+        assertEquals(0,count(method("drawAutomaticRiverBlockMarkers"),"companyMovementVisualsVisible"));
+        assertEquals(1,count(method("drawRoutePreviewPanel"),"routePreviewDisplayText"));
+        Field visibility=field("showTroopMarkers");boolean previous=visibility.getBoolean(null);
+        try {
+            visibility.setBoolean(null,false);
+            assertFalse(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+            assertTrue(KOMEConquestMapOverlay.routePreviewDisplayText().contains("hidden"));
+            visibility.setBoolean(null,true);
+            assertTrue(KOMEConquestMapOverlay.companyMovementVisualsVisible());
+            assertFalse(KOMEConquestMapOverlay.routePreviewDisplayText().contains("hidden"));
+        }finally{visibility.setBoolean(null,previous);}
     }
 
     private static void assertBooleanCall(MethodNode method,String name,boolean value) {
@@ -201,6 +248,7 @@ public class KOMEMapLabelPassTest {
     private static Field field(String name)throws Exception{Field field=KOMEConquestMapOverlay.class.getDeclaredField(name);field.setAccessible(true);return field;}
     private static MethodNode method(String name)throws Exception{ClassNode node=new ClassNode();try(InputStream in=KOMEConquestMapOverlay.class.getResourceAsStream("KOMEConquestMapOverlay.class")){new ClassReader(in).accept(node,0);}for(MethodNode method:node.methods)if(method.name.equals(name))return method;throw new AssertionError(name);}
     private static int count(MethodNode method,String name){int count=0;for(AbstractInsnNode step:method.instructions.toArray())if(step instanceof MethodInsnNode&&((MethodInsnNode)step).name.equals(name))count++;return count;}
+    private static boolean hasField(MethodNode method,String name){for(AbstractInsnNode step:method.instructions.toArray())if(step instanceof FieldInsnNode&&((FieldInsnNode)step).name.equals(name))return true;return false;}
     private static AbstractInsnNode previous(AbstractInsnNode step){do{step=step.getPrevious();}while(step!=null&&step.getOpcode()<0);return step;}
     private static AbstractInsnNode next(AbstractInsnNode step){do{step=step.getNext();}while(step!=null&&step.getOpcode()<0);return step;}
     private static int number(AbstractInsnNode step){return step instanceof LdcInsnNode?((Number)((LdcInsnNode)step).cst).intValue():((IntInsnNode)step).operand;}
