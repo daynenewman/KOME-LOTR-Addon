@@ -115,5 +115,39 @@ public class KOMEMapControlRendererTest {
         assertEquals(1,KOMEMapControlRenderer.spriteRow(7,false,true,style,
             KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES));
     }
+    @Test public void tooltipControlUsesPaintedTenthColumnAndNativeBounds()throws Exception {
+        BufferedImage sheet=ImageIO.read(new File("src/main/resources/assets/kome/textures/gui/map_button_icons.png"));
+        for(int row=0;row<4;row++){
+            boolean painted=false;
+            for(int y=row*8;y<row*8+8;y++)for(int x=72;x<80;x++)
+                painted|=(sheet.getRGB(x,y)>>>24)!=0;
+            assertTrue("Tooltip state row "+row+" must use owner-painted artwork",painted);
+        }
+        KOMEClientConfig.MapTooltipMode[] modes={KOMEClientConfig.MapTooltipMode.IMMEDIATE,
+            KOMEClientConfig.MapTooltipMode.DELAYED,KOMEClientConfig.MapTooltipMode.OFF};
+        for(int row=0;row<3;row++){
+            final int expected=row*8;
+            assertEquals(row,KOMEMapControlRenderer.tooltipSpriteRow(modes[row],true));
+            KOMEMapControlRenderer.tooltipPictogram(10,20,modes[row],true,(x,y,w,h,u,v)->{
+                assertEquals(11,x);assertEquals(21,y);assertEquals(8,w);assertEquals(8,h);
+                assertEquals(72,u);assertEquals(expected,v);
+            });
+        }
+        assertEquals(3,KOMEMapControlRenderer.tooltipSpriteRow(KOMEClientConfig.MapTooltipMode.OFF,false));
+        KOMEMapControlRenderer.tooltipPictogram(10,20,KOMEClientConfig.MapTooltipMode.OFF,false,(x,y,w,h,u,v)->{
+            assertEquals(72,u);assertEquals(24,v);
+        });
+        KOMEMapControlRenderer.artwork(9,10,20,true,(x,y,w,h,u,v)->{
+            assertEquals(10,w);
+            assertTrue(x>=10&&x+w<=20&&y>=20&&y+h<=30);
+        });
+    }
+    @Test public void tooltipControlDrawsNoPlaceholderLetters()throws Exception {
+        for(MethodNode method:node(KOMEConquestMapOverlay.class).methods)if(method.name.equals("drawToggleButtons"))
+            for(AbstractInsnNode step:method.instructions.toArray())if(step instanceof MethodInsnNode){
+                MethodInsnNode call=(MethodInsnNode)step;
+                assertFalse("Painted tooltip sprites must not receive code-drawn letters",call.name.equals("drawString"));
+            }
+    }
     private static ClassNode node(Class<?> type)throws Exception{ClassNode node=new ClassNode();try(InputStream in=type.getResourceAsStream(type.getSimpleName()+".class")){new ClassReader(in).accept(node,0);}return node;}
 }

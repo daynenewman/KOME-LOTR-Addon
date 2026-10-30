@@ -22,6 +22,34 @@ public class KOMEMapInputTransformerTest {
             assertHooks(bytes.toByteArray(),true);
         }
     }
+    @Test public void questHoverSuppressionNeverSkipsProgressionIconsInEitherTransformerOrder()throws Exception {
+        List<byte[]> originals=new ArrayList<byte[]>();
+        originals.add(KOMEVisualLocationTransformerTest.readResource("/lotr/client/gui/LOTRGuiMap.class"));
+        try(ZipFile jar=new ZipFile("libs/LOTRMod v36.15.jar");
+                InputStream in=jar.getInputStream(jar.getEntry("lotr/client/gui/LOTRGuiMap.class"))){
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();byte[] chunk=new byte[8192];
+            for(int n;(n=in.read(chunk))!=-1;)bytes.write(chunk,0,n);
+            originals.add(bytes.toByteArray());
+        }
+        KOMEMapInputTransformer input=new KOMEMapInputTransformer();
+        KOMEVisualLocationTransformer visual=new KOMEVisualLocationTransformer();
+        for(byte[] original:originals){byte[][] versions={visual.transform(KOMEVisualLocationTransformer.MAP,KOMEVisualLocationTransformer.MAP,
+                input.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,original)),
+            input.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,
+                visual.transform(KOMEVisualLocationTransformer.MAP,KOMEVisualLocationTransformer.MAP,original))};
+        for(byte[] version:versions){
+            ClassNode map=node(version);MethodNode quests=method(map,"renderMiniQuests");
+            new Analyzer<BasicValue>(new BasicVerifier()).analyze(map.name,quests);
+            boolean hover=false,progression=false;
+            for(AbstractInsnNode step:quests.instructions.toArray())if(step instanceof MethodInsnNode){
+                MethodInsnNode call=(MethodInsnNode)step;
+                if("allowNativeQuestTooltip".equals(call.name))hover=true;
+                if("renderMapMarkers".equals(call.name))progression=true;
+            }
+            assertTrue(hover&&progression);
+        }
+        }
+    }
     @Test public void unrelatedAndDedicatedServerClassesAreUntouched() {
         KOMEMapInputTransformer transformer=new KOMEMapInputTransformer();byte[] bytes={1,2,3};
         assertSame(bytes,transformer.transform("net.minecraft.server.MinecraftServer","net.minecraft.server.MinecraftServer",bytes));
@@ -36,8 +64,8 @@ public class KOMEMapInputTransformerTest {
         byte[] transformed=transformer.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,original);
         assertArrayEquals(transformed,transformer.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,transformed));
         ClassNode before=node(original),after=node(transformed);
-        String[] methods=srg?new String[]{"func_73864_a","func_73869_a","func_73863_a","renderWaypointTooltip","func_146274_d"}:new String[]{"mouseClicked","keyTyped","drawScreen","renderWaypointTooltip","handleMouseInput"};
-        String[] hooks={"onMapMouseClicked","onMapKeyTyped","isMapDragButtonDown","suppressMapInspection","mapMouseWheel"};
+        String[] methods=srg?new String[]{"func_73864_a","func_73869_a","func_73863_a","renderWaypointTooltip","func_146274_d","renderMapWidgets","renderMiniQuests","renderPlayers"}:new String[]{"mouseClicked","keyTyped","drawScreen","renderWaypointTooltip","handleMouseInput","renderMapWidgets","renderMiniQuests","renderPlayers"};
+        String[] hooks={"onMapMouseClicked","onMapKeyTyped","isMapDragButtonDown","suppressNativeWaypointTooltip","mapMouseWheel","allowNativeWidgetTooltip","allowNativeQuestTooltip","allowNativePlayerTooltip"};
         for(int i=0;i<methods.length;i++) {
             MethodNode old=method(before,methods[i]),current=method(after,methods[i]);
             new Analyzer<BasicValue>(new BasicVerifier()).analyze(after.name,current);
@@ -59,7 +87,7 @@ public class KOMEMapInputTransformerTest {
                         continue;
                     }
                     assertEquals(i == 0 && "onMapSelectorMouseClicked".equals(hook.name) ? "onMapSelectorMouseClicked" : hooks[i],hook.name);
-                    if(i!=2 && i!=4) {
+                    if(i!=2 && i!=4 && i!=5 && i!=6 && i!=7) {
                         AbstractInsnNode branch=next(instruction);assertEquals(Opcodes.IFEQ,branch.getOpcode());assertEquals(Opcodes.RETURN,next(branch).getOpcode());
                         assertTrue(current.instructions.indexOf(instruction)<current.instructions.indexOf(((JumpInsnNode)branch).label));
                     }
@@ -79,6 +107,42 @@ public class KOMEMapInputTransformerTest {
         }
         assertTrue("Only panel rectangles and rendered radial cells precede native picking",selector>=0 && selector<pick);
         assertTrue("Unowned native waypoint selection precedes tile-context handling",pick>=0 && pick<radial && radial<base);
+        MethodNode waypointHelp=method(after,"renderWaypointTooltip");
+        boolean passedSelected=false;
+        for(AbstractInsnNode instruction=waypointHelp.instructions.getFirst();instruction!=null;instruction=instruction.getNext())
+            if(instruction instanceof MethodInsnNode&&"suppressNativeWaypointTooltip".equals(((MethodInsnNode)instruction).name)){
+                assertEquals("(Llotr/client/gui/LOTRGuiMap;Llotr/common/world/map/LOTRAbstractWaypoint;ZII)Z",((MethodInsnNode)instruction).desc);
+                AbstractInsnNode cursor=instruction;
+                for(int variable=4;variable>=0;variable--){
+                    cursor=previous(cursor);
+                    assertEquals(variable<2?Opcodes.ALOAD:Opcodes.ILOAD,cursor.getOpcode());
+                    assertEquals(variable,((VarInsnNode)cursor).var);
+                }
+                passedSelected=true;
+            }
+        assertTrue(passedSelected);
+        MethodNode questHover=method(after,"renderMiniQuests");
+        int questGate=-1,questName=-1,questIcon=-1;
+        for(AbstractInsnNode instruction=questHover.instructions.getFirst();instruction!=null;instruction=instruction.getNext()){
+            if(instruction instanceof MethodInsnNode){MethodInsnNode call=(MethodInsnNode)instruction;
+                if("allowNativeQuestTooltip".equals(call.name))questGate=questHover.instructions.indexOf(call);
+                if("func_82406_b".equals(call.name)||"renderItemAndEffectIntoGUI".equals(call.name))
+                    questIcon=questHover.instructions.indexOf(call);
+            }
+            if(instruction instanceof FieldInsnNode&&"entityName".equals(((FieldInsnNode)instruction).name))
+                questName=questHover.instructions.indexOf(instruction);
+        }
+        assertTrue("Native Red Book icon remains before the hover-only text gate",
+            questIcon>=0&&questIcon<questGate&&questGate<questName);
+        MethodNode playerHover=method(after,"renderPlayers");
+        int icon=-1,gate=-1,box=-1;
+        for(AbstractInsnNode instruction=playerHover.instructions.getFirst();instruction!=null;instruction=instruction.getNext())
+            if(instruction instanceof MethodInsnNode){String name=((MethodInsnNode)instruction).name;
+                if("renderPlayerIcon".equals(name))icon=playerHover.instructions.indexOf(instruction);
+                if("allowNativePlayerTooltip".equals(name))gate=playerHover.instructions.indexOf(instruction);
+                if("drawFancyRect".equals(name))box=playerHover.instructions.indexOf(instruction);
+            }
+        assertTrue("Native player icons remain before their hover-only name box",icon>=0&&icon<gate&&gate<box);
         assertEquals(before.methods.size(),after.methods.size());
         for (MethodNode old : before.methods) {
             if (Arrays.asList(methods).contains(old.name)) continue;

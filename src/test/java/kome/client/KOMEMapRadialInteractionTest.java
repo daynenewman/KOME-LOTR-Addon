@@ -526,6 +526,22 @@ public class KOMEMapRadialInteractionTest {
         java.lang.reflect.Method y=KOMEConquestMapOverlay.class.getDeclaredMethod("territoryControlY",int.class);y.setAccessible(true);
         assertEquals(14,(int)(Integer)y.invoke(null,1)-(int)(Integer)y.invoke(null,0));
     }
+    @Test public void tooltipButtonUsesFifthNativeRowAndCyclesWithoutMapAction()throws Exception {
+        KOMEClientConfig.MapTooltipMode prior=KOMEConquestMapOverlay.tooltipMode();
+        java.lang.reflect.Method hit=KOMEConquestMapOverlay.class.getDeclaredMethod("tooltipControlAt",int.class,int.class);
+        hit.setAccessible(true);
+        try{
+            KOMEConquestMapOverlay.applyTooltipMode(KOMEClientConfig.MapTooltipMode.DELAYED);
+            assertEquals(true,hit.invoke(null,6,90));assertEquals(true,hit.invoke(null,15,99));
+            assertEquals(false,hit.invoke(null,16,90));assertEquals(false,hit.invoke(null,6,100));
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,9,93,0));
+            assertEquals(KOMEClientConfig.MapTooltipMode.OFF,KOMEConquestMapOverlay.tooltipMode());
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,9,93,0));
+            assertEquals(KOMEClientConfig.MapTooltipMode.IMMEDIATE,KOMEConquestMapOverlay.tooltipMode());
+            assertFalse(menu.isOpen());assertTrue(network.sent.isEmpty());
+            assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+        }finally{KOMEConquestMapOverlay.applyTooltipMode(prior);}
+    }
 
     @Test public void rightColumnAlignsWithNativeEdgeBelowWaypointActionsAndBuildClickPersists()throws Exception {
         java.lang.reflect.Method x=KOMEConquestMapOverlay.class.getDeclaredMethod("toggleButtonX",int.class);x.setAccessible(true);

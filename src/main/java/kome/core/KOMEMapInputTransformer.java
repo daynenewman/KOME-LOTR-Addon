@@ -16,7 +16,10 @@ public final class KOMEMapInputTransformer implements IClassTransformer {
         MethodNode key = method(node, "keyTyped", "func_73869_a", "(CI)V");
         MethodNode draw = method(node, "drawScreen", "func_73863_a", "(IIF)V");
         MethodNode tooltip = method(node, "renderWaypointTooltip", "renderWaypointTooltip", "(Llotr/common/world/map/LOTRAbstractWaypoint;ZII)V");
-        if (hasHook(wheel,"mapMouseWheel") && hasHook(mouse, "onMapSelectorMouseClicked") && hasHook(mouse, "onMapMouseClicked") && hasHook(mouse, "onNativeWaypointClick") && hasHook(key, "onMapKeyTyped") && hasHook(draw, "isMapDragButtonDown") && hasHook(tooltip, "suppressMapInspection")) return bytes;
+        MethodNode widgets = method(node,"renderMapWidgets","renderMapWidgets","(II)V");
+        MethodNode quests = method(node,"renderMiniQuests","renderMiniQuests","(Lnet/minecraft/entity/player/EntityPlayer;II)V");
+        MethodNode players = method(node,"renderPlayers","renderPlayers","(II)V");
+        if (hasHook(wheel,"mapMouseWheel") && hasHook(mouse, "onMapSelectorMouseClicked") && hasHook(mouse, "onMapMouseClicked") && hasHook(mouse, "onNativeWaypointClick") && hasHook(key, "onMapKeyTyped") && hasHook(draw, "isMapDragButtonDown") && hasHook(tooltip, "suppressNativeWaypointTooltip") && hasHook(widgets,"allowNativeWidgetTooltip") && hasHook(quests,"allowNativeQuestTooltip") && hasHook(players,"allowNativePlayerTooltip")) return bytes;
         if (!hasHook(mouse, "onMapSelectorMouseClicked")) {
             InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0));
             for (int local = 1; local <= 3; local++) call.add(new VarInsnNode(Opcodes.ILOAD, local));
@@ -79,11 +82,93 @@ public final class KOMEMapInputTransformer implements IClassTransformer {
             draw.instructions.insertBefore(poll, new VarInsnNode(Opcodes.ALOAD, 0));
             poll.owner = HOOK; poll.name = "isMapDragButtonDown"; poll.desc = "(ILlotr/client/gui/LOTRGuiMap;)Z";
         }
-        if (!hasHook(tooltip, "suppressMapInspection")) {
-            // Hide only the information block. Native waypoint markers, selection, and travel are untouched.
+        if (!hasHook(tooltip, "suppressNativeWaypointTooltip")) {
+            // The native boolean distinguishes selected/click-opened information from hover text.
             InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            call.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, "suppressMapInspection", "(Llotr/client/gui/LOTRGuiMap;)Z", false));
+            call.add(new VarInsnNode(Opcodes.ALOAD,1));call.add(new VarInsnNode(Opcodes.ILOAD,2));
+            call.add(new VarInsnNode(Opcodes.ILOAD,3));call.add(new VarInsnNode(Opcodes.ILOAD,4));
+            call.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, "suppressNativeWaypointTooltip", "(Llotr/client/gui/LOTRGuiMap;Llotr/common/world/map/LOTRAbstractWaypoint;ZII)Z", false));
             consumeOrContinue(tooltip, call);
+        }
+        if(!hasHook(widgets,"allowNativeWidgetTooltip")){
+            MethodInsnNode help=null;
+            for(AbstractInsnNode insn=widgets.instructions.getFirst();insn!=null;insn=insn.getNext())
+                if(insn instanceof MethodInsnNode){MethodInsnNode m=(MethodInsnNode)insn;
+                    if("func_146283_a".equals(m.name)&&"(Ljava/util/List;II)V".equals(m.desc)){
+                        if(help!=null)throw new IllegalStateException("LOTR map widget help ambiguous");help=m;
+                    }
+                }
+            if(help==null)throw new IllegalStateException("LOTR v36.15 widget help missing");
+            AbstractInsnNode start=previous(previous(previous(previous(help))));
+            if(!(start instanceof VarInsnNode)||start.getOpcode()!=Opcodes.ALOAD||((VarInsnNode)start).var!=0)
+                throw new IllegalStateException("LOTR v36.15 widget help stack changed");
+            LabelNode skip=new LabelNode();InsnList gate=new InsnList();
+            gate.add(new VarInsnNode(Opcodes.ALOAD,0));gate.add(new VarInsnNode(Opcodes.ALOAD,3));
+            gate.add(new VarInsnNode(Opcodes.ILOAD,1));gate.add(new VarInsnNode(Opcodes.ILOAD,2));
+            gate.add(new MethodInsnNode(Opcodes.INVOKESTATIC,HOOK,"allowNativeWidgetTooltip","(Llotr/client/gui/LOTRGuiMap;Llotr/client/gui/LOTRGuiMapWidget;II)Z",false));
+            gate.add(new JumpInsnNode(Opcodes.IFEQ,skip));widgets.instructions.insertBefore(start,gate);
+            widgets.instructions.insert(help,skip);
+        }
+        if(!hasHook(quests,"allowNativeQuestTooltip")){
+            FieldInsnNode questName=null;AbstractInsnNode end=null,progressionDraw=null;
+            for(AbstractInsnNode insn=quests.instructions.getFirst();insn!=null;insn=insn.getNext()){
+                if(insn instanceof FieldInsnNode){FieldInsnNode f=(FieldInsnNode)insn;
+                    if("lotr/common/quest/LOTRMiniQuest".equals(f.owner)&&"entityName".equals(f.name)){
+                        if(questName!=null)throw new IllegalStateException("LOTR map quest hover is ambiguous");questName=f;
+                    }
+                }
+                if(insn instanceof MethodInsnNode){MethodInsnNode m=(MethodInsnNode)insn;
+                    if("kome/client/KOMEVisualRenderBridge".equals(m.owner)&&"renderMapMarkers".equals(m.name))
+                        progressionDraw=insn;
+                }
+                if(insn.getOpcode()==Opcodes.RETURN)end=insn;
+            }
+            AbstractInsnNode start=questName==null?null:previous(questName);
+            if(!(start instanceof VarInsnNode)||start.getOpcode()!=Opcodes.ALOAD||((VarInsnNode)start).var!=4||end==null)
+                throw new IllegalStateException("LOTR v36.15 quest hover seam changed");
+            // Keep progression icons on both paths regardless of transformer order;
+            // only native quest hover text is skipped.
+            boolean progressionAfterHover=progressionDraw!=null
+                && quests.instructions.indexOf(progressionDraw)>quests.instructions.indexOf(start);
+            AbstractInsnNode continuation=progressionAfterHover?progressionDraw:end;
+            if(progressionAfterHover){
+                for(int local=3;local>=0;local--){continuation=previous(continuation);
+                    if(!(continuation instanceof VarInsnNode)||((VarInsnNode)continuation).var!=local
+                            ||continuation.getOpcode()!=(local<2?Opcodes.ALOAD:Opcodes.ILOAD))
+                        throw new IllegalStateException("KOME progression marker continuation changed");
+                }
+            }
+            LabelNode skip=new LabelNode();quests.instructions.insertBefore(continuation,skip);
+            InsnList gate=new InsnList();gate.add(new VarInsnNode(Opcodes.ALOAD,0));
+            gate.add(new VarInsnNode(Opcodes.ALOAD,4));gate.add(new VarInsnNode(Opcodes.ILOAD,2));
+            gate.add(new VarInsnNode(Opcodes.ILOAD,3));
+            gate.add(new MethodInsnNode(Opcodes.INVOKESTATIC,HOOK,"allowNativeQuestTooltip",
+                "(Llotr/client/gui/LOTRGuiMap;Llotr/common/quest/LOTRMiniQuest;II)Z",false));
+            gate.add(new JumpInsnNode(Opcodes.IFEQ,skip));quests.instructions.insertBefore(start,gate);
+        }
+        if(!hasHook(players,"allowNativePlayerTooltip")){
+            FieldInsnNode loading=null;AbstractInsnNode end=null;
+            for(AbstractInsnNode insn=players.instructions.getFirst();insn!=null;insn=insn.getNext()){
+                if(insn instanceof FieldInsnNode&&"loadingConquestGrid".equals(((FieldInsnNode)insn).name)){
+                    if(loading!=null)throw new IllegalStateException("LOTR player hover gate is ambiguous");
+                    loading=(FieldInsnNode)insn;
+                }
+                if(insn.getOpcode()==Opcodes.RETURN)end=insn;
+            }
+            AbstractInsnNode branch=loading==null?null:loading.getNext();
+            while(branch!=null&&branch.getOpcode()<0)branch=branch.getNext();
+            if(!(branch instanceof JumpInsnNode)||branch.getOpcode()!=Opcodes.IFNE||end==null)
+                throw new IllegalStateException("LOTR v36.15 player hover seam changed");
+            AbstractInsnNode start=branch.getNext();while(start!=null&&start.getOpcode()<0)start=start.getNext();
+            if(!(start instanceof VarInsnNode)||start.getOpcode()!=Opcodes.ALOAD||((VarInsnNode)start).var!=0)
+                throw new IllegalStateException("LOTR v36.15 player hover body changed");
+            LabelNode skip=new LabelNode();players.instructions.insertBefore(end,skip);
+            InsnList gate=new InsnList();gate.add(new VarInsnNode(Opcodes.ALOAD,0));
+            gate.add(new VarInsnNode(Opcodes.ALOAD,3));gate.add(new VarInsnNode(Opcodes.ILOAD,1));
+            gate.add(new VarInsnNode(Opcodes.ILOAD,2));
+            gate.add(new MethodInsnNode(Opcodes.INVOKESTATIC,HOOK,"allowNativePlayerTooltip",
+                "(Llotr/client/gui/LOTRGuiMap;Ljava/lang/String;II)Z",false));
+            gate.add(new JumpInsnNode(Opcodes.IFEQ,skip));players.instructions.insertBefore(start,gate);
         }
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS); node.accept(writer); return writer.toByteArray();
     }

@@ -40,6 +40,16 @@ final class KOMEMapControlRenderer extends GuiScreen {
             KOMEMapPreferences.CompanyDisplay companyDisplay,Artwork sink) {
         sink.blit(x+1,y+1,ICON_CELL,ICON_CELL,control*ICON_CELL,spriteRow(control,active,interactive,style,companyDisplay)*ICON_CELL);
     }
+    /** Column 9 contains the four owner-painted map hover mode sprites. */
+    static int tooltipSpriteRow(KOMEClientConfig.MapTooltipMode mode,boolean interactive) {
+        if(!interactive)return 3;
+        return mode==KOMEClientConfig.MapTooltipMode.IMMEDIATE?0:
+            mode==KOMEClientConfig.MapTooltipMode.OFF?2:1;
+    }
+    static void tooltipPictogram(int x,int y,KOMEClientConfig.MapTooltipMode mode,boolean interactive,Artwork sink) {
+        sink.blit(x+1,y+1,ICON_CELL,ICON_CELL,9*ICON_CELL,
+            tooltipSpriteRow(mode,interactive)*ICON_CELL);
+    }
     static void draw(int control,int x,int y,boolean active,boolean interactive,KOMETerritoryStyle style) {
         draw(control,x,y,active,interactive,style,
             active?KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY:KOMEMapPreferences.CompanyDisplay.HIDE_COMPANIES);
@@ -55,6 +65,19 @@ final class KOMEMapControlRenderer extends GuiScreen {
             artwork(control,x,y,interactive,KOMEMapControlRenderer::blit);tess.draw();
             KOMEMinecraftClient.textureManager().bindTexture(ICON_ATLAS);tess.startDrawingQuads();
             pictogram(control,x,y,active,interactive,style,companyDisplay,(xx,yy,w,h,u,v)->blit(xx,yy,w,h,u,v,ICON_WIDTH,ICON_HEIGHT));
+            tess.draw();
+        } finally {GL11.glPopAttrib();}
+    }
+    static void drawTooltipControl(int x,int y,KOMEClientConfig.MapTooltipMode mode,boolean interactive) {
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_CURRENT_BIT|GL11.GL_TEXTURE_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_DEPTH_BUFFER_BIT);
+        try {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);GL11.glDepthMask(false);GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_BLEND);GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);GL11.glColor4f(1,1,1,1);
+            KOMEMinecraftClient.textureManager().bindTexture(ATLAS);
+            Tessellator tess=Tessellator.instance;tess.startDrawingQuads();
+            artwork(9,x,y,interactive,KOMEMapControlRenderer::blit);tess.draw();
+            KOMEMinecraftClient.textureManager().bindTexture(ICON_ATLAS);tess.startDrawingQuads();
+            tooltipPictogram(x,y,mode,interactive,(xx,yy,w,h,u,v)->blit(xx,yy,w,h,u,v,ICON_WIDTH,ICON_HEIGHT));
             tess.draw();
         } finally {GL11.glPopAttrib();}
     }

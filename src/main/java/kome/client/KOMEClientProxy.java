@@ -78,6 +78,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEClientConfig clientConfig = new KOMEClientConfig(new java.io.File(
             cpw.mods.fml.common.Loader.instance().getConfigDir(), "kome-client.cfg"));
         KOMEConquestMapOverlay.applyMapPreferences(clientConfig.mapPreferences());
+        KOMEConquestMapOverlay.applyTooltipMode(clientConfig.mapTooltipMode());
         currentTileHud = new KOMECurrentTileHud(net.minecraft.client.Minecraft.getMinecraft(), clientConfig);
         cpw.mods.fml.client.registry.ClientRegistry.registerKeyBinding(currentTileHud.toggle);
         ((net.minecraft.client.resources.IReloadableResourceManager)

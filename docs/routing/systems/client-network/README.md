@@ -3,6 +3,35 @@
 [Index](../../INDEX.md)
 
 The current matching-artifact protocol is `1.0.9-integration-g20`.
+KOM-85 map hover text now has an installation-local `map.tooltipMode` preference
+(`IMMEDIATE`, `DELAYED`, `OFF`; default `DELAYED` at 500 ms). A 10 x 10 native-framed
+icon control below the left map controls cycles it without changing company display
+or map input. Column 9 of the owner-editable button atlas is reserved for its four
+states; the owner-painted atlas cells show the selected state without a text overlay.
+KOME uses one current hover identity and a monotonic client clock, resetting on a
+different target or map/session; the existing ordered marker traversal still owns
+company and Build picking. Native LOTR v36.15 waypoint hover text uses the existing
+verified tooltip-method hook with its selected-waypoint flag, so click-selected
+waypoint information remains available in `OFF`. The separately verified widget
+help-text call is gated after native widget drawing and hit testing. The native Red
+Book miniquest icon loop is retained and only the verified post-loop hover-text
+block is gated. Native player-location icons likewise remain drawn while their
+separate post-loop name box follows the same preference. KOME progression and ruler map icons continue to render while their
+separate hover text shares frame-local ownership with quest, waypoint and widget
+hover. Native widget artwork and clicks are untouched. The map-side Units/destination
+help follows the same preference, while radial action text and click inspection
+remain available.
+
+Marker hover ownership follows interactive layers: controls and panels suppress
+underlying map hover; a company face wins over native map markers at its actual
+hitbox. Among remaining map markers, native player names, KOME progression/ruler,
+Red Book quests, and waypoints claim hover in their verified render order, and
+later candidates cannot draw competing text. Native widgets own their own hitboxes
+and help. The native selected-waypoint path bypasses hover preference; the
+Red Book's separate quest interface is untouched.
+This is client-only presentation: g20 packets, recipient projection and command authority
+are unchanged. Headless transformer tests cover the bundled native bytecode;
+live visual acceptance is still required.
 KOM-85 Stage 2A extends the fixed unit-map-marker payload with two optional saved-equipment
 item registry IDs plus metadata, movement entitlement, and unused daily-credit state. The
 server derives these only during the existing marker publication, from present committed

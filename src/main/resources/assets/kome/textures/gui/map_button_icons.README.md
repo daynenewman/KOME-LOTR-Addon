@@ -2,7 +2,7 @@
 
 Edit `map_button_icons.png` directly, keeping its **128 x 32 RGBA** canvas and transparent background. No Java changes are needed to replace the symbols. Use a pixel editor with nearest-neighbor scaling and no antialiasing. The adjacent `.png.mcmeta` requests nearest filtering (`blur: false`) and clamping. A resource pack may override both files at `assets/kome/textures/gui/`.
 
-The fixed grid has **8 x 8 pixel cells**, 16 columns and 4 rows. Columns 0-8 and rows 0-2 are used; column 7, row 3 is reserved for the Companies descriptor mode. Each cell is drawn at its original 8 x 8 size, inset one pixel inside a native 10 x 10 LOTR button. Transparent pixels reveal the native background. The placeholder symbols occupy seven pixels, leaving the last row/column transparent; replacement art may use all eight.
+The fixed grid has **8 x 8 pixel cells**, 16 columns and 4 rows. Columns 0-8 and rows 0-2 are used; column 7, row 3 is reserved for the Companies descriptor mode. Column 9 is reserved for the Tooltips control. Each cell is drawn at its original 8 x 8 size, inset one pixel inside a native 10 x 10 LOTR button. Transparent pixels reveal the native background. The placeholder symbols occupy seven pixels, leaving the last row/column transparent; replacement art may use all eight.
 
 | Column | Control | Row 0 | Row 1 | Row 2 |
 |---|---|---|---|---|
@@ -15,6 +15,9 @@ The fixed grid has **8 x 8 pixel cells**, 16 columns and 4 rows. Columns 0-8 and
 | 6 | Bridge markers | On | Off | Input locked |
 | 7 | Companies | Shields Only | Hide Companies | Input locked |
 | 8 | Build markers | On | Off | Input locked |
+| 9 | Tooltips | Immediate | Delayed | Off |
+
+The owner-painted Tooltip cells are `x=72..79, y=0..7` for Immediate, `y=8..15` for Delayed, `y=16..23` for Off, and `y=24..31` for unavailable/locked. The 10 x 10 native-framed button draws the selected atlas cell without any code-drawn state letter.
 
 Cell origin is `(column * 8, row * 8)`. UV coordinates divide by 128 horizontally and 32 vertically. The owner may paint the currently transparent descriptor-mode Companies cell at `x=56..63, y=24..31`. Input-locked art at `x=56..63, y=16..23` remains in use. Descriptor overlays are not yet implemented, so this state presently renders the same map markers as Shields Only and is distinguished by its tooltip. Off-state placeholders are red with a diagonal stroke; locked placeholders are muted brown. Palette cells use different color samples; territory cells use fill versus outline. No runtime tint or code-drawn status overlay changes your supplied colors. Opacity percentage remains in the tooltip.
 

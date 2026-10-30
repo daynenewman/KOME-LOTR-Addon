@@ -5,12 +5,18 @@ import net.minecraftforge.common.config.Configuration;
 
 /** Local display preferences only; never part of server rules or world persistence. */
 public final class KOMEClientConfig {
+    public enum MapTooltipMode {
+        IMMEDIATE, DELAYED, OFF;
+        public MapTooltipMode next(){return values()[(ordinal()+1)%values().length];}
+        public String label(){return this==IMMEDIATE?"Immediate":this==OFF?"Off":"Delayed (0.5s)";}
+    }
     private static volatile KOMEClientConfig instance;
 
     private final Configuration configuration;
     private boolean showCurrentTile;
     private boolean useRankTitles;
     private KOMEMapPreferences mapPreferences;
+    private MapTooltipMode mapTooltipMode;
 
     public KOMEClientConfig(File file) {
         configuration = new Configuration(file);
@@ -19,7 +25,7 @@ public final class KOMEClientConfig {
             "Show the current geographic tile. Toggle through Controls > KOME > Toggle current tile HUD.").getBoolean(true);
         useRankTitles = configuration.get("factions", "useRankTitles", true,
             "Use KOME progression titles instead of vanilla alignment titles beneath alignment bars.").getBoolean(true);
-        for(String key:new String[]{"factionPalette","territoryMode","territoryOpacity","tileBorders","conquestLayer","riverMarkers","bridgeMarkers","troopMarkers","companyDisplayMode","buildMarkers"}) {
+        for(String key:new String[]{"factionPalette","territoryMode","territoryOpacity","tileBorders","conquestLayer","riverMarkers","bridgeMarkers","troopMarkers","companyDisplayMode","buildMarkers","tooltipMode"}) {
             net.minecraftforge.common.config.Property existing=configuration.getCategory("map").get(key);
             // Forge properties retain their scalar/list shape even after set(); replace malformed lists.
             if(existing!=null && existing.isList())configuration.getCategory("map").remove(key);
@@ -36,6 +42,7 @@ public final class KOMEClientConfig {
         KOMEMapPreferences.CompanyDisplay companyDisplay=readEnum("companyDisplayMode",fallback);
         mapPreferences=new KOMEMapPreferences(palette,mode,opacity,readBoolean("tileBorders",false),readBoolean("conquestLayer",true),
             readBoolean("riverMarkers",true),readBoolean("bridgeMarkers",true),companyDisplay,readBoolean("buildMarkers",true));
+        mapTooltipMode=readEnum("tooltipMode",MapTooltipMode.DELAYED);
         if (configuration.hasChanged()) configuration.save();
         instance = this;
     }
@@ -43,6 +50,13 @@ public final class KOMEClientConfig {
     public static KOMEClientConfig get() { return instance; }
 
     KOMEMapPreferences mapPreferences(){return mapPreferences;}
+    public MapTooltipMode mapTooltipMode(){return mapTooltipMode;}
+    public void setMapTooltipMode(MapTooltipMode next){
+        if(next==null||next==mapTooltipMode)return;
+        mapTooltipMode=next;
+        configuration.get("map","tooltipMode",MapTooltipMode.DELAYED.name()).set(next.name());
+        configuration.save();
+    }
     void setMapPreferences(KOMEMapPreferences next) {
         if(mapPreferences.equals(next))return;
         configuration.get("map","factionPalette","CLASSIC_LOTR").set(next.palette.name());

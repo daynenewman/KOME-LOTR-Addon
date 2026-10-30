@@ -100,6 +100,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static KOMEMapPreferences.CompanyDisplay companyDisplayMode = KOMEMapPreferences.CompanyDisplay.SHIELDS_ONLY;
     private static boolean nativeWaypointPicked;
     private static boolean showBuildMarkers = true;
+    private static final KOMEMapTooltipState tooltipState=new KOMEMapTooltipState();
+    private static KOMEClientConfig.MapTooltipMode tooltipMode=KOMEClientConfig.MapTooltipMode.DELAYED;
+    private static String hoveredCompanyKey,hoveredBuildKey,hoveredBridgeKey,hoveredRiverKey;
+    private static LOTRGuiMap hoverCompanyMap;
+    private static int hoverCompanyX,hoverCompanyY;
+    private static boolean hoverCompanyKnown,hoverCompanyHit;
+    static void applyTooltipMode(KOMEClientConfig.MapTooltipMode mode){tooltipMode=mode;tooltipState.clear();}
+    static KOMEClientConfig.MapTooltipMode tooltipMode(){return tooltipMode;}
+    private static long tooltipClock(){return System.nanoTime()/1000000L;}
+    private static boolean showHover(LOTRGuiMap map,String key){return tooltipState.show(map,key,tooltipMode,tooltipClock());}
     static KOMEMapPreferences mapPreferences() {
         return new KOMEMapPreferences(territoryStyle.palette,territoryStyle.mode,territoryStyle.opacity,territoryStyle.showTileBorders,
             showConquestTiles,showRiverBlockMarkers,showBridgeMarkers,
@@ -252,6 +262,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     /** Reset before every native draw, including canceled draws and screens overriding drawScreen. */
     @SubscribeEvent(priority = cpw.mods.fml.common.eventhandler.EventPriority.HIGHEST, receiveCanceled = true)
     public void onMapDrawStart(GuiScreenEvent.DrawScreenEvent.Pre event) {
+        tooltipState.beginFrame();hoveredCompanyKey=hoveredBuildKey=hoveredBridgeKey=hoveredRiverKey=null;
+        hoverCompanyKnown=false;hoverCompanyMap=null;
+        if(!(event.gui instanceof LOTRGuiMap))tooltipState.clear();
         earlyTerritoryMap = null;
         clearEarlyGeography();
         clearEarlyBuilds();
@@ -411,11 +424,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             drawDestinationInstruction(map);
         }
         if (!showConquestTiles) {
+            if(!isOverMapControl(map,event.mouseX,event.mouseY))tooltipState.clear();
             drawToggleButtons(map, event.mouseX, event.mouseY);
             return;
         }
 
         if (!ensureTileMaskLoaded()) {
+            if(!isOverMapControl(map,event.mouseX,event.mouseY))tooltipState.clear();
             drawToggleButtons(map, event.mouseX, event.mouseY);
             return;
         }
@@ -431,20 +446,24 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         drawRouteEdgeMarkers(map);
         drawTroopMarkers(map);
         List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
-        if (!suppressMapInspection(map) && tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
+        if (!suppressMapInspection(map) && !mapUiOwnsPointer(map,event.mouseX,event.mouseY)
+                && !tooltipState.nativeOwned() && tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
                 && liveUnitTooltip == null && buildTooltip == null) {
-            drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
+            if(showHover(map,"tile:"+tileIdsByColor.get(tileColor)))drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
-        if (suppressMapInspection(map)) {
+        if (suppressMapInspection(map)||tooltipState.nativeOwned()) {
+            if(suppressMapInspection(map))tooltipState.clear();
             // Command mode and tile/marker inspection mode are mutually exclusive.
         } else if (automaticBridgeTooltip != null) {
-            drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
+            if(showHover(map,hoveredBridgeKey))drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
         } else if (riverBlockTooltip != null) {
-            drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
+            if(showHover(map,hoveredRiverKey))drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
         } else if (liveUnitTooltip != null) {
-            drawMarkerTooltip(map, liveUnitTooltip, event.mouseX, event.mouseY);
+            if(showHover(map,hoveredCompanyKey))drawMarkerTooltip(map, liveUnitTooltip, event.mouseX, event.mouseY);
         } else if (buildTooltip != null) {
-            drawMarkerTooltip(map, buildTooltip, event.mouseX, event.mouseY);
+            if(showHover(map,hoveredBuildKey))drawMarkerTooltip(map, buildTooltip, event.mouseX, event.mouseY);
+        } else if(tileColor==0&&!mapUiOwnsPointer(map,event.mouseX,event.mouseY)){
+            tooltipState.clear();
         }
         drawToggleButtons(map, event.mouseX, event.mouseY);
         drawRoutePreviewPanel(map, event.mouseX, event.mouseY);
@@ -487,6 +506,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             return;
         }
         GuiScreen screen = KOMEMinecraftClient.currentScreen();
+        if(!(screen instanceof LOTRGuiMap))tooltipState.clear();
         updateMapViewportState(screen);
         validateCompanySelectorLifecycle();
         validateClusterPanelLifecycle();
@@ -1123,6 +1143,45 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     public static boolean suppressMapInspection(LOTRGuiMap map) {
         return map != null && radialMap == map && radialMenu.isOpen() && showConquestTiles && !shouldSkipMap(map);
     }
+    /** Native waypoint's selected=true call is click inspection, not hover. */
+    public static boolean suppressNativeWaypointTooltip(LOTRGuiMap map,lotr.common.world.map.LOTRAbstractWaypoint waypoint,
+            boolean selected,int x,int y){
+        if(suppressMapInspection(map))return true;
+        if(selected){tooltipState.clear();tooltipState.markNative();return false;}
+        if(tooltipState.nativeOwned()||mapUiOwnsPointer(map,x,y)||companyShieldOwnsPointer(map,x,y))return true;
+        tooltipState.markNative();
+        if(!showHover(map,"waypoint:"+waypoint.getXCoord()+":"+waypoint.getZCoord()+":"+waypoint.getDisplayName()))return true;
+        return false;
+    }
+    /** Called after the native Red Book icon loop, before its hover-only text. */
+    public static boolean allowNativeQuestTooltip(LOTRGuiMap map,lotr.common.quest.LOTRMiniQuest quest,int x,int y){
+        if(suppressMapInspection(map)||mapUiOwnsPointer(map,x,y)||companyShieldOwnsPointer(map,x,y)||tooltipState.nativeOwned())return false;
+        tooltipState.markNative();
+        return showHover(map,"quest:"+quest.questUUID);
+    }
+    /** Native player locations retain their icons; only the name hover box is gated. */
+    public static boolean allowNativePlayerTooltip(LOTRGuiMap map,String playerName,int x,int y){
+        if(suppressMapInspection(map)||mapUiOwnsPointer(map,x,y)||companyShieldOwnsPointer(map,x,y)||tooltipState.nativeOwned())return false;
+        tooltipState.markNative();
+        return showHover(map,"player:"+playerName);
+    }
+    /** KOME progression and ruler icons share the native map pass but own only hover text. */
+    static boolean allowProgressionMarkerTooltip(LOTRGuiMap map,kome.common.data.KOMEVisualMarker marker,int x,int y){
+        if(suppressMapInspection(map)||mapUiOwnsPointer(map,x,y)||companyShieldOwnsPointer(map,x,y)||tooltipState.nativeOwned())return false;
+        tooltipState.markNative();
+        return showHover(map,"progression:"+marker.role+":"+marker.entityUuid+":"+marker.x+":"+marker.z);
+    }
+    /** Native widget artwork and clicks are untouched; only its help-text call is gated. */
+    public static boolean allowNativeWidgetTooltip(LOTRGuiMap map,lotr.client.gui.LOTRGuiMapWidget widget,int x,int y){
+        if(suppressMapInspection(map)||tooltipState.nativeOwned())return false;
+        tooltipState.markNative();
+        if(!tooltipState.show(map,widget,tooltipMode,tooltipClock()))return false;
+        return true;
+    }
+    static boolean panelHoverAllowed(String key){
+        GuiScreen screen=KOMEMinecraftClient.currentScreen();
+        return screen instanceof LOTRGuiMap&&showHover((LOTRGuiMap)screen,key);
+    }
 
     private static int radialHit(LOTRGuiMap map, int mouseX, int mouseY) {
         syncRootJoin();
@@ -1159,7 +1218,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     private static boolean isOverMapControl(LOTRGuiMap map, int mouseX, int mouseY) {
-        if (territoryControlAt(mouseX, mouseY) >= 0 || isOverConquestToggleButton(map, mouseX, mouseY) || isOverRiverBlockToggleButton(map, mouseX, mouseY)
+        if (tooltipControlAt(mouseX,mouseY)||territoryControlAt(mouseX, mouseY) >= 0 || isOverConquestToggleButton(map, mouseX, mouseY) || isOverRiverBlockToggleButton(map, mouseX, mouseY)
                 || isOverBridgeToggleButton(map, mouseX, mouseY) || isOverTroopToggleButton(map, mouseX, mouseY)
                 || isOverToggleButton(toggleButtonX(4),toggleButtonY(4),mouseX,mouseY)) return true;
         for (Object object : (List) mapFieldValue(null, "mapWidgets")) {
@@ -1437,10 +1496,19 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(isOverToggleButton(x,y,mouseX,mouseY)&&!mapControlCovered(map,mouseX,mouseY))
                 tooltip=labels[control]+(interactive?"":" (unavailable while choosing a destination)");
         }
-        if(tooltip!=null)KOMEMapControlRenderer.tooltip(map,tooltip,mouseX,mouseY);
+        int tx=territoryControlX(),ty=territoryControlY(4);
+        KOMEMapControlRenderer.drawTooltipControl(tx,ty,tooltipMode,true);
+        if(tooltipControlAt(mouseX,mouseY)&&!mapControlCovered(map,mouseX,mouseY))
+            tooltip="Tooltips: "+tooltipMode.label()+" (click for next)";
+        if(tooltip!=null&&!tooltipState.nativeOwned()&&showHover(map,"control:"+tooltip))
+            KOMEMapControlRenderer.tooltip(map,tooltip,mouseX,mouseY);
     }
 
     private static int territoryControlX() { return mapInt("mapXMin") + 6; }
+    private static boolean tooltipControlAt(int x,int y){
+        int tx=territoryControlX(),ty=territoryControlY(4);
+        return isOverToggleButton(tx,ty,x,y);
+    }
     private static int territoryControlY(int row) { return mapInt("mapYMin") + TOGGLE_BUTTON_TOP_MARGIN + row * (TOGGLE_BUTTON_SIZE + TOGGLE_BUTTON_GAP); }
     static int territoryControlAt(int x, int y) {
         for (int row = 0; row < 4; row++) {
@@ -1449,6 +1517,14 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         return -1;
     }
     private static boolean handleTerritoryControl(LOTRGuiMap map, int x, int y, int button) {
+        if(tooltipControlAt(x,y)&&!mapControlCovered(map,x,y)){
+            if(button==0){
+                applyTooltipMode(tooltipMode.next());
+                KOMEClientConfig config=KOMEClientConfig.get();if(config!=null)config.setMapTooltipMode(tooltipMode);
+                radialLeftCaptured=true;radialDragMap=map;
+            }
+            return true;
+        }
         int row = territoryControlAt(x, y), layer = -1;
         for (int i = 0; i < 5; i++) if (isOverToggleButton(toggleButtonX(i), toggleButtonY(i), x, y)) layer = i;
         if ((row < 0 && layer < 0) || mapControlCovered(map,x,y)) return false;
@@ -1936,6 +2012,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(inspect&&group.contains(mouseX,mouseY))hovered=group;
         }
         if(hovered==null)return null;
+        hoveredCompanyKey=hovered.clustered()?"cluster:"+hovered.ids():"company:"+hovered.members.get(0).marker.entityId;
         if(!hovered.clustered())return spottedCompany(hovered.members.get(0).marker)?null:
             liveUnitTooltip(hovered.members.get(0).marker);
         return hovered.mixedFactions
@@ -1986,6 +2063,15 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         for(KOMECompanyShieldClusters.Group group:visibleCompanyGroups(map,markerPresentation(map)))
             if(group.contains(x,y))hit=group;
         return hit!=null&&hit.clustered()?hit:null;
+    }
+    /** Company faces render above native hover art; their production hitboxes win only on a hit. */
+    private static boolean companyShieldOwnsPointer(LOTRGuiMap map,int x,int y) {
+        if(map==null||!showTroopMarkers||!showConquestTiles||shouldSkipMap(map)||mapUiOwnsPointer(map,x,y))return false;
+        if(hoverCompanyKnown&&hoverCompanyMap==map&&hoverCompanyX==x&&hoverCompanyY==y)return hoverCompanyHit;
+        hoverCompanyMap=map;hoverCompanyX=x;hoverCompanyY=y;hoverCompanyKnown=true;hoverCompanyHit=false;
+        for(KOMECompanyShieldClusters.Group group:visibleCompanyGroups(map,markerPresentation(map)))
+            if(group.contains(x,y)){hoverCompanyHit=true;break;}
+        return hoverCompanyHit;
     }
     /** Recheck the exact projected group before an open read-only roster exposes its rows. */
     static boolean companyClusterMembersCurrent(LOTRGuiMap map,List<String> ids) {
@@ -2051,6 +2137,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(inspect&&bounds.contains(mouseX,mouseY))hovered=build;
         }
         if(hovered==null)return null;
+        hoveredBuildKey="build:"+hovered.id;
         List<String> tooltip=new ArrayList<String>();
         tooltip.add(hovered.displayName + " (" + hovered.id + ")");
         tooltip.add("Population allegiance: " + KOMEAlliance.displayFactionName(hovered.populationFaction));
@@ -2313,6 +2400,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(!icon.visible(view))continue;
             drawGeographyTexture(getBridgeMarkerTextureLocation(),icon);
             if (automaticBridgeHovered(map,icon,mouseX,mouseY)) {
+                hoveredBridgeKey="bridge:"+marker.getTilePairLabel();
                 tooltip = new ArrayList<String>();
                 tooltip.add("Automatic Bridge");
                 tooltip.add(marker.getTilePairLabel());
@@ -2357,6 +2445,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if(!bounds.visible(view))continue;
             drawGeographyTexture(RIVER_MARKER_ART,bounds);
             if (bounds.contains(mouseX,mouseY) && !mapUiOwnsPointer(map,mouseX,mouseY)) {
+                hoveredRiverKey="river:"+marker.getTilePairLabel();
                 tooltip = new ArrayList<String>();
                 tooltip.add("River Block");
                 tooltip.add(marker.getTilePairLabel());

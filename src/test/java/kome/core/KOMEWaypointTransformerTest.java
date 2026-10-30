@@ -72,7 +72,7 @@ public class KOMEWaypointTransformerTest {
         }
         ClassNode node = new ClassNode();
         new ClassReader(transformed).accept(node, 0);
-        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0, radialInput = 0, territoryPass = 0;
+        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0, radialInput = 0, territoryPass = 0, questHover = 0, playerHover = 0;
         for (MethodNode method : node.methods) {
             for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
                     instruction = instruction.getNext()) {
@@ -80,6 +80,8 @@ public class KOMEWaypointTransformerTest {
                     MethodInsnNode call = (MethodInsnNode) instruction;
                     if (KOMEMapInputTransformer.HOOK.equals(call.owner)) {
                         if ("onBeforeNativeMapLabels".equals(call.name)) territoryPass++;
+                        else if("allowNativeQuestTooltip".equals(call.name))questHover++;
+                        else if("allowNativePlayerTooltip".equals(call.name))playerHover++;
                         else radialInput++;
                     }
                     if (KOMEPublicWaypointTransformer.CLIENT.equals(call.owner)) {
@@ -91,7 +93,7 @@ public class KOMEWaypointTransformerTest {
                 }
             }
             if ("renderMapWidgets".equals(method.name) || "isWaypointVisible".equals(method.name)
-                    || "renderMiniQuests".equals(method.name) || "mouseClicked".equals(method.name)
+                    || "renderMiniQuests".equals(method.name) || "renderPlayers".equals(method.name) || "mouseClicked".equals(method.name)
                     || "keyTyped".equals(method.name) || "drawScreen".equals(method.name) || "renderWaypointTooltip".equals(method.name)) {
                 new org.objectweb.asm.tree.analysis.Analyzer(
                     new org.objectweb.asm.tree.analysis.BasicVerifier()).analyze(node.name, method);
@@ -100,7 +102,9 @@ public class KOMEWaypointTransformerTest {
         assertEquals(1, publicWidgets);
         assertEquals(1, publicVisibility);
         assertEquals(1, progressionMarkers);
-        assertEquals(7, radialInput);
+        assertEquals(8, radialInput); // Existing input plus waypoint/widget hover seams.
+        assertEquals(1, questHover);
+        assertEquals(1, playerHover);
         assertEquals(1, territoryPass);
     }
 

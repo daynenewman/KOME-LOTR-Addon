@@ -10,6 +10,14 @@ import net.minecraftforge.common.config.Configuration;
 import static org.junit.Assert.*;
 
 public class KOMEMapPreferencesTest {
+    @Test public void tooltipPreferenceDefaultsDelayedAndPersists() {
+        KOMEClientConfig config=new KOMEClientConfig(file);
+        assertEquals(KOMEClientConfig.MapTooltipMode.DELAYED,config.mapTooltipMode());
+        config.setMapTooltipMode(KOMEClientConfig.MapTooltipMode.OFF);
+        assertEquals(KOMEClientConfig.MapTooltipMode.OFF,new KOMEClientConfig(file).mapTooltipMode());
+        config.setMapTooltipMode(KOMEClientConfig.MapTooltipMode.IMMEDIATE);
+        assertEquals(KOMEClientConfig.MapTooltipMode.IMMEDIATE,new KOMEClientConfig(file).mapTooltipMode());
+    }
     @Test public void threeCompanyModesMigrateLegacyChoiceAndSurviveRestart() throws Exception {
         Configuration legacy=new Configuration(file);
         legacy.get("map","troopMarkers",false).set(false);legacy.save();
