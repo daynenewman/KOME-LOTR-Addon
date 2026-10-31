@@ -2992,6 +2992,10 @@ public class KOMEWorldData extends WorldSavedData {
         if (applyWaypointDefaults(!conquestDefaultsInitialized)) {
             loadedStateReconciled = true;
         }
+        loadSection = "Conquest Build level reconciliation";
+        if (KOMEConquestBuildPromotionService.promoteLoadedTiles(this)) {
+            loadedStateReconciled = true;
+        }
 
         loadSection = "PublicWaypoints";
         if (nbt.hasKey("PublicWaypoints")) {
