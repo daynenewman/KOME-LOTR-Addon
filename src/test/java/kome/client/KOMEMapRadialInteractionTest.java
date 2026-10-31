@@ -27,7 +27,7 @@ public class KOMEMapRadialInteractionTest {
         save(field(KOMEClientConfig.class,"instance"));field(KOMEClientConfig.class,"instance").set(null,null);
         map=KOMEAccessFixture.allocate(LOTRGuiMap.class); map.width=800; map.height=600;
         for (String name : new String[] {"mapXMin","mapXMax","mapYMin","mapYMax","mapWidth","mapHeight","mapWidgets"}) save(field(LOTRGuiMap.class,name));
-        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","nativeWaypointPicked","companySelector","originWorkflow","rally","unitsBrowser","clusterPanel","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
+        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","nativeWaypointPicked","companySelector","originWorkflow","originRetargetPrevious","originRetargetCompany","originRetargetRestoring","originRestorationRequest","rally","unitsBrowser","clusterPanel","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
         for (String name : new String[] {"tileColorsById","tileIdsByColor","tileCentersById"}) preserve((Map)field(KOMEConquestMapOverlay.class,name).get(null));
         preserve(KOMEClientData.INSTANCE.tileWaypointLinksByTileId);
         field(LOTRGuiMap.class,"mapXMin").setInt(null,0); field(LOTRGuiMap.class,"mapXMax").setInt(null,800);
@@ -2028,6 +2028,28 @@ public class KOMEMapRadialInteractionTest {
         return new KOMECompanyDestinationOptions(request.session,request.sequence,request.destination,KOMECompanyDestinationOptions.Result.OK,
             Collections.singletonList(row),KOMECompanyDestinationSelectorTest.TOKEN,row.companyId,false);
     }
+    private KOMECompanyDestinationOptions.Row originRow(String tile){
+        KOMECompanyDestinationOptions.Row base=KOMECompanyDestinationSelectorTest.row("C03",
+            kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW);
+        return new KOMECompanyDestinationOptions.Row(base.evaluationState,base.companyId,base.name,base.currentTile,tile,
+            base.entitlement,base.tilesPerDay,base.remainingAllowance,base.distance,Arrays.asList("T001",tile),
+            base.status,base.scheduleMode,base.canStartNow,base.canArriveNow,base.legalRoute,base.timingAvailable,
+            base.futureBoundaries,base.nextBoundaryMillis,base.estimatedCompletionMillis,base.denialCode,base.denialDetail,
+            base.heldConflictId,base.heldConflictRevision,base.consequence,base.destinationConflictId,
+            base.destinationConflictRevision,base.legacyFingerprint,base.confirmationFingerprint);
+    }
+    private void panToTile(String tile)throws Exception{
+        KOMETileRasterSnapshot raster=KOMETileTestResources.real();int color=raster.colorsById().get(tile);
+        int[] pixels=raster.copyArgbPixels();
+        for(int i=0;i<pixels.length;i++)if((pixels[i]>>>24)>24&&(pixels[i]&0xFFFFFF)==color){
+            double x=KOMETileTestResources.worldX(i%raster.width)/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originX;
+            double y=KOMETileTestResources.worldZ(i/raster.width)/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originZ;
+            centers().put(tile,new int[]{(int)x,(int)y});pan((float)x,(float)y,2);
+            assertEquals(tile,raster.resolve(KOMETileTestResources.dimension(),KOMETileTestResources.worldX(i%raster.width),KOMETileTestResources.worldZ(i/raster.width)).tileId);
+            return;
+        }
+        fail("No raster point for "+tile);
+    }
     private void selectOriginRow()throws Exception{
         KOMECompanyDestinationPanel.Rect r=selectorLayout().row(0);assertTrue(click(r.x+2,r.y+2,0));
         assertEquals(KOMECompanyOriginWorkflow.Stage.PREVIEW,origin().stage());assertEquals("C03",origin().selectedCompanyId());
@@ -2069,6 +2091,196 @@ public class KOMEMapRadialInteractionTest {
             assertTrue(selector().rows().isEmpty());assertNull(selector().selected());assertFalse(selector().canConfirm());assertTrue(preview().points.isEmpty());
             proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(fresh.session,fresh.sequence,fresh.destination,KOMECompanyDestinationOptions.Result.OK,Collections.emptyList(),KOMECompanyDestinationSelectorTest.TOKEN,"",false),selectorConnection);
             assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector().phase());assertTrue(selector().message(0).contains("source T001"));assertFalse(selector().canConfirm());
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
+        }
+    }
+    @Test public void originRightClickRetargetRejectsOldEvidenceAndRestoresRejectedDraft()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T200");
+            KOMEPacketCompanyOriginRequest original=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(original.session,original.sequence,original.destination,
+                KOMECompanyDestinationOptions.Result.OK,Collections.emptyList(),KOMECompanyDestinationSelectorTest.TOKEN,"",false),selectorConnection);
+            assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector().phase());
+            int[] target=centers().get("T100");pan(target[0],target[1],2);
+            assertEquals(120,KOMEConquestMapOverlay.selectorWheelDelta(map,400,300,120));
+            assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest replacement=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            assertEquals("T100",replacement.destination);assertEquals("T001",replacement.source);
+            KOMEConquestMapOverlay.retargetOriginDestination("T300");
+            KOMEPacketCompanyOriginRequest newest=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            assertEquals("T300",newest.destination);assertEquals("T300",origin().destination());
+            assertTrue(preview().points.isEmpty());
+            proxy.acceptCompanyDestinationOptions(originPage(replacement,KOMECompanyDestinationSelectorTest.row("C03",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW)),selectorConnection);
+            assertTrue(selector().rows().isEmpty());assertFalse(selector().canConfirm());
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(newest.session,newest.sequence,newest.destination,
+                KOMECompanyDestinationOptions.Result.INVALID_REQUEST,Collections.emptyList(),"","",false),selectorConnection);
+            KOMEPacketCompanyOriginRequest restored=(KOMEPacketCompanyOriginRequest)network.sent.get(3);
+            assertEquals("T200",restored.destination);assertEquals("T200",origin().destination());
+            proxy.acceptCompanyDestinationOptions(originPage(restored,KOMECompanyDestinationSelectorTest.row("C03",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW)),selectorConnection);
+            assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector().phase());
+            assertFalse(selector().canConfirm());
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
+        }
+    }
+    @Test public void supersedingRestorationCannotAutoSelectCompanyOnFreshDestination()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest a=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanyDestinationOptions(originPage(a,originRow("T100")),selectorConnection);selectOriginRow();
+            panToTile("T200");assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest b=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(b.session,b.sequence,b.destination,
+                KOMECompanyDestinationOptions.Result.INVALID_REQUEST,Collections.emptyList(),"","",false),selectorConnection);
+            KOMEPacketCompanyOriginRequest restore=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            assertEquals("T100",restore.destination);
+            panToTile("T300");assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest d=(KOMEPacketCompanyOriginRequest)network.sent.get(3);
+            assertEquals("T300",d.destination);assertNotEquals(restore.session,d.session);
+            proxy.acceptCompanyDestinationOptions(originPage(restore,originRow("T100")),selectorConnection);
+            assertTrue(selector().rows().isEmpty());
+            proxy.acceptCompanyDestinationOptions(originPage(d,originRow("T300")),selectorConnection);
+            assertEquals("T300",origin().destination());assertEquals(KOMECompanyOriginWorkflow.Stage.SOURCE,origin().stage());
+            assertNull(selector().selected());assertEquals("",origin().selectedCompanyId());assertFalse(selector().canConfirm());
+            assertTrue(preview().points.isEmpty());assertEquals(4,network.sent.size());
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
+        }
+    }
+    @Test public void exactRestorationMayReselectPreviouslyChosenCompany()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest a=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanyDestinationOptions(originPage(a,originRow("T100")),selectorConnection);selectOriginRow();
+            panToTile("T200");assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest b=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(b.session,b.sequence,b.destination,
+                KOMECompanyDestinationOptions.Result.INVALID_REQUEST,Collections.emptyList(),"","",false),selectorConnection);
+            KOMEPacketCompanyOriginRequest restore=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            proxy.acceptCompanyDestinationOptions(originPage(restore,originRow("T100")),selectorConnection);
+            assertEquals("T100",origin().destination());assertEquals("C03",selector().selectedCompanyId());
+            assertEquals(KOMECompanyOriginWorkflow.Stage.PREVIEW,origin().stage());assertTrue(selector().canConfirm());
+            assertEquals(3,network.sent.size());
+        }
+    }
+    @Test public void originRightClickCannotReplacePendingMovementOrJoin()throws Exception{
+        for(boolean join:new boolean[]{false,true})try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;network.sent.clear();pan(2292,58,1);KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest query=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            KOMECompanyDestinationOptions.Row row=KOMECompanyDestinationSelectorTest.row("C03",
+                kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW,
+                KOMECompanyDestinationOptions.Entitlement.FOOT_OR_MIXED,KOMECompanyDestinationOptions.EvaluationState.COMPLETE,
+                join?kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT:
+                    kome.common.command.KOMECompanyMovementService.Consequence.NONE);
+            proxy.acceptCompanyDestinationOptions(originPage(query,row),selectorConnection);selectOriginRow();
+            if(join){clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);}
+            else clickControl(KOMECompanyDestinationPanel.Control.CONFIRM);
+            assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector().phase());
+            KOMECompanyDestinationSelector pending=selector();KOMEPacketCompanyMovementRequest move=(KOMEPacketCompanyMovementRequest)network.sent.get(1);
+            panToTile("T200");assertFalse(click(400,300,1));
+            assertSame(pending,selector());assertEquals(2,network.sent.size());assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector().phase());
+            KOMECompanyMovementResult result=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
+                join?KOMECompanyMovementResult.Outcome.ARRIVED:KOMECompanyMovementResult.Outcome.ORDER_ACCEPTED,"M1",
+                join?KOMEArmyMovementOrder.CONFLICT_HELD:"waiting_next_step",join?"T100":"T001",1,2,"","");
+            proxy.acceptCompanyMovementResult(result,selectorConnection);
+            assertSame(pending,selector());assertEquals(3,network.sent.size());
+            assertEquals(join?KOMECompanyDestinationSelector.Phase.JOINING:KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
+            if(join){assertFalse(click(400,300,1));assertSame(pending,selector());assertEquals(3,network.sent.size());}
+        }
+    }
+    private KOMEPacketCompanyMovementRequest submitOriginMove(KOMEClientProxy proxy,boolean join)throws Exception{
+        openOrigin(proxy);KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+        KOMEPacketCompanyOriginRequest query=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+        KOMECompanyDestinationOptions.Row row=KOMECompanyDestinationSelectorTest.row("C03",
+            kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW,
+            KOMECompanyDestinationOptions.Entitlement.FOOT_OR_MIXED,KOMECompanyDestinationOptions.EvaluationState.COMPLETE,
+            join?kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT:
+                kome.common.command.KOMECompanyMovementService.Consequence.NONE);
+        proxy.acceptCompanyDestinationOptions(originPage(query,row),selectorConnection);selectOriginRow();
+        if(join){clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);}
+        else clickControl(KOMECompanyDestinationPanel.Control.CONFIRM);
+        assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector().phase());
+        return (KOMEPacketCompanyMovementRequest)network.sent.get(1);
+    }
+    @Test public void originBackCannotDiscardPendingMovementResult()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();
+            KOMEPacketCompanyMovementRequest move=submitOriginMove(proxy,false);
+            KOMECompanyDestinationSelector pending=selector();UUID session=pending.sessionId();
+            clickControl(KOMECompanyDestinationPanel.Control.BACK);
+            assertSame(pending,selector());assertEquals(session,selector().sessionId());
+            assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector().phase());assertEquals(2,network.sent.size());
+            KOMECompanyMovementResult result=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
+                KOMECompanyMovementResult.Outcome.ORDER_ACCEPTED,"M1","waiting_next_step","T001",1,2,"","");
+            proxy.acceptCompanyMovementResult(result,selectorConnection);
+            assertSame(pending,selector());assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
+            assertEquals(3,network.sent.size());assertTrue(network.sent.get(2) instanceof KOMEPacketCompanyOriginRequest);
+            KOMEPacketCompanyOriginRequest refresh=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            proxy.acceptCompanyDestinationOptions(originPage(refresh,originRow("T100")),selectorConnection);
+            clickControl(KOMECompanyDestinationPanel.Control.BACK);
+            assertNull(selector());assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,origin().stage());
+        }
+    }
+    @Test public void originBackCannotDiscardPendingJoinContinuation()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();
+            KOMEPacketCompanyMovementRequest move=submitOriginMove(proxy,true);
+            KOMECompanyMovementResult arrival=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
+                KOMECompanyMovementResult.Outcome.ARRIVED,"M1",KOMEArmyMovementOrder.CONFLICT_HELD,"T100",2,2,"","");
+            proxy.acceptCompanyMovementResult(arrival,selectorConnection);
+            assertEquals(KOMECompanyDestinationSelector.Phase.JOINING,selector().phase());
+            KOMECompanyDestinationSelector pending=selector();UUID session=pending.sessionId();
+            clickControl(KOMECompanyDestinationPanel.Control.BACK);
+            assertSame(pending,selector());assertEquals(session,selector().sessionId());
+            assertEquals(KOMECompanyDestinationSelector.Phase.JOINING,selector().phase());assertEquals(3,network.sent.size());
+            KOMEPacketJoinBattleViewRequest join=(KOMEPacketJoinBattleViewRequest)network.sent.get(2);
+            KOMEPacketJoinBattleViewResponse view=KOMERootJoinBattleTest.allowed(join);
+            view.companies.clear();KOMERootJoinBattleTest.addRow(view,"C03",true);
+            proxy.acceptJoinBattleView(view,selectorConnection);
+            assertEquals(4,network.sent.size());assertTrue(network.sent.get(3) instanceof KOMEPacketJoinBattleSelectionRequest);
+        }
+    }
+    @Test public void originBackAbandonsRollbackBeforeFreshSelection()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest first=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(first.session,first.sequence,first.destination,
+                KOMECompanyDestinationOptions.Result.OK,Collections.emptyList(),KOMECompanyDestinationSelectorTest.TOKEN,"",false),selectorConnection);
+            panToTile("T200");assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest abandoned=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            clickControl(KOMECompanyDestinationPanel.Control.BACK);assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,origin().stage());
+            assertTrue(click(400,300,1));KOMEPacketCompanyOriginRequest fresh=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            assertEquals("T200",fresh.destination);assertNotEquals(abandoned.session,fresh.session);
+            proxy.acceptCompanyDestinationOptions(originPage(abandoned,KOMECompanyDestinationSelectorTest.row("C03",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW)),selectorConnection);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(fresh.session,fresh.sequence,fresh.destination,
+                KOMECompanyDestinationOptions.Result.INVALID_REQUEST,Collections.emptyList(),"","",false),selectorConnection);
+            assertEquals(3,network.sent.size());assertEquals("T200",origin().destination());
+            assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector().phase());assertTrue(selector().rows().isEmpty());
+        }
+    }
+    @Test public void originRateLimitWaitsForExplicitRetryAfterRapidRightClicks()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest first=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(first.session,first.sequence,first.destination,
+                KOMECompanyDestinationOptions.Result.OK,Collections.emptyList(),KOMECompanyDestinationSelectorTest.TOKEN,"",false),selectorConnection);
+            panToTile("T200");assertTrue(click(400,300,1));KOMEPacketCompanyOriginRequest second=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            panToTile("T100");assertTrue(click(400,300,1));KOMEPacketCompanyOriginRequest third=(KOMEPacketCompanyOriginRequest)network.sent.get(2);
+            proxy.acceptCompanyDestinationOptions(originPage(second,KOMECompanyDestinationSelectorTest.row("C03",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW)),selectorConnection);
+            assertTrue(selector().rows().isEmpty());
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(third.session,third.sequence,third.destination,
+                KOMECompanyDestinationOptions.Result.RATE_LIMITED,Collections.emptyList(),"","",false,1000),selectorConnection);
+            assertEquals(3,network.sent.size());assertEquals(KOMECompanyDestinationSelector.Phase.THROTTLED,selector().phase());
+            assertEquals("T100",origin().destination());assertTrue(selector().message(System.nanoTime()/1000000L).contains("shortly"));
+            assertFalse(selector().canConfirm());
+            panToTile("T200");assertFalse(click(400,300,1));assertEquals(3,network.sent.size());
+            field(KOMECompanyDestinationSelector.class,"retryAt").setLong(selector(),0);
+            clickControl(KOMECompanyDestinationPanel.Control.RETRY);
+            assertEquals(4,network.sent.size());assertEquals("T100",((KOMEPacketCompanyOriginRequest)network.sent.get(3)).destination);
             for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
         }
     }
@@ -2307,6 +2519,30 @@ public class KOMEMapRadialInteractionTest {
             assertFalse(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,2,2,0));
             unitsControl(KOMECompanyDestinationPanel.Control.CLEAR);assertEquals("",units().selectedCompanyId());
             unitsControl(KOMECompanyDestinationPanel.Control.BACK);assertNull(units());assertEquals("T001",menu.tileId());assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());assertEquals("",KOMEConquestMapOverlay.selectorDestinationTile(map));
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
+        }
+    }
+    @Test public void unitsRightClickRetargetRevokesRowsAndOldResponses()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();click(400,300,1);assertTrue(clickRoot(4));
+            KOMEPacketCompanyOriginRequest first=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            proxy.acceptCompanySourceOptions(KOMECompanyUnitsBrowserTest.page(first,1),selectorConnection);
+            KOMECompanyDestinationPanel.Rect row=unitsLayout().row(0);assertTrue(click(row.x+1,row.y+1,0));
+            KOMECompanyUnitsBrowser old=units();assertFalse(old.rows().isEmpty());
+            double x=KOMETileTestResources.x()/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originX;
+            double y=KOMETileTestResources.z()/(double)LOTRGenLayerWorld.scale+LOTRGenLayerWorld.originZ;
+            centers().put("T100",new int[]{(int)x,(int)y});pan((float)x,(float)y,2);
+            assertEquals(120,KOMEConquestMapOverlay.selectorWheelDelta(map,400,300,120));
+            assertTrue(click(400,300,1));assertEquals("T100",menu.tileId());
+            assertNull(units());assertFalse(old.active());assertTrue(old.rows().isEmpty());assertEquals("",old.selectedCompanyId());
+            proxy.acceptCompanySourceOptions(KOMECompanyUnitsBrowserTest.page(first,1),selectorConnection);
+            assertTrue(clickRoot(4));KOMEPacketCompanyOriginRequest second=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            assertEquals("T100",second.source);assertNotEquals(first.session,second.session);
+            proxy.acceptCompanySourceOptions(KOMECompanyUnitsBrowserTest.page(first,1),selectorConnection);
+            assertTrue(units().rows().isEmpty());
+            proxy.acceptCompanySourceOptions(KOMECompanyUnitsBrowserTest.page(second,0),selectorConnection);
+            assertTrue(units().rows().isEmpty());
+            unitsControl(KOMECompanyDestinationPanel.Control.BACK);assertNull(units());assertEquals("T100",menu.tileId());
             for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyOriginRequest);
         }
     }

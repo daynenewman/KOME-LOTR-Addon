@@ -149,6 +149,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static Field mapButtonsField;
     private static KOMECompanyDestinationSelector companySelector;
     private static KOMECompanyOriginWorkflow originWorkflow;
+    private static String originRetargetPrevious="",originRetargetCompany="";
+    private static boolean originRetargetRestoring;
+    private static kome.common.network.KOMEPacketCompanyDestinationRequest originRestorationRequest;
     private static KOMECompanyRallyClient rally;
     private static KOMECompanyUnitsBrowser unitsBrowser;
     private static KOMEGuiCompanyClusterRoster clusterPanel;
@@ -606,6 +609,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         battleContextRequest=null;
         closeUnits();closeRally();
         if(originWorkflow!=null)originWorkflow.clear();originWorkflow=null;
+        clearOriginRetarget();
         if(rootJoin!=null)rootJoin.close();
         closeCompanySelector(); radialMenu.close(); radialMap = null; releaseRadialCapture();
     }
@@ -615,6 +619,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         validateCompanySelectorLifecycle();
         validateClusterPanelLifecycle();
         if (button == 0) releaseRadialCapture(); // A fresh press starts a new gesture, even between render frames.
+        if(button==1&&radialMap==map&&originActive()&&!originPicking()&&!originRetargetBlocked()&&!shouldSkipMap(map)
+                &&viewport(map).contains(mouseX,mouseY)&&!isOverMapControl(map,mouseX,mouseY)
+                &&!selectorOwnsPointer(map,mouseX,mouseY)) {
+            String tile=tileIdsByColor.get(getHoveredTileColor(map,mouseX,mouseY));
+            if(KOMEConquestTile.isCanonicalTileId(tile)&&!tile.equals(originWorkflow.source())
+                    &&radialAnchorMapPosition(tile)!=null&&!tile.equals(originWorkflow.destination())) {
+                retargetOriginDestination(tile);
+                return true;
+            }
+        }
         if (shouldSkipMap(map) || !showConquestTiles || isChoosingDestination() || isPreviewingRoute()
                 || !viewport(map).contains(mouseX, mouseY) || mapUiOwnsPointer(map, mouseX, mouseY)) return false;
         if(button==0 && !nativeWaypointPicked) {
@@ -634,13 +648,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     private static boolean openRadialAt(LOTRGuiMap map,String tile) {
-        if(!KOMEConquestTile.isCanonicalTileId(tile)||radialAnchorMapPosition(tile)==null)return false;
+        if(pendingSelectorOperation()||!KOMEConquestTile.isCanonicalTileId(tile)||radialAnchorMapPosition(tile)==null)return false;
         closeClusterPanel();closeRadialInteraction();radialMenu.open(tile);radialMap=map;refreshRootJoinBattle();return true;
     }
     /** Small future notification seam: an already-open map and a currently known tile only. */
     public static boolean focusRadialForTile(LOTRGuiMap map,String tile) {
         if(map==null||KOMEMinecraftClient.get()==null||KOMEMinecraftClient.currentScreen()!=map||!showConquestTiles||shouldSkipMap(map)
-                ||isChoosingDestination()||isPreviewingRoute()||!tileColorsById.containsKey(tile))return false;
+                ||isChoosingDestination()||isPreviewingRoute()||pendingSelectorOperation()||!tileColorsById.containsKey(tile))return false;
         double[] anchor=radialAnchorMapPosition(tile);if(anchor==null)return false;
         try {
             setMapFieldValue(map,"posX",(float)anchor[0]);setMapFieldValue(map,"posY",(float)anchor[1]);
@@ -796,14 +810,41 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
     static void chooseOriginDestination(LOTRGuiMap map,String tile){
         if(!originPicking()||radialMap!=map||!kome.common.data.KOMEConquestTile.isCanonicalTileId(tile))return;
+        clearOriginRetarget();
         openOriginCompanies(tile);
     }
-    private static void openOriginCompanies(String tile){
+    private static void clearOriginRetarget(){originRetargetPrevious=originRetargetCompany="";originRetargetRestoring=false;originRestorationRequest=null;}
+    private static boolean pendingSelectorOperation(){
+        if(!companySelectorOpen())return false;
+        KOMECompanyDestinationSelector.Phase phase=companySelector.phase();
+        return phase==KOMECompanyDestinationSelector.Phase.SUBMITTING
+            ||phase==KOMECompanyDestinationSelector.Phase.JOINING;
+    }
+    private static void pendingSelectorFeedback(){
+        if(KOMEMinecraftClient.player()!=null)KOMEMinecraftClient.player().addChatMessage(
+            new net.minecraft.util.ChatComponentText("Wait for the movement or Join Battle result before leaving this panel."));
+    }
+    private static boolean originRetargetBlocked(){
+        if(!companySelectorOpen())return false;
+        KOMECompanyDestinationSelector.Phase phase=companySelector.phase();
+        return pendingSelectorOperation()||phase==KOMECompanyDestinationSelector.Phase.THROTTLED;
+    }
+    private static kome.common.network.KOMEPacketCompanyDestinationRequest openOriginCompanies(String tile){
         String source=originWorkflow.source();closeCompanySelector();
         KOMEClientProxy proxy=(KOMEClientProxy)kome.common.KOMEAddon.proxy;
         companySelector=new KOMECompanyDestinationSelector(proxy.destinationOptions());
         kome.common.network.KOMEPacketCompanyDestinationRequest query=companySelector.openSource(source,tile);
         originWorkflow.chooseDestination(tile);companyPreview=KOMECompanyDestinationPreview.EMPTY;sendDestinationRequest(query);
+        return query;
+    }
+    static void retargetOriginDestination(String tile){
+        if(originRetargetBlocked())return;
+        if(originRetargetRestoring)clearOriginRetarget();
+        if(originRetargetPrevious.isEmpty()){
+            originRetargetPrevious=originWorkflow.destination();
+            originRetargetCompany=originWorkflow.selectedCompanyId();
+        }
+        openOriginCompanies(tile);
     }
     private static void sendDestinationRequest(kome.common.network.KOMEPacketCompanyDestinationRequest request) {
         syncCompanyPreview();
@@ -811,6 +852,35 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
     public static void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions response) {
         if (companySelector != null && companySelector.accept(response, previewClock())) {
+            if(originActive()&&!originRetargetPrevious.isEmpty()){
+                if(originRetargetRestoring){
+                    if(originRestorationRequest==null||!originRestorationRequest.session.equals(response.session)
+                            ||originRestorationRequest.sequence!=response.sequence
+                            ||!originRestorationRequest.destination.equals(response.destination)){
+                        clearOriginRetarget();
+                    }else{
+                        originRetargetRestoring=false;
+                        if(response.result==kome.common.data.KOMECompanyDestinationOptions.Result.OK&&!originRetargetCompany.isEmpty()){
+                            for(kome.common.data.KOMECompanyDestinationOptions.Row row:companySelector.rows())
+                                if(originRetargetCompany.equals(row.companyId)){
+                                    sendDestinationRequest(companySelector.selectForBrowse(row.companyId));
+                                    if(companySelector.selected()!=null)originWorkflow.preview(companySelector.selected());
+                                    break;
+                                }
+                        }
+                        clearOriginRetarget();
+                    }
+                }else if(response.result==kome.common.data.KOMECompanyDestinationOptions.Result.RATE_LIMITED){
+                    // The selector owns the server retry delay; only its explicit Retry may query again.
+                }else if(response.result!=kome.common.data.KOMECompanyDestinationOptions.Result.OK){
+                    String previous=originRetargetPrevious;
+                    if(KOMEMinecraftClient.player()!=null)KOMEMinecraftClient.player().addChatMessage(
+                        new net.minecraft.util.ChatComponentText("Destination unavailable. Restoring previous Move To selection."));
+                    originRestorationRequest=openOriginCompanies(previous);
+                    originRetargetRestoring=originRestorationRequest!=null;
+                    return;
+                }else originRetargetPrevious=originRetargetCompany="";
+            }
             if(originActive()&&originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.PREVIEW&&companySelector.selected()==null&&companySelector.phase()!=KOMECompanyDestinationSelector.Phase.LOADING)originWorkflow.chooser();
             syncCompanyPreview();
             kome.common.network.KOMEPacketCompanyDestinationRequest followup=companySelector.takeBrowseFollowup();
@@ -995,6 +1065,10 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if (!layout.panel.contains(mouseX,mouseY)) return false;
         if (button == 0) {
             KOMECompanyDestinationPanel.Control control = layout.controlAt(mouseX,mouseY);
+            if((control==KOMECompanyDestinationPanel.Control.BACK||control==KOMECompanyDestinationPanel.Control.CLOSE)
+                    &&pendingSelectorOperation()){
+                pendingSelectorFeedback();radialLeftCaptured=true;radialDragMap=map;return true;
+            }
             if (control != null && KOMECompanyDestinationPanel.enabled(control,companySelector,layout,previewClock())) {
                 switch (control) {
                     case ROWS_UP:
@@ -1020,15 +1094,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                         if(originActive()){companySelector.clearSelection();originWorkflow.chooser();}
                         sendDestinationRequest(companySelector.retry(previewClock()));companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
                     case BACK:
+                        if(pendingSelectorOperation()){pendingSelectorFeedback();break;}
                         if(originWorkflow!=null){
                             if(originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.PREVIEW)openOriginCompanies(originWorkflow.destination());
-                            else {closeCompanySelector();originWorkflow.pickAgain();}break;
+                            else {clearOriginRetarget();closeCompanySelector();originWorkflow.pickAgain();}break;
                         }
                         closeCompanySelector();
                         if(radialMenu.state()==KOMEMapRadialMenu.State.BATTLE)refreshBattleContext();
                         break;
                     case CLEAR: companySelector.clearSelection();if(originActive())originWorkflow.chooser();companyPreview=KOMECompanyDestinationPreview.EMPTY; break;
-                    case CLOSE: closeRadialInteraction(); break;
+                    case CLOSE: if(!pendingSelectorOperation())closeRadialInteraction();else pendingSelectorFeedback(); break;
                 }
             } else if (control == null) {
                 int index = layout.rowAt(mouseX,mouseY,companySelector.rows().size()-companySelector.rowOffset());
@@ -1109,7 +1184,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     /** Native picker success, for ANY waypoint. No visibility/travel rules are duplicated here. */
     public static void onNativeWaypointClick(LOTRGuiMap map) {
         nativeWaypointPicked=true;
-        if(originActive())return;
+        if(originActive()||pendingSelectorOperation())return;
         if (radialMap == map && radialMenu.isOpen()) closeRadialInteraction();
     }
 
@@ -1241,7 +1316,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static boolean mapUiOwnsPointer(LOTRGuiMap map, int x, int y) {
         return isOverMapControl(map, x, y) || clusterPanelOwnsPointer(map,x,y)
             || selectorOwnsPointer(map, x, y) || radialOwnsPointer(map, x, y)
-            || unitsActive() || rallyActive() || originActive()
+            || unitsActive()&&radialMap==map&&unitsLayout(map).panel.contains(x,y)
+            || rallyActive() || originActive()
             || isOverRouteConfirmButton(map, x, y) || isOverRouteCancelButton(map, x, y);
     }
 

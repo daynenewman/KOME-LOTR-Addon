@@ -2,6 +2,36 @@
 
 [Index](../../INDEX.md)
 
+KOM-104 map navigation: in Move To's source-scoped chooser, a right-click on a
+different canonical tile outside panels and controls replaces the draft destination
+through the existing read-only company-origin query. The selector session changes,
+so late results from the prior destination cannot populate the new panel. A rejected
+query re-queries the previous draft under current server access; it does not submit a
+movement. An open Units browser owns only its panel rectangle. Right-clicking another
+map tile clears its rows and selection and opens a fresh radial for the new tile;
+opening Units there issues a new authorized source query. Native pan, wheel, waypoint,
+and map control paths retain their existing precedence. This is source-wired client
+behavior; live map acceptance is pending.
+KOM-104 follow-up: Move To right-click retargeting is disabled while the selector is
+submitting an order, continuing Join Battle, or throttled. Back to the destination
+picker clears the previous rollback context; late responses still face the selector's
+session/sequence checks. A rate-limited retarget remains in the selector's throttled
+state and requires its existing explicit Retry after the server delay. It never sends
+an immediate restoration query. Rejected non-throttle retargets still re-query the
+prior draft under current access. No movement packet or server limiter changed.
+The restoration request is bound to its destination, session and sequence. A new
+right-click while restoration loads supersedes that identity and starts a fresh
+chooser without automatic company selection; only the exact authorized restoration
+response may reselect the previously chosen company.
+While a map destination selector is SUBMITTING or JOINING, its Back and Close controls
+are disabled and their clicks keep the same selector/session active, with a wait
+message. Radial refocus and native waypoint selection also retain the selector.
+After the pending result resolves, normal Back navigation resumes. Escape and closing
+the whole map still dismiss the client interaction, so a late result is ignored by
+the closed session; the server order can already have been accepted. This is existing
+GUI dismissal behavior, distinct from in-panel Back. No server order or packet
+semantics changed; live map acceptance remains pending.
+
 The current matching-artifact protocol is `1.0.9-integration-g20`.
 KOM-85 map hover text now has an installation-local `map.tooltipMode` preference
 (`IMMEDIATE`, `DELAYED`, `OFF`; default `DELAYED` at 500 ms). A 10 x 10 native-framed

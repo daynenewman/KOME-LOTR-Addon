@@ -67,6 +67,9 @@ final class KOMECompanyDestinationPanel {
             case CONFIRM:return model.canConfirm();
             case CONFIRM_JOIN:return model.canConfirmAndJoin();
             case CLEAR:return model.selected()!=null&&model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING;
+            case BACK:case CLOSE:
+                return model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING
+                    &&model.phase()!=KOMECompanyDestinationSelector.Phase.JOINING;
             default:return true;
         }
     }
