@@ -16,6 +16,8 @@ Owns addon startup, server lifecycle, canonical strategic storage, validated con
 
 Storage consumers include every strategic guide. Physical entities/chunks, native LOTR data, [character NBT/skins](../character-creation/README.md), and [gate/ram ledgers](../physical-siege/README.md) have additional save authorities. [Networking](../client-network/README.md) publishes projections; saving a client cache cannot repair server data.
 
+KOM-90 level reconciliation uses the existing `ConquestTiles[].WaypointLevel` field and root schema. After saved tiles load, `applyWaypointDefaults` raises an invalid or lower saved level to the curated active-tile baseline without lowering a valid higher level or changing ownership. Existing ordinary battle response timers retain their stored duration snapshot; newly started episodes select from the current tile level. Build-hour promotion is not yet wired. The [geography route](../geography/README.md) records the bundled baseline and focused coverage.
+
 [Atomic-load tests](../../../../src/test/java/kome/common/data/KOMEWorldDataAtomicLoadTest.java), [schema tests](../../../../src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java), and [actual diagnostics-command tests](../../../../src/test/java/kome/common/command/KOMEAdminDiagnosticsCommandsTest.java) cover candidate publication, mandatory sections, and non-loading inspection paths.
 
 ```powershell

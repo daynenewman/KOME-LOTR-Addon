@@ -65,8 +65,14 @@ public class KOMEOrdinaryBattleRestartTest {
     }
     private void noRestartAnnouncement(){assertFalse(messages.toString(),messages.stream().anyMatch(x->x.contains("began response episode")));}
     @Test public void activeTimerResumesRemainingServerTimeAndPublishesClosureExactlyOnce() throws Exception {
-        File directory=persist(partial(false));
+        KOMEWorldData started = partial(false);
+        long durationSnapshot = record(started).getResponseTimer().durationSnapshotMillis;
+        // Simulate an old saved level below the reviewed bundled baseline.
+        started.getConquestTileIfPresent("T101").waypointLevel = 1;
+        File directory=persist(started);
         restart(directory,data->{
+            assertEquals(3, data.getConquestTileIfPresent("T101").waypointLevel);
+            assertEquals(durationSnapshot, record(data).getResponseTimer().durationSnapshotMillis);
             assertTrue(data.recoveryStartup.diagnostic(),KOMERecoveryStartup.permits(data,record(data)));
             tick(data,1_000_000);assertEquals(20_000,record(data).getResponseTimer().elapsedMillis);
             tick(data,1_005_000);assertEquals(25_000,record(data).getResponseTimer().elapsedMillis);
