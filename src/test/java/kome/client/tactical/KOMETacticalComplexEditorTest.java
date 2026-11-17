@@ -50,7 +50,8 @@ public class KOMETacticalComplexEditorTest {
             editor.setYRangeInclusive(-2, 70);
             assertEquals(Arrays.asList(new KOMEXZPoint(3, -5), new KOMEXZPoint(-7, 9), new KOMEXZPoint(20, 30)), editor.getGeometry().getPolygon().getVertices());
             assertEquals(-2, editor.getGeometry().getMinYInclusive()); assertEquals(71, editor.getGeometry().getMaxYExclusive());
-            editor.undo(); assertEquals(2, editor.getGeometry().getPolygon().getVertices().size()); editor.clearVertices();
+            editor.undo(); assertEquals(70, editor.getGeometry().getMaxYInclusive()); editor.removeLastVertex();
+            assertEquals(2, editor.getGeometry().getPolygon().getVertices().size()); editor.clearVertices();
             editor.select(KOMETacticalAreaEditor.Selection.VERTICES); editor.worldPoint(4, 60, 8);
             assertEquals(Collections.singletonList(new KOMEXZPoint(4, 8)), editor.getConfirmedVertices());
             assertEquals(1,editor.getConfirmedVertexCount()); // incomplete input is visible in the actual draft immediately

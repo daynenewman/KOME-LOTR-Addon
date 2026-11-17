@@ -33,7 +33,7 @@ public class KOMETacticalAreaEditorTest {
     @Test public void undoAndClearRestartPolygon() {
         editor.addVertex(1, 2); editor.addVertex(3, 4); editor.undo();
         assertEquals(Collections.singletonList(new KOMEXZPoint(1, 2)), editor.getDraft().getPrism().getPolygon().getVertices());
-        editor.clearVertices(); editor.undo(); assertTrue(editor.getDraft().getPrism().getPolygon().getVertices().isEmpty());
+        editor.clearVertices(); editor.undo(); assertEquals(Collections.singletonList(new KOMEXZPoint(1, 2)), editor.getConfirmedVertices());
     }
     @Test public void inclusiveTopBlockMapsToExclusivePrismBoundExactly() {
         editor.setYRangeInclusive(-5, 12);

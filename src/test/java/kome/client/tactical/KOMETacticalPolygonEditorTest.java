@@ -42,6 +42,192 @@ public class KOMETacticalPolygonEditorTest {
         editor.select(KOMETacticalAreaEditor.Selection.VERTICES);
         for(int i=0;i<coordinates.length;i+=2) editor.worldPoint(coordinates[i],60,coordinates[i+1]);
     }
+    private void worldView(boolean wholeComplex) {
+        editor.select(KOMETacticalAreaEditor.Selection.NONE);
+        editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), wholeComplex);
+    }
+    @Test public void returningFromWorldLeavesCompletedPolygonPassiveUntilExplicitAuthoring() {
+        area(); rectangle(0, 0); worldView(false);
+        assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        editor.endWorldView(); worldView(false);
+        assertTrue(editor.isWorldPolygonSelected());
+        assertFalse(editor.isWorldVertexPlacementActive());
+        int before = editor.getConfirmedVertexCount();
+        assertThrows(IllegalArgumentException.class, () -> editor.addWorldVertex(20, 20));
+        assertEquals("passive view must not grow the polygon", before, editor.getConfirmedVertexCount());
+        assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        assertTrue(editor.isWorldVertexPlacementActive());
+        editor.addWorldVertex(20, 20);
+        assertEquals(before + 1, editor.getConfirmedVertexCount());
+    }
+    @Test public void unfinishedActiveAreaDraftCanGainCornersInWorldWithoutSaving() {
+        area(); editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), false, true);
+        assertTrue(editor.isWorldPolygonSelected());
+        editor.addWorldVertex(0, 0); editor.addWorldVertex(5, 0);
+        assertEquals(2, editor.getConfirmedVertexCount()); assertTrue(editor.geometryFeedback().isInvalid());
+        editor.addWorldVertex(0, 5); assertFalse(editor.geometryFeedback().isInvalid());
+        assertTrue(requests.isEmpty());
+    }
+    @Test public void worldSelectionAndVertexMoveKeepIdentityOrderingAndDraftDetached() {
+        area(); rectangle(0, 0); KOMEPolygonPrism saved = editor.getGeometry(); worldView(false);
+        assertFalse(editor.selectWorldPolygon(UUID.randomUUID(), -1, 2, 60, 1));
+        assertFalse(editor.selectWorldPolygon(player, 0, 2, 60, 1));
+        assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        assertEquals("FIELD", editor.getGeometryId()); assertTrue(editor.isWorldPolygonSelected());
+        for (int index : new int[] {0, 1, 3}) {
+            List<KOMEXZPoint> before = new ArrayList<KOMEXZPoint>(editor.getConfirmedVertices());
+            editor.pickUpVertex(index);
+            assertEquals(before, editor.getConfirmedVertices());
+            editor.placeHeldVertex(12 + index, 15 + index);
+            for (int other = 0; other < before.size(); other++) if (other != index) assertEquals(before.get(other), editor.getConfirmedVertices().get(other));
+            assertEquals(new KOMEXZPoint(12 + index, 15 + index), editor.getConfirmedVertices().get(index));
+            editor.undoWorldGeometry(); assertEquals(before, editor.getConfirmedVertices());
+        }
+        editor.pickUpVertex(3);
+        assertThrows(IllegalArgumentException.class, () -> editor.placeHeldVertex(0, 0));
+        assertEquals(saved, editor.getGeometry());
+        editor.cancelHeldVertex(); assertEquals(-1, editor.getHeldVertex());
+        assertTrue(requests.stream().noneMatch(r -> r.getAction() == KOMETacticalEditRequest.Action.SAVE));
+    }
+    @Test public void worldBackspaceDeletesSpecificVertexAndOtherwiseRemovesLast() {
+        area(); rectangle(0, 0); worldView(false); assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        List<KOMEXZPoint> original = new ArrayList<KOMEXZPoint>(editor.getConfirmedVertices());
+        editor.pickUpVertex(1); editor.deleteSelectedVertex();
+        assertEquals(Arrays.asList(original.get(0), original.get(2), original.get(3)), editor.getConfirmedVertices());
+        editor.undoWorldGeometry(); assertEquals(original, editor.getConfirmedVertices());
+        editor.removeLastVertexInWorld(); assertEquals(original.subList(0, 3), editor.getConfirmedVertices());
+        editor.undoWorldGeometry(); assertEquals(original, editor.getConfirmedVertices());
+    }
+    @Test public void tenStepHistoryTracksOnlyActualGeometryChangesIncludingY() {
+        area(); rectangle(0, 0); worldView(false); assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        int initial = editor.getUndoCount(); editor.pickUpVertex(0); editor.cancelHeldVertex();
+        editor.placeHeldVertex(20, 20); assertEquals(initial, editor.getUndoCount());
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.LOWER_Y);
+        assertEquals(initial, editor.getUndoCount());
+        editor.applyWorldHeight(60); assertEquals(initial, editor.getUndoCount());
+        for (int y = 61; y <= 71; y++) editor.applyWorldHeight(y);
+        assertEquals(10, editor.getUndoCount());
+        for (int i = 0; i < 10; i++) editor.undoWorldGeometry();
+        assertEquals(61, editor.getGeometry().getMinYInclusive());
+        assertEquals(0, editor.getUndoCount()); editor.undoWorldGeometry(); assertEquals(61, editor.getGeometry().getMinYInclusive());
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y);
+        editor.applyWorldHeight(75); assertEquals(76, editor.getGeometry().getMaxYExclusive());
+        int count = editor.getUndoCount();
+        assertThrows(IllegalArgumentException.class, () -> editor.applyWorldHeight(Integer.MAX_VALUE));
+        assertEquals(count, editor.getUndoCount()); editor.undoWorldGeometry(); assertEquals(71, editor.getGeometry().getMaxYExclusive());
+    }
+    @Test public void worldSelectionCoversEverySiegeZoneTypeWithinOneAuthorizedComplex() {
+        KOMESiegeComplex draft = KOMESiegeReadinessFixtures.empty("FORT", "T100", -1);
+        for (ZoneType type : ZoneType.values()) {
+            draft = KOMETacticalComplexDraft.create(draft, type, type.name());
+            int x = type.ordinal() * 20;
+            draft = KOMETacticalComplexDraft.edit(draft, type, type.name(), "Label " + type,
+                KOMESiegeReadinessFixtures.prism(x, 0, x + 8, 8));
+        }
+        complex(draft); worldView(true);
+        assertTrue(editor.overlays(player, -1).stream().noneMatch(o -> o.selected));
+        for (ZoneType type : ZoneType.values()) {
+            int x = type.ordinal() * 20;
+            assertTrue(editor.selectWorldPolygon(player, -1, x + 2, editor.getComplexDraft().getNormalSegments().get(0).getPrism().getMinYInclusive(), 2));
+            assertEquals(type, editor.getZoneType()); assertEquals(type.name(), editor.getZoneId());
+            assertEquals("Label " + type, editor.getGeometryLabel());
+        }
+        assertFalse(editor.selectWorldPolygon(player, -1, 1000, 0, 1000));
+        assertEquals(0, editor.getUndoCount());
+    }
+    @Test public void raySelectionChoosesNearestPrismAndRejectsForeignSessionOrMiss() {
+        KOMESiegeComplex draft = KOMESiegeReadinessFixtures.empty("FORT", "T100", -1);
+        for (String id : Arrays.asList("NEAR", "FAR")) {
+            int x = id.equals("NEAR") ? 0 : 15;
+            draft = KOMETacticalComplexDraft.create(draft, ZoneType.NORMAL, id);
+            draft = KOMETacticalComplexDraft.edit(draft, ZoneType.NORMAL, id, "", KOMESiegeReadinessFixtures.prism(x, 0, x + 8, 8));
+        }
+        complex(draft); worldView(true);
+        assertFalse(editor.selectWorldPolygonRay(UUID.randomUUID(), -1, -5, 5, 4, 1, 0, 0, 64));
+        assertFalse(editor.selectWorldPolygonRay(player, -1, -5, 20, 4, 1, 0, 0, 64));
+        assertTrue(editor.selectWorldPolygonRay(player, -1, -5, 5, 4, 1, 0, 0, 64));
+        assertEquals("NEAR", editor.getZoneId());
+        assertTrue(editor.selectWorldPolygonRay(player, -1, 10, 5, 4, 1, 0, 0, 64));
+        assertEquals("FAR", editor.getZoneId());
+    }
+    @Test public void rayFromInsidePrismChoosesFirstVisibleSurfaceRatherThanContainingVolume() {
+        KOMESiegeComplex draft = KOMESiegeReadinessFixtures.empty("FORT", "T100", -1);
+        draft = KOMETacticalComplexDraft.create(draft, ZoneType.NORMAL, "CONTAINER");
+        draft = KOMETacticalComplexDraft.edit(draft, ZoneType.NORMAL, "CONTAINER", "",
+            KOMESiegeReadinessFixtures.prism(0, 0, 10, 10));
+        draft = KOMETacticalComplexDraft.create(draft, ZoneType.NORMAL, "SURFACE");
+        draft = KOMETacticalComplexDraft.edit(draft, ZoneType.NORMAL, "SURFACE", "",
+            KOMESiegeReadinessFixtures.prism(6, 4, 8, 6));
+        complex(draft); worldView(true);
+        assertEquals(5, KOMETacticalGeometryPicker.distance(
+            KOMETacticalComplexDraft.find(editor.getComplexDraft(), ZoneType.NORMAL, "CONTAINER").getPrism(),
+            5, 5, 5, 1, 0, 0, 6), 0.0001);
+        assertTrue(editor.selectWorldPolygonRay(player, -1, 5, 5, 5, 1, 0, 0, 6));
+        assertEquals("SURFACE", editor.getZoneId());
+    }
+    @Test public void undoStaysWithCurrentPolygonAndResumesItsEarlierHistory() {
+        KOMESiegeComplex draft = KOMESiegeReadinessFixtures.empty("FORT", "T100", -1);
+        for (String id : Arrays.asList("A", "B")) {
+            int x = id.equals("A") ? 0 : 20;
+            draft = KOMETacticalComplexDraft.create(draft, ZoneType.NORMAL, id);
+            draft = KOMETacticalComplexDraft.edit(draft, ZoneType.NORMAL, id, "",
+                KOMESiegeReadinessFixtures.prism(x, 0, x + 8, 8));
+        }
+        complex(draft); worldView(true);
+        assertTrue(editor.selectWorldPolygon(player, -1, 2, 5, 2));
+        editor.addWorldVertex(10, 0);
+        int aCount = editor.getConfirmedVertexCount();
+        assertTrue(editor.selectWorldPolygon(player, -1, 22, 5, 2));
+        editor.addWorldVertex(30, 0);
+        int bCount = editor.getConfirmedVertexCount();
+        editor.undoWorldGeometry();
+        assertEquals("B", editor.getZoneId());
+        assertEquals(bCount - 1, editor.getConfirmedVertexCount());
+        editor.undoWorldGeometry();
+        assertEquals("B", editor.getZoneId());
+        assertTrue(editor.selectWorldPolygonRay(player, -1, -5, 5, 4, 1, 0, 0, 10));
+        assertEquals(1, editor.getUndoCount());
+        assertEquals(aCount, editor.getConfirmedVertexCount());
+        editor.undoWorldGeometry();
+        assertEquals("A", editor.getZoneId());
+        assertEquals(aCount - 1, editor.getConfirmedVertexCount());
+    }
+    @Test public void eachPolygonKeepsAtMostTenOwnUnsavedSteps() {
+        KOMESiegeComplex draft = KOMESiegeReadinessFixtures.empty("FORT", "T100", -1);
+        for (String id : Arrays.asList("A", "B")) {
+            int x = id.equals("A") ? 0 : 20;
+            draft = KOMETacticalComplexDraft.create(draft, ZoneType.NORMAL, id);
+            draft = KOMETacticalComplexDraft.edit(draft, ZoneType.NORMAL, id, "",
+                KOMESiegeReadinessFixtures.prism(x, 0, x + 8, 8));
+        }
+        complex(draft); worldView(true);
+        assertTrue(editor.selectWorldPolygon(player, -1, 2, 5, 2));
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y);
+        for (int y = 10; y <= 21; y++) editor.applyWorldHeight(y);
+        assertEquals(10, editor.getUndoCount());
+        assertTrue(editor.selectWorldPolygon(player, -1, 22, 5, 2));
+        assertEquals(0, editor.getUndoCount());
+        editor.addWorldVertex(30, 0);
+        assertEquals(1, editor.getUndoCount());
+        editor.undoWorldGeometry(); assertEquals("B", editor.getZoneId());
+        assertEquals(0, editor.getUndoCount());
+        assertTrue(editor.selectWorldPolygonRay(player, -1, -5, 5, 4, 1, 0, 0, 10));
+        assertEquals("A", editor.getZoneId()); assertEquals(10, editor.getUndoCount());
+    }
+    @Test public void rayHoverIdentifiesExactVertexWithoutChangingDraft() {
+        area(); rectangle(0, 0); worldView(false); assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
+        KOMEPolygonPrism before = editor.getGeometry(); int count = editor.getUndoCount();
+        assertEquals(1, editor.hoveredVertexRay(4, 65, -5, 0, 0, 1, 64));
+        assertEquals(-1, editor.hoveredVertexRay(20, 65, -5, 0, 0, 1, 64));
+        assertEquals(before, editor.getGeometry()); assertEquals(count, editor.getUndoCount());
+    }
+    @Test public void projectedHoverPrefersCrosshairAlignmentOverPhysicalNearness() {
+        KOMEPolygonPrism prism = new KOMEPolygonPrism(KOMEPolygon.of(
+            new KOMEXZPoint(30, 1), new KOMEXZPoint(100, 0), new KOMEXZPoint(100, 8)), 60, 71);
+        assertEquals(1, KOMETacticalGeometryPicker.vertexIndex(prism, 0, 65, 0, 1, 0, 0, 128));
+        KOMEPolygonPrism distant = new KOMEPolygonPrism(KOMEPolygon.of(new KOMEXZPoint(129, 0)), 60, 71);
+        assertEquals(-1, KOMETacticalGeometryPicker.vertexIndex(distant, 0, 65, 0, 1, 0, 0, 128));
+    }
     @Test public void everyConfirmationImmediatelyAddsExactlyTheHighlightedCorner() {
         area(); editor.select(KOMETacticalAreaEditor.Selection.VERTICES);
         for(int i=0;i<4;i++) {
@@ -109,7 +295,7 @@ public class KOMETacticalPolygonEditorTest {
         area();rectangle(0,0);editor.undo();assertEquals(Arrays.asList(new KOMEXZPoint(0,0),new KOMEXZPoint(4,0),new KOMEXZPoint(4,2)),editor.getConfirmedVertices());
         assertTrue(KOMEPolygonValidator.validate(editor.getGeometry().getPolygon(),"triangle").isValid());editor.undo();assertEquals(2,editor.getConfirmedVertexCount());
         assertTrue(editor.geometryFeedback().isInvalid());editor.clearVertices();assertEquals(0,editor.getConfirmedVertexCount());assertTrue(editor.getFillTriangles().isEmpty());
-        editor.undo();assertEquals(0,editor.getConfirmedVertexCount());rectangle(10,10);assertEquals(4,editor.getConfirmedVertexCount());
+        editor.undo();assertEquals(2,editor.getConfirmedVertexCount());editor.clearVertices();rectangle(10,10);assertEquals(4,editor.getConfirmedVertexCount());
     }
     @Test public void everyZoneUsesSameCornerSelectionAndEditsStayDetachedAndIndependent() {
         complex(KOMESiegeReadinessFixtures.empty("FORT","T100",-1));List<KOMEPolygon> polygons=new ArrayList<>();
@@ -128,12 +314,14 @@ public class KOMETacticalPolygonEditorTest {
         editor.accept(snapshot(submitted,1,false),KOMETacticalEditSessionManager.Status.UPDATED);assertEquals(KOMETacticalEditRequest.Action.SAVE,requests.get(requests.size()-1).getAction());
         editor.accept(snapshot(submitted,1,true),KOMETacticalEditSessionManager.Status.SAVED);
         assertTrue(editor.isReopeningAfterSave());
+        assertEquals(0, editor.getUndoCount());
         token=UUID.randomUUID();editor.accept(new KOMETacticalEditSnapshot(player,token,
             new KOMETacticalEditScope(KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA,"T100",null,"FIELD",-1),
             2,4,11,1,0,11,false,submitted.atRevision(1),null),KOMETacticalEditSessionManager.Status.OPENED);
         assertEquals(preview,editor.getGeometry());assertEquals(preview.getPolygon().getVertices(),editor.getConfirmedVertices());
         editor.select(KOMETacticalAreaEditor.Selection.VERTICES);assertEquals(preview,editor.getGeometry());
-        editor.undo();assertEquals(preview.getPolygon().getVertices().subList(0,3),editor.getConfirmedVertices());
+        editor.undo();assertEquals(preview,editor.getGeometry());
+        editor.addVertex(30, 30); editor.undo(); assertEquals(preview, editor.getGeometry());
     }
     @Test public void malformedCrossingRetainsAllConfirmedPointsAndShowsActualValidatorDiagnostic() {
         area();confirm(0,0,5,5,0,5,5,0);

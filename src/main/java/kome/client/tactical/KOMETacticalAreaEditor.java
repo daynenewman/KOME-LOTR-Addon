@@ -1,7 +1,11 @@
 package kome.client.tactical;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.minecraft.client.gui.GuiScreen;
@@ -65,10 +69,27 @@ public final class KOMETacticalAreaEditor {
     private long recoveryStartedTick;
     private boolean retainedCreating, retainedGeometryView;
     private UnappliedFields unappliedFields;
+    private final Map<String, UnappliedFields> unappliedByGeometry = new HashMap<String, UnappliedFields>();
     private GuiScreen worldViewOrigin;
     private UUID worldViewToken, worldViewPlayer;
     private KOMETacticalEditScope worldViewScope;
-    private boolean worldViewInvalidated, worldViewWholeComplex;
+    private boolean worldViewInvalidated, worldViewWholeComplex, worldPolygonSelected;
+    private final Map<String, Deque<KOMEPolygonPrism>> geometryHistory = new HashMap<String, Deque<KOMEPolygonPrism>>();
+    private int selectedVertex = -1, heldVertex = -1;
+    private Selection worldHeightMode = Selection.NONE;
+    private boolean worldVertexPlacementActive;
+    private static final int MAX_GEOMETRY_HISTORY = 10;
+    private String geometryHistoryKey() {
+        return localComplex == null ? local == null ? null : "area:" + local.getAreaId()
+            : zoneId == null ? null : "zone:" + zoneType.name() + ":" + zoneId;
+    }
+    private Deque<KOMEPolygonPrism> currentGeometryHistory(boolean create) {
+        String key = geometryHistoryKey();
+        if (key == null) return null;
+        Deque<KOMEPolygonPrism> steps = geometryHistory.get(key);
+        if (steps == null && create) { steps = new ArrayDeque<KOMEPolygonPrism>(); geometryHistory.put(key, steps); }
+        return steps;
+    }
     public KOMETacticalAreaEditor(Consumer<KOMETacticalEditRequest> transport) { this.transport = transport; }
     public KOMETacticalAreaCatalog getCatalog() { return catalog; }
     public KOMEForceDeploymentArea getDraft() { return local; }
@@ -99,7 +120,7 @@ public final class KOMETacticalAreaEditor {
         if (local == null) return;
         KOMEPolygonPrism prism = local.getPrism();
         if (!prism.getPolygon().getVertices().isEmpty() || prism.getMinYInclusive() != 0 || prism.getMaxYExclusive() != 1) return;
-        setYRangeInclusive(NEW_DRAFT_MIN_Y, NEW_DRAFT_MAX_Y);
+        replace(getGeometryLabel(), new KOMEPolygonPrism(prism.getPolygon(), NEW_DRAFT_MIN_Y, NEW_DRAFT_MAX_Y + 1));
     }
     public long displayedStoreRevision() {
         long value = catalog == null ? 0 : catalog.revision;
@@ -124,23 +145,33 @@ public final class KOMETacticalAreaEditor {
     /** Verbatim GUI input is separate from the detached geometry until the usual fields() action succeeds. */
     public static final class UnappliedFields {
         public final String label, bottom, top;
+        public final String baseLabel, baseBottom, baseTop;
         private final ZoneType zoneType;
         private final String zoneId;
-        private UnappliedFields(String label, String bottom, String top, ZoneType zoneType, String zoneId) {
-            this.label = label; this.bottom = bottom; this.top = top; this.zoneType = zoneType; this.zoneId = zoneId;
+        private UnappliedFields(String label, String bottom, String top,
+                String baseLabel, String baseBottom, String baseTop, ZoneType zoneType, String zoneId) {
+            this.label = label; this.bottom = bottom; this.top = top;
+            this.baseLabel = baseLabel; this.baseBottom = baseBottom; this.baseTop = baseTop;
+            this.zoneType = zoneType; this.zoneId = zoneId;
         }
     }
     public UnappliedFields getUnappliedFields() { return unappliedFields; }
-    public void rememberUnappliedFields(String label, String bottom, String top, ZoneType fieldType, String fieldZoneId) {
-        if ((!retainedDraft && (unappliedFields == null || !isEditing())) || local == null && localComplex == null
+    public UnappliedFields getCurrentUnappliedFields() { return unappliedByGeometry.get(geometryHistoryKey()); }
+    public void rememberUnappliedFields(String label, String bottom, String top,
+            String baseLabel, String baseBottom, String baseTop, ZoneType fieldType, String fieldZoneId) {
+        if ((!retainedDraft && !isEditing()) || local == null && localComplex == null
                 || localComplex != null && (fieldType != zoneType || !java.util.Objects.equals(fieldZoneId, zoneId))) return;
-        unappliedFields = new UnappliedFields(label, bottom, top, localComplex == null ? null : fieldType, fieldZoneId);
+        unappliedFields = new UnappliedFields(label, bottom, top, baseLabel, baseBottom, baseTop,
+            localComplex == null ? null : fieldType, fieldZoneId);
+        unappliedByGeometry.put(geometryHistoryKey(), unappliedFields);
     }
     public boolean unappliedFieldsMatchCurrentGeometry() {
-        return unappliedFields != null && (local != null || localComplex != null
-            && unappliedFields.zoneType == zoneType && java.util.Objects.equals(unappliedFields.zoneId, zoneId));
+        return getCurrentUnappliedFields() != null;
     }
-    public void appliedUnappliedFields() { unappliedFields = null; }
+    public void appliedUnappliedFields() {
+        UnappliedFields current = unappliedByGeometry.remove(geometryHistoryKey());
+        if (unappliedFields == current) unappliedFields = null;
+    }
     public List<String> retainedInspectionLines() {
         List<String> lines = new ArrayList<String>();
         if (!retainedDraft) return lines;
@@ -148,10 +179,16 @@ public final class KOMETacticalAreaEditor {
             + " | dimension " + retainedScope.getDimensionId());
         lines.add("Source store rev " + retainedBaseRevision + " | object rev " + retainedObjectRevision);
         if (unappliedFields != null) {
-            lines.add("Typed label text: " + unappliedFields.label);
-            lines.add("Typed Min Y text: " + unappliedFields.bottom);
-            lines.add("Typed Max Y text: " + unappliedFields.top);
+            if (unappliedFields.label != null) lines.add("Typed label text: " + unappliedFields.label);
+            if (unappliedFields.bottom != null) lines.add("Typed Min Y text: " + unappliedFields.bottom);
+            if (unappliedFields.top != null) lines.add("Typed Max Y text: " + unappliedFields.top);
             lines.add("Text above is unapplied; correct it after authorized recovery.");
+        }
+        for (Map.Entry<String, UnappliedFields> entry : new java.util.TreeMap<String, UnappliedFields>(unappliedByGeometry).entrySet()) {
+            if (entry.getValue() == unappliedFields) continue;
+            if (entry.getValue().label != null) lines.add("Unapplied " + entry.getKey() + " label: " + entry.getValue().label);
+            if (entry.getValue().bottom != null) lines.add("Unapplied " + entry.getKey() + " Min Y: " + entry.getValue().bottom);
+            if (entry.getValue().top != null) lines.add("Unapplied " + entry.getKey() + " Max Y: " + entry.getValue().top);
         }
         if (local != null) appendInspection(lines, "Area", local.getAreaId(), local.getLabel(), local.getPrism());
         else for (ZoneType type : ZoneType.values()) for (KOMESiegeZone zone : KOMETacticalComplexDraft.zones(localComplex, type))
@@ -290,11 +327,19 @@ public final class KOMETacticalAreaEditor {
     public boolean isReopeningAfterSave() { return reopeningAfterSave; }
     /** The world viewer borrows an existing server session; it never creates editing authority. */
     public void beginWorldView(GuiScreen origin, boolean wholeComplex) {
+        beginWorldView(origin, wholeComplex, false);
+    }
+    /** Explicit authoring starts with a candidate corner; ordinary GUI Escape opens a passive view. */
+    public void beginWorldView(GuiScreen origin, boolean wholeComplex, boolean editVertices) {
         requireEditable();
         if (origin == null || selection != Selection.NONE) throw new IllegalArgumentException("Return from world selection before opening Geometry View.");
         worldViewOrigin = origin; worldViewToken = snapshot.getToken(); worldViewScope = snapshot.getScope();
         worldViewPlayer = snapshot.getPlayerId(); worldViewInvalidated = false; worldViewWholeComplex = wholeComplex;
-        message = "Read-only Geometry View. Press Esc to return to the editor.";
+        selectedVertex = heldVertex = -1; worldHeightMode = Selection.NONE;
+        worldPolygonSelected = !wholeComplex && getGeometry() != null;
+        worldVertexPlacementActive = editVertices && worldPolygonSelected;
+        message = worldVertexPlacementActive ? "Vertex placement ready. Right-click adds a corner; left-click a vertex to move it."
+            : "Geometry View. Shift+right-click a polygon to edit vertices; Esc returns to the editor.";
     }
     public boolean hasWorldViewContext() { return worldViewOrigin != null; }
     public boolean isViewingGeometry() {
@@ -305,6 +350,132 @@ public final class KOMETacticalAreaEditor {
         return hasWorldViewContext() && worldViewPlayer.equals(player) && worldViewScope.getDimensionId() == dimension;
     }
     public boolean isWorldViewWholeComplex() { return isViewingGeometry() && worldViewWholeComplex; }
+    public boolean canEditWorldGeometry(UUID player, int dimension) {
+        return isViewingGeometry() && !isBusy() && worldViewMatches(player, dimension)
+            && worldPolygonSelected && getGeometry() != null;
+    }
+    private void requireWorldEditable() {
+        if (!isViewingGeometry() || isBusy() || !worldPolygonSelected || getGeometry() == null)
+            throw new IllegalArgumentException("Select a polygon in an active editor session first.");
+    }
+    /** Only geometry already present in this authorized draft can be focused. Ties use type and ID order. */
+    public boolean selectWorldPolygon(UUID player, int dimension, int x, int y, int z) {
+        if (!isViewingGeometry() || isBusy() || !worldViewMatches(player, dimension)) return false;
+        Overlay best = null;
+        for (Overlay candidate : overlays(player, dimension)) {
+            if (candidate.prism.classify(x, y, z) == KOMEPointClassification.OUTSIDE) continue;
+            if (best == null || compareWorldPick(candidate, best) < 0) best = candidate;
+        }
+        if (best == null) { message = "No polygon at the targeted block."; return false; }
+        focusWorldOverlay(best);
+        return true;
+    }
+    /** Prefer the closest authored prism surface along the editor look ray. */
+    public boolean selectWorldPolygonRay(UUID player, int dimension, double ox, double oy, double oz,
+            double dx, double dy, double dz, double reach) {
+        return selectWorldPolygonRay(player, dimension, ox, oy, oz, dx, dy, dz, reach, false);
+    }
+    public boolean selectOtherWorldPolygonRay(UUID player, int dimension, double ox, double oy, double oz,
+            double dx, double dy, double dz, double reach) {
+        return selectWorldPolygonRay(player, dimension, ox, oy, oz, dx, dy, dz, reach, true);
+    }
+    private boolean selectWorldPolygonRay(UUID player, int dimension, double ox, double oy, double oz,
+            double dx, double dy, double dz, double reach, boolean otherOnly) {
+        if (!isViewingGeometry() || isBusy() || !worldViewMatches(player, dimension)) return false;
+        Overlay best = null, current = null; double nearest = Double.POSITIVE_INFINITY;
+        for (Overlay candidate : overlays(player, dimension)) {
+            double distance = KOMETacticalGeometryPicker.distance(candidate.prism, ox, oy, oz, dx, dy, dz, reach);
+            if (otherOnly && candidate.selected) { if (Double.isFinite(distance)) current = candidate; continue; }
+            if (distance < nearest - 1.0E-7D || Math.abs(distance - nearest) <= 1.0E-7D
+                    && best != null && compareWorldPick(candidate, best) < 0) { best = candidate; nearest = distance; }
+        }
+        if (best == null && otherOnly) best = current;
+        if (best == null) return false;
+        focusWorldOverlay(best);
+        return true;
+    }
+    private void focusWorldOverlay(Overlay best) {
+        if (localComplex != null) { zoneType = best.type; zoneId = best.id; }
+        worldViewWholeComplex = false; worldPolygonSelected = true; worldVertexPlacementActive = true;
+        selectedVertex = heldVertex = -1; worldHeightMode = Selection.NONE; feedback = null;
+        message = "Selected " + best.id + ". Left-click a highlighted vertex to move it; right-click adds a corner.";
+    }
+    private static int compareWorldPick(Overlay a, Overlay b) {
+        long ay = (long) a.prism.getMaxYExclusive() - a.prism.getMinYInclusive();
+        long by = (long) b.prism.getMaxYExclusive() - b.prism.getMinYInclusive();
+        int c = Long.compare(ay, by);
+        if (c != 0) return c;
+        c = a.type == b.type ? 0 : a.type == null ? -1 : b.type == null ? 1 : Integer.compare(a.type.ordinal(), b.type.ordinal());
+        return c != 0 ? c : a.id.compareTo(b.id);
+    }
+    public int getSelectedVertex() { return selectedVertex; }
+    public int getHeldVertex() { return heldVertex; }
+    public boolean isWorldPolygonSelected() { return isViewingGeometry() && worldPolygonSelected; }
+    public boolean isWorldVertexPlacementActive() { return isWorldPolygonSelected() && worldVertexPlacementActive; }
+    public Selection getWorldHeightMode() { return worldHeightMode; }
+    public void toggleWorldHeight(Selection mode) {
+        requireWorldEditable();
+        if (mode != Selection.LOWER_Y && mode != Selection.UPPER_Y) throw new IllegalArgumentException("Choose top or bottom Y.");
+        if (heldVertex >= 0) throw new IllegalArgumentException("Place the vertex or press Esc before picking a height.");
+        worldHeightMode = worldHeightMode == mode ? Selection.NONE : mode;
+        selectedVertex = heldVertex = -1;
+        message = worldHeightMode == Selection.NONE ? "Height picking off." : "Aim at a block; right-click applies its "
+            + (mode == Selection.UPPER_Y ? "top" : "bottom") + " Y. Press the shortcut again to exit.";
+    }
+    public int hoveredVertex(int blockX, int blockZ) {
+        if (getGeometry() == null) return -1;
+        List<KOMEXZPoint> points = getConfirmedVertices();
+        int best = -1;
+        for (int i = 0; i < points.size(); i++) {
+            KOMEXZPoint p = points.get(i);
+            if (p.getX() == blockX || blockX != Integer.MAX_VALUE && p.getX() == blockX + 1)
+                if (p.getZ() == blockZ || blockZ != Integer.MAX_VALUE && p.getZ() == blockZ + 1)
+                    if (best < 0) best = i;
+        }
+        return best;
+    }
+    public int hoveredVertexRay(double ox, double oy, double oz, double dx, double dy, double dz, double reach) {
+        return isWorldPolygonSelected() ? KOMETacticalGeometryPicker.vertexIndex(getGeometry(), ox, oy, oz, dx, dy, dz, reach) : -1;
+    }
+    public void pickUpVertex(int index) {
+        requireWorldEditable();
+        if (worldHeightMode != Selection.NONE || heldVertex >= 0 || index < 0 || index >= getConfirmedVertexCount()) return;
+        selectedVertex = heldVertex = index;
+        message = "Moving vertex " + (index + 1) + ". Tab chooses a corner; right-click places it. Esc cancels.";
+    }
+    public void cancelHeldVertex() { heldVertex = -1; selectedVertex = -1; }
+    public void placeHeldVertex(int x, int z) {
+        requireWorldEditable();
+        if (heldVertex < 0) return;
+        KOMEXZPoint target = aimedCorner(x, z);
+        List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(getConfirmedVertices());
+        if (points.get(heldVertex).equals(target)) { cancelHeldVertex(); return; }
+        if (points.contains(target)) throw new IllegalArgumentException("That corner is already a polygon vertex.");
+        points.set(heldVertex, target);
+        replaceGeometry(new KOMEPolygonPrism(new KOMEPolygon(points), geometry().getMinYInclusive(), geometry().getMaxYExclusive()));
+        message = "Vertex " + (heldVertex + 1) + " moved in the unsaved draft.";
+        cancelHeldVertex();
+    }
+    public void deleteSelectedVertex() {
+        requireWorldEditable();
+        if (selectedVertex < 0) { removeLastVertexInWorld(); return; }
+        List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(getConfirmedVertices());
+        points.remove(selectedVertex);
+        replaceGeometry(new KOMEPolygonPrism(new KOMEPolygon(points), geometry().getMinYInclusive(), geometry().getMaxYExclusive()));
+        cancelHeldVertex();
+    }
+    public void selectVertex(int index) { requireWorldEditable(); selectedVertex = index >= 0 && index < getConfirmedVertexCount() ? index : -1; }
+    public void addWorldVertex(int x, int z) { requireWorldEditable();
+        if (!worldVertexPlacementActive) throw new IllegalArgumentException("Choose Edit Vertices or Shift+right-click a polygon to add corners.");
+        if (heldVertex >= 0 || worldHeightMode != Selection.NONE) return;
+        KOMEXZPoint point = aimedCorner(x, z); addVertexInternal(point.getX(), point.getZ()); selectedVertex = -1; }
+    public void applyWorldHeight(int y) { requireWorldEditable();
+        if (worldHeightMode == Selection.NONE) return;
+        if (worldHeightMode == Selection.UPPER_Y && y == Integer.MAX_VALUE) throw new IllegalArgumentException("Top block Y is too large.");
+        replaceGeometry(new KOMEPolygonPrism(geometry().getPolygon(), worldHeightMode == Selection.LOWER_Y ? y : geometry().getMinYInclusive(),
+            worldHeightMode == Selection.UPPER_Y ? y + 1 : geometry().getMaxYExclusive()));
+    }
+    public void removeLastVertexInWorld() { requireWorldEditable(); removeLastVertexInternal(); }
     public GuiScreen endWorldView() {
         GuiScreen origin = isViewingGeometry() ? worldViewOrigin : null;
         clearWorldView();
@@ -312,7 +483,8 @@ public final class KOMETacticalAreaEditor {
     }
     private void clearWorldView() {
         worldViewOrigin = null; worldViewToken = null; worldViewScope = null; worldViewPlayer = null;
-        worldViewInvalidated = false; worldViewWholeComplex = false;
+        worldViewInvalidated = false; worldViewWholeComplex = false; worldPolygonSelected = false; worldVertexPlacementActive = false;
+        cancelHeldVertex(); worldHeightMode = Selection.NONE;
     }
     public boolean isCreating() { return creating; }
     public String getMessage() { return message; }
@@ -437,6 +609,7 @@ public final class KOMETacticalAreaEditor {
             if (value.getPreflight() != null && !value.getPreflight().getDiagnostics().isEmpty())
                 message += " " + String.join(" ", value.getPreflight().getDiagnostics());
             if (reopen) {
+                geometryHistory.clear();
                 savingToken = null; afterUpdate = null; openingNew = false; reopeningAfterSave = true; busy = true;
                 message = "Saved. Waiting for the server to reopen the editor...";
                 transport.accept(KOMETacticalEditRequest.open(reopenScope));
@@ -495,10 +668,13 @@ public final class KOMETacticalAreaEditor {
     public void setYRangeInclusive(int bottom, int top) {
         requireEditable();
         if (top == Integer.MAX_VALUE) throw new IllegalArgumentException("Top block Y is too large.");
-        replace(getGeometryLabel(), new KOMEPolygonPrism(geometry().getPolygon(), bottom, top + 1));
+        replaceGeometry(new KOMEPolygonPrism(geometry().getPolygon(), bottom, top + 1));
     }
     public void addVertex(int x, int z) {
-        requireEditable(); List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(geometry().getPolygon().getVertices());
+        requireEditable(); addVertexInternal(x, z);
+    }
+    private void addVertexInternal(int x, int z) {
+        List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(geometry().getPolygon().getVertices());
         KOMEXZPoint vertex = new KOMEXZPoint(x, z);
         if (points.contains(vertex)) throw new IllegalArgumentException("That corner is already a polygon vertex (" + x + ", " + z + "). The polygon closes automatically.");
         points.add(vertex); polygon(points);
@@ -517,16 +693,42 @@ public final class KOMETacticalAreaEditor {
     }
     public KOMETacticalPolygonPreview.Corner getCorner() { return corner; }
     public void cycleCorner() { if (selection == Selection.VERTICES) corner = corner.next(); }
+    public void cycleWorldCorner() { requireWorldEditable(); corner = corner.next(); }
     public KOMEXZPoint aimedCorner(int x, int z) { return corner.point(x,z); }
-    private void clearGeometryPreview() { corner = KOMETacticalPolygonPreview.Corner.NW; fillSource = null; fillTriangles = null; feedback = null; topologySource = null; topologyValidation = null; comparedComplex = null; comparedDraft = null; sameSnapshotDefinition = false; }
+    private void clearGeometryPreview() { corner = KOMETacticalPolygonPreview.Corner.NW; fillSource = null; fillTriangles = null; feedback = null; topologySource = null; topologyValidation = null; comparedComplex = null; comparedDraft = null; sameSnapshotDefinition = false; cancelHeldVertex(); worldHeightMode = Selection.NONE; geometryHistory.clear(); }
     public void undo() {
         requireEditable();
+        undoGeometry();
+    }
+    public int getUndoCount() { Deque<KOMEPolygonPrism> steps = currentGeometryHistory(false); return steps == null ? 0 : steps.size(); }
+    public void undoWorldGeometry() { requireWorldEditable(); undoGeometry(); }
+    private void undoGeometry() {
+        Deque<KOMEPolygonPrism> steps = currentGeometryHistory(false);
+        if (steps == null || steps.isEmpty()) { message = "No geometry edit to undo for this polygon."; return; }
+        KOMEPolygonPrism before = steps.removeLast();
+        if (localComplex != null) {
+            if (getZone() == null) { geometryHistory.remove(geometryHistoryKey()); return; }
+            localComplex = KOMETacticalComplexDraft.edit(localComplex, zoneType, zoneId, getZone().getLabel(), before);
+        } else if (local != null) local = new KOMEForceDeploymentArea(local.getAreaId(), local.getTileId(), local.getDimensionId(),
+            local.getLabel(), before, local.getRevision());
+        feedback = null; cancelHeldVertex(); message = "Last geometry edit undone in the local draft.";
+    }
+    public void removeLastVertex() { requireEditable(); removeLastVertexInternal(); }
+    private void removeLastVertexInternal() {
         List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(geometry().getPolygon().getVertices());
-        if (!points.isEmpty()) points.remove(points.size() - 1); polygon(points);
+        if (!points.isEmpty()) { points.remove(points.size() - 1); polygon(points); }
     }
     public void clearVertices() { requireEditable(); polygon(new ArrayList<KOMEXZPoint>()); }
     private void polygon(List<KOMEXZPoint> points) {
-        replace(getGeometryLabel(), new KOMEPolygonPrism(new KOMEPolygon(points), geometry().getMinYInclusive(), geometry().getMaxYExclusive()));
+        replaceGeometry(new KOMEPolygonPrism(new KOMEPolygon(points), geometry().getMinYInclusive(), geometry().getMaxYExclusive()));
+    }
+    private void replaceGeometry(KOMEPolygonPrism prism) {
+        KOMEPolygonPrism before = geometry();
+        if (before.equals(prism)) return;
+        Deque<KOMEPolygonPrism> steps = currentGeometryHistory(true);
+        if (steps.size() == MAX_GEOMETRY_HISTORY) steps.removeFirst();
+        steps.addLast(before);
+        replace(getGeometryLabel(), prism);
     }
     private void replace(String label, KOMEPolygonPrism prism) {
         if (localComplex != null) localComplex = KOMETacticalComplexDraft.edit(localComplex, zoneType, zoneId, label, prism);
@@ -540,16 +742,16 @@ public final class KOMETacticalAreaEditor {
         requireEditable(); if (mode != Selection.NONE && mode != Selection.TOPOLOGY) geometry();
         if (mode == Selection.TOPOLOGY && !isComplexEditing()) throw new IllegalArgumentException("Open a Siege Complex to view its Connections.");
         selection = mode;
-        if (mode == Selection.VERTICES) message = "Aim at a block. Tab chooses NW/NE/SE/SW; right-click confirms a vertex. Backspace undoes; Delete clears.";
+        if (mode == Selection.VERTICES) message = "Aim at a block. Tab chooses NW/NE/SE/SW; right-click adds a vertex. Backspace removes last; Delete clears.";
     }
-    public void zoneType(ZoneType type) { requireEditable(); zoneType = type; zoneId = null; connectionId = null; inference = null; selection = Selection.NONE; feedback = null; }
-    public void selectZone(String id) { requireEditable(); if (KOMETacticalComplexDraft.find(localComplex, zoneType, id) == null) throw new IllegalArgumentException("Unknown zone."); zoneId = id; feedback = null; }
+    public void zoneType(ZoneType type) { requireEditable(); zoneType = type; zoneId = null; connectionId = null; inference = null; selection = Selection.NONE; feedback = null; cancelHeldVertex(); }
+    public void selectZone(String id) { requireEditable(); if (KOMETacticalComplexDraft.find(localComplex, zoneType, id) == null) throw new IllegalArgumentException("Unknown zone."); zoneId = id; feedback = null; cancelHeldVertex(); }
     public void createZone(String id) {
         requireEditable(); localComplex = KOMETacticalComplexDraft.create(localComplex, zoneType, id); zoneId = id.trim();
-        setYRangeInclusive(NEW_DRAFT_MIN_Y, NEW_DRAFT_MAX_Y);
+        replace(getGeometryLabel(), new KOMEPolygonPrism(geometry().getPolygon(), NEW_DRAFT_MIN_Y, NEW_DRAFT_MAX_Y + 1));
         message = "New unsaved zone."; feedback = null;
     }
-    public void deleteZone() { requireEditable(); localComplex = KOMETacticalComplexDraft.remove(localComplex, zoneType, zoneId); feedback = null; zoneId = null; selection = Selection.NONE; message = "Zone removed from draft; references are retained for validation."; }
+    public void deleteZone() { requireEditable(); geometryHistory.remove(geometryHistoryKey()); unappliedByGeometry.remove(geometryHistoryKey()); localComplex = KOMETacticalComplexDraft.remove(localComplex, zoneType, zoneId); feedback = null; zoneId = null; selection = Selection.NONE; message = "Zone removed from draft; references are retained for validation."; }
     public void toggleWallAccess(String normalId) { requireEditable(); localComplex = KOMETacticalComplexDraft.wallAccess(localComplex, zoneId, normalId); }
     public void selectConnection(String id) {
         requireEditable(); if (KOMETacticalConnectionDraft.find(localComplex, id) == null) throw new IllegalArgumentException("Unknown Connection.");
@@ -725,10 +927,10 @@ public final class KOMETacticalAreaEditor {
         switch (selection) {
             case VERTICES:
                 KOMEXZPoint vertex = aimedCorner(x,z); addVertex(vertex.getX(),vertex.getZ()); break;
-            case LOWER_Y: replace(getGeometryLabel(), new KOMEPolygonPrism(geometry().getPolygon(), y, geometry().getMaxYExclusive())); break;
+            case LOWER_Y: replaceGeometry(new KOMEPolygonPrism(geometry().getPolygon(), y, geometry().getMaxYExclusive())); break;
             case UPPER_Y:
                 if (y == Integer.MAX_VALUE) throw new IllegalArgumentException("Top block Y is too large.");
-                replace(getGeometryLabel(), new KOMEPolygonPrism(geometry().getPolygon(), geometry().getMinYInclusive(), y + 1)); break;
+                replaceGeometry(new KOMEPolygonPrism(geometry().getPolygon(), geometry().getMinYInclusive(), y + 1)); break;
             default: return;
         }
         // The client tick keepalive refreshes the session without transmitting this local geometry.
@@ -776,15 +978,18 @@ public final class KOMETacticalAreaEditor {
         List<Overlay> result = new ArrayList<Overlay>();
         if (hasSession(player, dimension)) {
             GeometryFeedback validation = geometryFeedback();
-            if (local != null) result.add(new Overlay(local.getPrism(), null, local.getAreaId(), local.getLabel(), true,
-                validation.isInvalid(), snapshot != null && !local.equals(snapshot.getDraft().getArea())));
+            if (local != null) {
+                boolean unsaved = snapshot != null && !local.equals(snapshot.getDraft().getArea());
+                result.add(new Overlay(local.getPrism(), null, local.getAreaId(), local.getLabel(),
+                    !hasWorldViewContext() || worldPolygonSelected || unsaved, validation.isInvalid(), unsaved));
+            }
             else for (ZoneType kind : ZoneType.values()) for (KOMESiegeZone zone : KOMETacticalComplexDraft.zones(localComplex, kind)) {
                 KOMESiegeConnection c = getConnection();
                 KOMESiegeZone saved = snapshot == null || snapshot.getDraft().getComplex() == null ? null
                     : KOMETacticalComplexDraft.find(snapshot.getDraft().getComplex(), kind, zone.getId());
                 boolean unsaved = !zone.equals(saved);
                 boolean active = kind == zoneType && zone.getId().equals(zoneId);
-                boolean selected = active && (!isWorldViewWholeComplex() || unsaved) || !isWorldViewWholeComplex() && c != null && kind == ZoneType.NORMAL
+                boolean selected = active && (!hasWorldViewContext() || worldPolygonSelected || unsaved) || !hasWorldViewContext() && c != null && kind == ZoneType.NORMAL
                     && (c.getEndpointA().equals(KOMESiegeAreaRef.normal(zone.getId())) || c.getEndpointB().equals(KOMESiegeAreaRef.normal(zone.getId())));
                 result.add(new Overlay(zone.getPrism(), kind, zone.getId(), zone.getLabel(), selected,
                     selected && validation.isInvalid() || validation.conflictingZoneIds.contains(zone.getId()), unsaved));
@@ -831,7 +1036,7 @@ public final class KOMETacticalAreaEditor {
         }
         clearDraft(); busy = false; afterUpdate = null; message = "Draft cancelled.";
     }
-    private void clearDraft() { selection = Selection.NONE; snapshot = null; openedSource = null; local = null; localComplex = null; savedComplex = null; reopeningAfterSave = false; returningToAreaList = false; returningToComplexList = false; savingToken = null; zoneId = null; connectionId = null; inference = null; connectionCatalog = null; options = null; creating = false; keepalivePending = false; beforeKeepaliveMessage = null; unappliedFields = null; retainedDraft = recoveryPending = recoveryClosing = recoveryRetryAfterClose = recoveryPriorClosed = retainedGeometryView = recoveryDisconnected = false; retainedScope = null; retainedSource = null; retainedPlayer = retainedToken = recoveryClosingToken = null; clearWorldView(); clearGeometryPreview(); }
+    private void clearDraft() { selection = Selection.NONE; snapshot = null; openedSource = null; local = null; localComplex = null; savedComplex = null; reopeningAfterSave = false; returningToAreaList = false; returningToComplexList = false; savingToken = null; zoneId = null; connectionId = null; inference = null; connectionCatalog = null; options = null; creating = false; keepalivePending = false; beforeKeepaliveMessage = null; unappliedFields = null; unappliedByGeometry.clear(); retainedDraft = recoveryPending = recoveryClosing = recoveryRetryAfterClose = recoveryPriorClosed = retainedGeometryView = recoveryDisconnected = false; retainedScope = null; retainedSource = null; retainedPlayer = retainedToken = recoveryClosingToken = null; clearWorldView(); clearGeometryPreview(); }
     public void reset() {
         // A client lifecycle reset fences network replies, but a previously expired draft remains inspectable in memory.
         boolean preserve = retainedDraft;

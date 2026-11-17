@@ -63,8 +63,23 @@ public class KOMETacticalEditorGuiTest {
         typed.setAccessible(true); typed.invoke(screen, character, key);
     }
     private void enterWorldView() throws Exception {
-        Method enter = KOMEGuiTacticalAreaEditor.class.getDeclaredMethod("enterWorldView");
-        enter.setAccessible(true); enter.invoke(screen);
+        Method enter = KOMEGuiTacticalAreaEditor.class.getDeclaredMethod("enterWorldView", boolean.class);
+        enter.setAccessible(true); enter.invoke(screen, false);
+    }
+    private void enterVertexWorldView() throws Exception {
+        Method enter = KOMEGuiTacticalAreaEditor.class.getDeclaredMethod("enterWorldView", boolean.class);
+        enter.setAccessible(true); enter.invoke(screen, true);
+    }
+    @Test public void editVerticesControlStartsWithCandidateWhileEscapeViewIsPassive() throws Exception {
+        openArea();
+        enterWorldView();
+        assertFalse(editor.isWorldVertexPlacementActive());
+        assertSame(screen, editor.endWorldView());
+        Method enter = KOMEGuiTacticalAreaEditor.class.getDeclaredMethod("enterWorldView", boolean.class);
+        enter.setAccessible(true); enter.invoke(screen, true);
+        assertTrue(editor.isWorldVertexPlacementActive());
+        assertEquals("Edit Vertices in World", button(10).displayString);
+        editor.endWorldView();
     }
     private void assertButtonsFitWithoutOverlap() throws Exception {
         List<GuiButton> visible = buttons();
@@ -508,12 +523,13 @@ public class KOMETacticalEditorGuiTest {
         screen.initGui(); assertEquals("Edited zone", fieldText("label"));
         assertEquals("62", fieldText("bottom")); assertEquals("74", fieldText("top"));
         assertEquals(1, editor.getConfirmedVertexCount());
-        assertEquals(62, editor.getGeometry().getMinYInclusive()); assertEquals(75, editor.getGeometry().getMaxYExclusive());
+        assertEquals(61, editor.getGeometry().getMinYInclusive()); assertEquals(76, editor.getGeometry().getMaxYExclusive());
+        click(15); assertEquals(62, editor.getGeometry().getMinYInclusive()); assertEquals(75, editor.getGeometry().getMaxYExclusive());
         editor.cancel(); editor.switchBrowser(false);
         editor.acceptCatalog(new KOMETacticalAreaCatalog("T100", -1, 10, 0, 0, Collections.emptyList()));
         screen.updateScreen(); openArea(); editor.addVertex(7, 8); editor.setYRangeInclusive(63, 72);
         text("label", "Typed area"); text("bottom", "63"); text("top", "72");
-        enterWorldView(); assertEquals("Typed area", editor.getDraft().getLabel());
+        enterWorldView(); assertEquals("Original", editor.getDraft().getLabel());
         kome.common.tactical.KOMEForceDeploymentArea area = editor.getDraft();
         assertSame(screen, editor.endWorldView()); screen.initGui();
         assertEquals("63", fieldText("bottom")); assertEquals("72", fieldText("top"));
@@ -524,10 +540,147 @@ public class KOMETacticalEditorGuiTest {
         Field field = KOMETacticalAreaEditor.class.getDeclaredField("snapshot"); field.setAccessible(true);
         return ((KOMETacticalEditSnapshot) field.get(editor)).getPlayerId();
     }
-    @Test public void escapeWithMalformedFieldsOrPendingSaveCannotEnterWorldView() throws Exception {
-        openArea(); text("top", "broken"); type((char) 27, Keyboard.KEY_ESCAPE);
-        assertFalse(editor.hasWorldViewContext()); assertEquals("broken", fieldText("top"));
-        assertTrue(editor.getMessage().contains("whole block"));
+    @Test public void dirtyLabelDoesNotRestoreCleanTopOverCompletedWorldEdit() throws Exception {
+        openArea(); text("label", "Typed label");
+        enterWorldView();
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y);
+        editor.applyWorldHeight(75);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("Typed label", fieldText("label"));
+        assertEquals("75", fieldText("top"));
+        click(21);
+        KOMETacticalEditDraft submitted = KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload());
+        assertEquals("Typed label", submitted.getArea().getLabel());
+        assertEquals(76, submitted.getArea().getPrism().getMaxYExclusive());
+    }
+    @Test public void dirtyLabelDoesNotRestoreCleanBottomOverCompletedWorldEdit() throws Exception {
+        openArea(); text("label", "Typed bottom label");
+        enterWorldView(); editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.LOWER_Y);
+        editor.applyWorldHeight(62);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("Typed bottom label", fieldText("label"));
+        assertEquals("62", fieldText("bottom"));
+        click(21);
+        KOMETacticalEditDraft submitted = KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload());
+        assertEquals("Typed bottom label", submitted.getArea().getLabel());
+        assertEquals(62, submitted.getArea().getPrism().getMinYInclusive());
+    }
+    @Test public void cleanHeightFieldsFollowBothCompletedWorldEdits() throws Exception {
+        openArea(); enterWorldView();
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y); editor.applyWorldHeight(77);
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.LOWER_Y); editor.applyWorldHeight(63);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("63", fieldText("bottom")); assertEquals("77", fieldText("top"));
+        click(21);
+        KOMETacticalEditDraft submitted = KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload());
+        assertEquals(63, submitted.getArea().getPrism().getMinYInclusive());
+        assertEquals(78, submitted.getArea().getPrism().getMaxYExclusive());
+    }
+    @Test public void dirtyTopTextSurvivesUnrelatedWorldVertexEdit() throws Exception {
+        openArea(); text("top", "78pending"); enterVertexWorldView();
+        editor.addWorldVertex(5, 6);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("78pending", fieldText("top"));
+        assertEquals(1, editor.getConfirmedVertexCount());
+        text("top", "78"); click(21);
+        KOMETacticalEditDraft submitted = KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload());
+        assertEquals(79, submitted.getArea().getPrism().getMaxYExclusive());
+        assertEquals(1, submitted.getArea().getPrism().getPolygon().getVertices().size());
+    }
+    @Test public void dirtyBottomTextSurvivesUnrelatedWorldVertexEdit() throws Exception {
+        openArea(); text("bottom", "6-"); enterVertexWorldView();
+        editor.addWorldVertex(7, 8);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("6-", fieldText("bottom"));
+        assertEquals(1, editor.getConfirmedVertexCount());
+        text("bottom", "62"); click(21);
+        KOMETacticalEditDraft submitted = KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload());
+        assertEquals(62, submitted.getArea().getPrism().getMinYInclusive());
+        assertEquals(1, submitted.getArea().getPrism().getPolygon().getVertices().size());
+    }
+    @Test public void sameFieldWorldEditBlocksStaleTypedTopUntilUserResolvesIt() throws Exception {
+        openArea(); text("top", "79"); enterWorldView();
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y); editor.applyWorldHeight(75);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("79", fieldText("top"));
+        click(21);
+        assertTrue(requests.isEmpty());
+        assertEquals(76, editor.getGeometry().getMaxYExclusive());
+        assertTrue(editor.getMessage().contains("Top Y changed in the world"));
+        click(31);
+        assertEquals(60, editor.getGeometry().getMinYInclusive());
+        assertEquals(76, editor.getGeometry().getMaxYExclusive());
+        enterWorldView(); assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("79", fieldText("top"));
+        click(21); assertTrue(requests.isEmpty());
+        text("top", "80"); click(21);
+        assertEquals(81, KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload()).getArea().getPrism().getMaxYExclusive());
+    }
+    @Test public void sameFieldWorldEditBlocksStaleTypedBottomUntilUserResolvesIt() throws Exception {
+        openArea(); text("bottom", "61"); enterWorldView();
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.LOWER_Y); editor.applyWorldHeight(62);
+        assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("61", fieldText("bottom"));
+        click(21); assertTrue(requests.isEmpty());
+        assertEquals(62, editor.getGeometry().getMinYInclusive());
+        assertTrue(editor.getMessage().contains("Bottom Y changed in the world"));
+        text("bottom", "63"); click(21);
+        assertEquals(63, KOMETacticalEditWire.decodeDraft(requests.get(0).getPayload()).getArea().getPrism().getMinYInclusive());
+    }
+    @Test public void switchingZonesKeepsDirtyTextOnlyOnItsOwnPolygon() throws Exception {
+        openEmpty();
+        editor.createZone("A");
+        for (int[] p : new int[][] {{0,0},{8,0},{8,8},{0,8}}) editor.addVertex(p[0], p[1]);
+        editor.createZone("B");
+        for (int[] p : new int[][] {{20,0},{28,0},{28,8},{20,8}}) editor.addVertex(p[0], p[1]);
+        editor.selectZone("A"); screen.focusWorldSelection(); screen.initGui();
+        text("label", "A pending");
+        enterWorldView(); assertTrue(editor.selectWorldPolygon(snapshotPlayer(), -1, 24, 65, 2));
+        editor.toggleWorldHeight(KOMETacticalAreaEditor.Selection.UPPER_Y); editor.applyWorldHeight(77);
+        assertSame(screen, editor.endWorldView()); screen.focusWorldSelection(); screen.initGui();
+        assertEquals("", fieldText("label")); assertEquals("77", fieldText("top"));
+        enterWorldView(); assertTrue(editor.selectWorldPolygon(snapshotPlayer(), -1, 2, 65, 2));
+        assertSame(screen, editor.endWorldView()); screen.focusWorldSelection(); screen.initGui();
+        assertEquals("A pending", fieldText("label")); assertEquals("70", fieldText("top"));
+        assertEquals("A", editor.getZoneId());
+    }
+    @Test public void worldSwitchAndUndoPreserveUnappliedTextByPolygon() throws Exception {
+        openEmpty();
+        editor.createZone("A");
+        for (int[] p : new int[][] {{0,0},{8,0},{8,8},{0,8}}) editor.addVertex(p[0], p[1]);
+        editor.createZone("B");
+        for (int[] p : new int[][] {{20,0},{28,0},{28,8},{20,8}}) editor.addVertex(p[0], p[1]);
+        editor.selectZone("A"); screen.focusWorldSelection(); screen.initGui();
+        text("label", "A typed"); text("bottom", "-"); text("top", "A bad Y");
+        enterWorldView(); assertTrue(editor.selectWorldPolygon(snapshotPlayer(), -1, 24, 65, 2));
+        assertSame(screen, editor.endWorldView()); screen.focusWorldSelection(); screen.initGui();
+        assertEquals("B", editor.getZoneId()); assertEquals("", fieldText("label"));
+        text("label", "B typed"); text("bottom", "B bad Y"); text("top", "72bad");
+        click(13);
+        assertEquals("B typed", fieldText("label")); assertEquals("B bad Y", fieldText("bottom"));
+        assertEquals("72bad", fieldText("top")); assertEquals("B", editor.getZoneId());
+        enterWorldView(); assertTrue(editor.selectWorldPolygon(snapshotPlayer(), -1, 2, 65, 2));
+        assertSame(screen, editor.endWorldView()); screen.focusWorldSelection(); screen.initGui();
+        assertEquals("A typed", fieldText("label")); assertEquals("-", fieldText("bottom"));
+        assertEquals("A bad Y", fieldText("top")); assertEquals("", editor.getGeometryLabel());
+        enterWorldView(); assertTrue(editor.selectWorldPolygon(snapshotPlayer(), -1, 25, 65, 2));
+        assertSame(screen, editor.endWorldView()); screen.focusWorldSelection(); screen.initGui();
+        assertEquals("B typed", fieldText("label")); assertEquals("B bad Y", fieldText("bottom"));
+        assertEquals("72bad", fieldText("top")); assertEquals("", editor.getGeometryLabel());
+        KOMEGuiTacticalAreaEditor replacement = new KOMEGuiTacticalAreaEditor(editor);
+        replacement.width = 320; replacement.height = 240;
+        Field font = GuiScreen.class.getDeclaredField("fontRendererObj"); font.setAccessible(true);
+        font.set(replacement, KOMEAccessFixture.allocate(InertFont.class)); replacement.initGui();
+        Field replacementLabel = KOMEGuiTacticalAreaEditor.class.getDeclaredField("label"); replacementLabel.setAccessible(true);
+        assertEquals("B typed", ((GuiTextField) replacementLabel.get(replacement)).getText());
+        editor.selectZone("A"); replacement.initGui();
+        assertEquals("A typed", ((GuiTextField) replacementLabel.get(replacement)).getText());
+        assertTrue(requests.stream().noneMatch(r -> r.getAction() == KOMETacticalEditRequest.Action.UPDATE));
+    }
+    @Test public void malformedFieldsCanBeParkedForWorldViewButPendingSaveStillBlocksEntry() throws Exception {
+        openArea(); text("top", "broken"); enterWorldView();
+        assertTrue(editor.hasWorldViewContext()); assertSame(screen, editor.endWorldView()); screen.initGui();
+        assertEquals("broken", fieldText("top")); assertEquals(71, editor.getGeometry().getMaxYExclusive());
         text("top", "70"); click(21); type((char) 27, Keyboard.KEY_ESCAPE);
         assertFalse(editor.hasWorldViewContext()); assertTrue(editor.isBusy());
         KOMETacticalEditRequest update = requests.get(0);
@@ -542,7 +695,7 @@ public class KOMETacticalEditorGuiTest {
     }
     @Test public void sharedGeometryToolbarOffersDirectVerticesWithoutSeparateStraightTool() throws Exception {
         openEmpty();text("id","N");click(212);
-        assertEquals("Select vertices (Tab corners)",button(10).displayString);assertEquals("Undo vertex",button(13).displayString);
+        assertEquals("Edit Vertices in World",button(10).displayString);assertEquals("Undo",button(13).displayString);
         assertTrue(buttons().stream().noneMatch(b->b.id==17));
     }
     @Test public void complexPagingMustNotUseDeploymentAreaCountAfterSaveRefresh() throws Exception {
@@ -658,6 +811,14 @@ public class KOMETacticalEditorGuiTest {
         editor.accept(new KOMETacticalEditSnapshot(UUID.randomUUID(), UUID.randomUUID(), new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX,"T100","FORT","FORT",-1),
             1,1,10,c.getRevision(),0,10,false,new KOMETacticalEditDraft(c),null),KOMETacticalEditSessionManager.Status.OPENED); screen.updateScreen(); requests.clear();
         click(206); replyConnections();
+    }
+    @Test public void undoControlRestoresDraftYAndKeepsUnappliedText() throws Exception {
+        openArea();
+        String before = fieldText("bottom");
+        click(31); assertEquals(1, editor.getUndoCount());
+        click(13); assertEquals(before, fieldText("bottom")); assertEquals(0, editor.getUndoCount());
+        click(31); text("top", "unfinished");
+        click(13); assertEquals("unfinished", fieldText("top")); assertEquals(before, fieldText("bottom"));
     }
     @Test public void connectionTooltipUsesActualCenteredButtonAtAllWidths() throws Exception {
         openExistingConnection();

@@ -39,13 +39,44 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     private boolean confirmRetainedDiscard;
     private ZoneType fieldZoneType;
     private String fieldZoneId;
+    private final java.util.Map<String, VisibleFields> pendingGeometryText = new java.util.HashMap<String, VisibleFields>();
+    private boolean fieldsParkedForWorld;
+    private static final class PendingField {
+        final String typed, base;
+        PendingField(String typed, String base) { this.typed = typed; this.base = base; }
+        static PendingField capture(String visible, String model, PendingField previous) {
+            if (previous != null) {
+                if (previous.typed != null && visible.equals(previous.typed))
+                    return new PendingField(visible.equals(model) ? null : visible,
+                        visible.equals(model) ? model : previous.base);
+                if (previous.typed == null && visible.equals(previous.base)) return new PendingField(null, model);
+            }
+            return new PendingField(visible.equals(model) ? null : visible, model);
+        }
+    }
+    private static final class VisibleFields {
+        final PendingField label, bottom, top;
+        VisibleFields(PendingField label, PendingField bottom, PendingField top) {
+            this.label = label; this.bottom = bottom; this.top = top;
+        }
+        boolean dirty() { return label.typed != null || bottom.typed != null || top.typed != null; }
+        static VisibleFields from(KOMETacticalAreaEditor.UnappliedFields fields) {
+            return fields == null ? null : new VisibleFields(new PendingField(fields.label, fields.baseLabel),
+                new PendingField(fields.bottom, fields.baseBottom), new PendingField(fields.top, fields.baseTop));
+        }
+    }
+    private static String fieldKey(ZoneType type, String id) {
+        return type == null ? "area" : type.name() + ":" + id;
+    }
     public KOMEGuiTacticalAreaEditor(KOMETacticalAreaEditor editor) {
         this.editor = editor; this.connectionView = editor.getConnection() != null; this.connectionForm = connectionView;
         this.geometryView = editor.isComplexEditing() && editor.getZone() != null && !connectionView
             || editor.isRetainedGeometryView();
     }
     @Override public void initGui() {
-        rememberVisibleUnappliedFields();
+        if (!fieldsParkedForWorld) rememberVisibleUnappliedFields();
+        fieldsParkedForWorld = false;
+        if (!target.equals(editor.getTargetId())) pendingGeometryText.clear();
         Keyboard.enableRepeatEvents(true); buttonList.clear(); confirmDelete = false;
         id = label = bottom = top = null;
         KOMEForceDeploymentArea area = editor.getDraft();
@@ -83,15 +114,18 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             bottom.setText(Integer.toString(editor.getGeometry().getMinYInclusive()));
             top = new GuiTextField(fontRendererObj, yStart + 130 + yGap, 86, 78, 18); top.setMaxStringLength(12);
             top.setText(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
-            if (editor.unappliedFieldsMatchCurrentGeometry()) {
-                KOMETacticalAreaEditor.UnappliedFields pending = editor.getUnappliedFields();
-                label.setText(pending.label); bottom.setText(pending.bottom); top.setText(pending.top);
+            VisibleFields parked = pendingGeometryText.get(fieldKey(fieldZoneType, fieldZoneId));
+            if (parked == null) parked = VisibleFields.from(editor.getCurrentUnappliedFields());
+            if (parked != null) {
+                if (parked.label.typed != null) label.setText(parked.label.typed);
+                if (parked.bottom.typed != null) bottom.setText(parked.bottom.typed);
+                if (parked.top.typed != null) top.setText(parked.top.typed);
             }
             buttonList.add(new GuiButtonExt(30, yStart + 82, 85, 22, 20, "-1"));
             buttonList.add(new GuiButtonExt(31, yStart + 108, 85, 22, 20, "+1"));
             buttonList.add(new GuiButtonExt(32, top.xPosition + 82, 85, 22, 20, "-1"));
             buttonList.add(new GuiButtonExt(33, top.xPosition + 108, 85, 22, 20, "+1"));
-            buttonList.add(new GuiButtonExt(10, width / 2 - 100, 112, 200, 20, "Select vertices (Tab corners)"));
+            buttonList.add(new GuiButtonExt(10, width / 2 - 100, 112, 200, 20, "Edit Vertices in World"));
             int pickWidth = Math.min(160, (width - 36) / 2), pickStart = (width - (pickWidth * 2 + 4)) / 2;
             buttonList.add(new GuiButtonExt(11, pickStart, 136, pickWidth, 20, "Pick bottom Y"));
             buttonList.add(new GuiButtonExt(12, pickStart + pickWidth + 4, 136, pickWidth, 20, "Pick top block Y"));
@@ -99,7 +133,7 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             int actionWidth = editor.isComplexEditing() && editor.getZoneType() == ZoneType.WALL ? 148 + 4 + accessWidth : 148;
             int actionStart = (width - actionWidth) / 2;
             if (actionStart < 4) actionStart = 4;
-            buttonList.add(new GuiButtonExt(13, actionStart, 160, 72, 20, "Undo vertex"));
+            buttonList.add(new GuiButtonExt(13, actionStart, 160, 72, 20, "Undo"));
             buttonList.add(new GuiButtonExt(14, actionStart + 76, 160, 72, 20, "Clear polygon"));
             if (editor.isComplexEditing()) {
                 if (editor.getZoneType() == ZoneType.WALL) buttonList.add(new GuiButtonExt(16, actionStart + 152, 160, accessWidth, 20, "Access"));
@@ -129,14 +163,25 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     }
     private void rememberVisibleUnappliedFields() {
         if (label == null || bottom == null || top == null || !target.equals(editor.getTargetId())) return;
-        if (editor.hasRetainedDraft()) {
-            KOMEPolygonPrism prism = editor.getGeometry();
-            if (prism != null && ( !label.getText().equals(editor.getGeometryLabel())
-                    || !bottom.getText().equals(Integer.toString(prism.getMinYInclusive()))
-                    || !top.getText().equals(Long.toString((long) prism.getMaxYExclusive() - 1L))))
-                editor.rememberUnappliedFields(label.getText(), bottom.getText(), top.getText(), fieldZoneType, fieldZoneId);
-        } else if (editor.isEditing() && editor.getUnappliedFields() != null)
-            editor.rememberUnappliedFields(label.getText(), bottom.getText(), top.getText(), fieldZoneType, fieldZoneId);
+        boolean current = !editor.isComplexEditing() || fieldZoneType == editor.getZoneType()
+            && java.util.Objects.equals(fieldZoneId, editor.getZoneId());
+        KOMESiegeZone displayed = editor.isComplexEditing() && fieldZoneId != null
+            ? KOMETacticalComplexDraft.find(editor.getComplexDraft(), fieldZoneType, fieldZoneId) : null;
+        KOMEPolygonPrism prism = editor.isComplexEditing() ? displayed == null ? null : displayed.getPrism() : editor.getGeometry();
+        if (prism == null) return;
+        String modelLabel = editor.isComplexEditing() ? displayed.getLabel() : editor.getGeometryLabel();
+        String key = fieldKey(fieldZoneType, fieldZoneId);
+        VisibleFields previous = pendingGeometryText.get(key);
+        if (previous == null && current) previous = VisibleFields.from(editor.getCurrentUnappliedFields());
+        VisibleFields captured = new VisibleFields(
+            PendingField.capture(label.getText(), modelLabel, previous == null ? null : previous.label),
+            PendingField.capture(bottom.getText(), Integer.toString(prism.getMinYInclusive()), previous == null ? null : previous.bottom),
+            PendingField.capture(top.getText(), Long.toString((long) prism.getMaxYExclusive() - 1L), previous == null ? null : previous.top));
+        pendingGeometryText.put(key, captured);
+        if (current && captured.dirty() && (editor.hasRetainedDraft() || editor.isEditing()))
+            editor.rememberUnappliedFields(captured.label.typed, captured.bottom.typed, captured.top.typed,
+                captured.label.base, captured.bottom.base, captured.top.base, fieldZoneType, fieldZoneId);
+        else if (current && !captured.dirty()) editor.appliedUnappliedFields();
     }
     private java.util.List<String> inspectionLines() {
         java.util.List<String> result = new java.util.ArrayList<String>();
@@ -195,18 +240,38 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             connectionView = connectionForm = false; connectionChoice = ConnectionChoice.NONE; }
         if (!target.equals(current) || !complexLayout.equals(layoutKey()) || c != null && (c.revision != catalogRevision || c.page != page)) initGui();
     }
-    private int[] parsedYFields() {
-        try { return new int[] {Integer.parseInt(bottom.getText()), Integer.parseInt(top.getText())}; }
-        catch (NumberFormatException invalid) { throw new IllegalArgumentException("Y bounds must be whole block numbers."); }
-    }
     private void fields() {
-        int[] y = parsedYFields();
+        rememberVisibleUnappliedFields();
+        VisibleFields pending = pendingGeometryText.get(fieldKey(fieldZoneType, fieldZoneId));
+        String modelLabel = editor.getGeometryLabel();
+        String modelBottom = Integer.toString(editor.getGeometry().getMinYInclusive());
+        String modelTop = Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L);
+        rejectWorldFieldConflict("Label", pending.label, modelLabel);
+        int[] y = checkedYFields(pending, modelBottom, modelTop);
         editor.setYRangeInclusive(y[0], y[1]);
-        editor.setLabel(label.getText());
+        editor.setLabel(pending.label.typed == null ? modelLabel : pending.label.typed);
+        bottom.setText(Integer.toString(editor.getGeometry().getMinYInclusive()));
+        top.setText(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
+        pendingGeometryText.remove(fieldKey(fieldZoneType, fieldZoneId));
         editor.appliedUnappliedFields();
     }
+    private static void rejectWorldFieldConflict(String name, PendingField pending, String model) {
+        if (pending.typed != null && !pending.base.equals(model) && !pending.typed.equals(model))
+            throw new IllegalArgumentException(name + " changed in the world while typed text was pending. Edit "
+                + name + " to choose a value before continuing.");
+    }
+    private static int[] checkedYFields(VisibleFields pending, String modelBottom, String modelTop) {
+        rejectWorldFieldConflict("Bottom Y", pending.bottom, modelBottom);
+        rejectWorldFieldConflict("Top Y", pending.top, modelTop);
+        try { return new int[] {Integer.parseInt(pending.bottom.typed == null ? modelBottom : pending.bottom.typed),
+            Integer.parseInt(pending.top.typed == null ? modelTop : pending.top.typed)}; }
+        catch (NumberFormatException invalid) { throw new IllegalArgumentException("Y bounds must be whole block numbers."); }
+    }
     private void nudgeY(int buttonId) {
-        int[] y = parsedYFields();
+        rememberVisibleUnappliedFields();
+        VisibleFields pending = pendingGeometryText.get(fieldKey(fieldZoneType, fieldZoneId));
+        int[] y = checkedYFields(pending, Integer.toString(editor.getGeometry().getMinYInclusive()),
+            Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
         int bound = buttonId <= 31 ? 0 : 1;
         int delta = buttonId == 30 || buttonId == 32 ? -1 : 1;
         try { y[bound] = Math.addExact(y[bound], delta); }
@@ -219,11 +284,14 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     private boolean geometryInputPending() {
         return editor.isBusy() && (editor.isEditing() || editor.isReopeningAfterSave());
     }
-    private void enterWorldView() {
-        if (editor.getDraft() != null || geometryView && optionView == null) fields();
+    private void enterWorldView(boolean editVertices) {
+        rememberVisibleUnappliedFields();
         parkedIdText = id == null ? null : id.getText();
-        editor.beginWorldView(this, editor.isComplexEditing() && !geometryView);
+        editor.beginWorldView(this, editor.isComplexEditing() && !geometryView, editVertices);
+        fieldsParkedForWorld = true;
     }
+    /** Return from world selection to the same authorized draft and its geometry panel. */
+    public void focusWorldSelection() { geometryView = true; optionView = null; connectionView = connectionForm = false; }
     @Override protected void actionPerformed(GuiButton button) {
         // Vanilla 1.7.10 iterates the live buttonList after this method rebuilds it.
         // One click must never activate a newly-created control (especially Delete/Confirm).
@@ -254,10 +322,18 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
                 case 3: editor.browse(0); break;
                 case 4: editor.open(id.getText(), true); break;
                 case 5: mc.displayGuiScreen(null); break;
-                case 10: case 11: case 12:
-                    fields(); editor.select(button.id == 10 ? Selection.VERTICES : button.id == 11 ? Selection.LOWER_Y : Selection.UPPER_Y);
+                case 10:
+                    enterWorldView(true); mc.displayGuiScreen(null); break;
+                case 11: case 12:
+                    fields(); editor.select(button.id == 11 ? Selection.LOWER_Y : Selection.UPPER_Y);
                     mc.displayGuiScreen(null); break;
-                case 13: fields(); editor.undo(); break;
+                case 13:
+                    boolean bottomFollowsDraft = bottom.getText().equals(Integer.toString(editor.getGeometry().getMinYInclusive()));
+                    boolean topFollowsDraft = top.getText().equals(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
+                    editor.undo();
+                    if (bottomFollowsDraft) bottom.setText(Integer.toString(editor.getGeometry().getMinYInclusive()));
+                    if (topFollowsDraft) top.setText(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
+                    break;
                 case 14: fields(); editor.clearVertices(); break;
                 case 30: case 31: case 32: case 33: nudgeY(button.id); break;
                 case 15:
@@ -286,7 +362,7 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         if (key == Keyboard.KEY_ESCAPE) {
             if (editor.isEditing()) {
                 try {
-                    enterWorldView();
+                    enterWorldView(false);
                     mc.displayGuiScreen(null);
                 } catch (RuntimeException invalid) { editor.error(invalid.getMessage() == null ? "Correct the editor fields before opening Geometry View." : invalid.getMessage()); }
             } else mc.displayGuiScreen(null);
@@ -696,5 +772,5 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         }
     }
     @Override public boolean doesGuiPauseGame() { return false; }
-    @Override public void onGuiClosed() { rememberVisibleUnappliedFields(); Keyboard.enableRepeatEvents(false); }
+    @Override public void onGuiClosed() { if (!fieldsParkedForWorld) rememberVisibleUnappliedFields(); Keyboard.enableRepeatEvents(false); }
 }
