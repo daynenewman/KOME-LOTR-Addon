@@ -10,6 +10,7 @@ import kome.common.siege.geometry.KOMEPolygonPrism;
 import kome.client.tactical.KOMETacticalComplexDraft;
 import kome.client.tactical.KOMETacticalComplexDraft.ZoneType;
 import kome.client.tactical.KOMETacticalConnectionDraft;
+import cpw.mods.fml.client.config.GuiButtonExt;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -33,63 +34,130 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     private int zonePage, accessPage;
     private String complexLayout = "";
     private boolean dispatchingClick, clickActionHandled;
+    private String parkedIdText;
+    private int retainedPage;
+    private boolean confirmRetainedDiscard;
+    private ZoneType fieldZoneType;
+    private String fieldZoneId;
     public KOMEGuiTacticalAreaEditor(KOMETacticalAreaEditor editor) {
         this.editor = editor; this.connectionView = editor.getConnection() != null; this.connectionForm = connectionView;
-        this.geometryView = editor.isComplexEditing() && editor.getZone() != null && !connectionView;
+        this.geometryView = editor.isComplexEditing() && editor.getZone() != null && !connectionView
+            || editor.isRetainedGeometryView();
     }
     @Override public void initGui() {
+        rememberVisibleUnappliedFields();
         Keyboard.enableRepeatEvents(true); buttonList.clear(); confirmDelete = false;
         id = label = bottom = top = null;
         KOMEForceDeploymentArea area = editor.getDraft();
         target = editor.getTargetId();
         KOMETacticalAreaCatalog catalog = editor.getCatalog();
-        if (catalog == null) return;
-        catalogRevision = catalog.revision; page = catalog.page;
+        if (catalog == null && !editor.hasRetainedDraft()) return;
+        catalogRevision = catalog == null ? -1 : catalog.revision; page = catalog == null ? -1 : catalog.page;
         complexLayout = layoutKey();
+        if (editor.hasRetainedDraft()) { initRetained(); updateButtons(); return; }
         if (!editor.isEditing()) {
-            buttonList.add(new GuiButton(6, 16, 36, (width - 36) / 2, 18, "Force Deployment Areas"));
-            buttonList.add(new GuiButton(7, width / 2 + 2, 36, (width - 36) / 2, 18, "Siege Complexes"));
+            int tabWidth = Math.min(200, (width - 36) / 2), tabStart = (width - (tabWidth * 2 + 4)) / 2;
+            buttonList.add(new GuiButtonExt(6, tabStart, 36, tabWidth, 18, "Deployment Areas"));
+            buttonList.add(new GuiButtonExt(7, tabStart + tabWidth + 4, 36, tabWidth, 18, "Siege Complexes"));
         }
         if (editor.isComplexBrowser() && !editor.isEditing() || editor.isComplexEditing() && (!geometryView || optionView != null)) {
-            initComplex(); updateButtons(); return;
+            initComplex(); restoreIdText(); updateButtons(); return;
         }
         if (!editor.isEditing()) {
             for (int i = 0; i < catalog.rows.size(); i++) {
                 KOMETacticalAreaCatalog.Row row = catalog.rows.get(i);
-                buttonList.add(new GuiButton(100 + i, 16, 58 + i * 18, width - 32, 18,
-                    fontRendererObj.trimStringToWidth(row.id + "  " + row.label + "  (rev " + row.revision + ")", width - 48)));
+                rowButton(100 + i, 58 + i * 18, row.id + "  " + row.label + "  (rev " + row.revision + ")");
             }
-            buttonList.add(new GuiButton(1, 16, height - 88, 60, 20, "Previous"));
-            buttonList.add(new GuiButton(2, 82, height - 88, 60, 20, "Next"));
-            buttonList.add(new GuiButton(3, width - 90, height - 88, 74, 20, "Refresh"));
-            id = new GuiTextField(fontRendererObj, 16, height - 54, width - 126, 18); id.setMaxStringLength(128);
-            buttonList.add(new GuiButton(4, width - 102, height - 55, 86, 20, "Create area"));
-            buttonList.add(new GuiButton(5, width / 2 - 40, height - 26, 80, 20, "Close"));
+            browserNavigation(height - 88);
+            int fieldWidth = Math.min(194, width - 130), fieldStart = (width - fieldWidth - 90) / 2;
+            id = new GuiTextField(fontRendererObj, fieldStart, height - 54, fieldWidth, 18); id.setMaxStringLength(128);
+            buttonList.add(new GuiButtonExt(4, fieldStart + fieldWidth + 4, height - 55, 86, 20, "Create area"));
+            buttonList.add(new GuiButtonExt(5, width / 2 - 40, height - 26, 80, 20, "Close"));
         } else {
-            label = new GuiTextField(fontRendererObj, 62, 48, width - 78, 18); label.setMaxStringLength(256); label.setText(editor.getGeometryLabel());
-            bottom = new GuiTextField(fontRendererObj, 16, 86, width / 2 - 24, 18); bottom.setMaxStringLength(12);
+            fieldZoneType = editor.isComplexEditing() ? editor.getZoneType() : null;
+            fieldZoneId = editor.isComplexEditing() ? editor.getZoneId() : null;
+            int labelWidth = Math.min(200, width - 78), labelStart = (width - labelWidth - 46) / 2;
+            label = new GuiTextField(fontRendererObj, labelStart + 46, 48, labelWidth, 18); label.setMaxStringLength(256); label.setText(editor.getGeometryLabel());
+            int yGap = Math.max(4, Math.min(28, width - 276)), yStart = (width - 260 - yGap) / 2;
+            bottom = new GuiTextField(fontRendererObj, yStart, 86, 78, 18); bottom.setMaxStringLength(12);
             bottom.setText(Integer.toString(editor.getGeometry().getMinYInclusive()));
-            top = new GuiTextField(fontRendererObj, width / 2 + 8, 86, width / 2 - 24, 18); top.setMaxStringLength(12);
+            top = new GuiTextField(fontRendererObj, yStart + 130 + yGap, 86, 78, 18); top.setMaxStringLength(12);
             top.setText(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
-            buttonList.add(new GuiButton(10, 16, 112, width - 32, 20, "Select vertices (Tab corners)"));
-            buttonList.add(new GuiButton(11, 16, 136, width / 2 - 24, 20, "Pick bottom Y"));
-            buttonList.add(new GuiButton(12, width / 2 + 8, 136, width / 2 - 24, 20, "Pick top block Y"));
-            buttonList.add(new GuiButton(13, 16, 160, 72, 20, "Undo vertex"));
-            buttonList.add(new GuiButton(14, 94, 160, 72, 20, "Clear polygon"));
-            if (editor.isComplexEditing()) {
-                buttonList.add(new GuiButton(15, width - 86, 160, 70, 20, "Back"));
-                if (editor.getZoneType() == ZoneType.WALL) buttonList.add(new GuiButton(16, 170, 160, Math.max(50, width - 260), 20, "Access"));
+            if (editor.unappliedFieldsMatchCurrentGeometry()) {
+                KOMETacticalAreaEditor.UnappliedFields pending = editor.getUnappliedFields();
+                label.setText(pending.label); bottom.setText(pending.bottom); top.setText(pending.top);
             }
-            int size = (width - 44) / 4;
-            for (int i = 0; i < 4; i++) buttonList.add(new GuiButton(20 + i, 16 + i * (size + 4), height - 26, size, 20,
-                new String[] {"Validate", "Save", "Cancel", "Delete"}[i]));
+            buttonList.add(new GuiButtonExt(30, yStart + 82, 85, 22, 20, "-1"));
+            buttonList.add(new GuiButtonExt(31, yStart + 108, 85, 22, 20, "+1"));
+            buttonList.add(new GuiButtonExt(32, top.xPosition + 82, 85, 22, 20, "-1"));
+            buttonList.add(new GuiButtonExt(33, top.xPosition + 108, 85, 22, 20, "+1"));
+            buttonList.add(new GuiButtonExt(10, width / 2 - 100, 112, 200, 20, "Select vertices (Tab corners)"));
+            int pickWidth = Math.min(160, (width - 36) / 2), pickStart = (width - (pickWidth * 2 + 4)) / 2;
+            buttonList.add(new GuiButtonExt(11, pickStart, 136, pickWidth, 20, "Pick bottom Y"));
+            buttonList.add(new GuiButtonExt(12, pickStart + pickWidth + 4, 136, pickWidth, 20, "Pick top block Y"));
+            int accessWidth = Math.min(94, Math.max(50, width - 238));
+            int actionWidth = editor.isComplexEditing() && editor.getZoneType() == ZoneType.WALL ? 148 + 4 + accessWidth : 148;
+            int actionStart = (width - actionWidth) / 2;
+            if (actionStart < 4) actionStart = 4;
+            buttonList.add(new GuiButtonExt(13, actionStart, 160, 72, 20, "Undo vertex"));
+            buttonList.add(new GuiButtonExt(14, actionStart + 76, 160, 72, 20, "Clear polygon"));
+            if (editor.isComplexEditing()) {
+                if (editor.getZoneType() == ZoneType.WALL) buttonList.add(new GuiButtonExt(16, actionStart + 152, 160, accessWidth, 20, "Access"));
+            }
+            int grow = Math.min(20, Math.max(0, (width - 280) / 5));
+            int[] widths = {56 + grow, 44 + grow, 44 + grow, 54 + grow, 54 + grow};
+            int[] actions = {20, 21, 15, 22, 23};
+            String[] titles = {"Validate", "Save", "Back", "Cancel", "Delete"};
+            int x = (width - (252 + grow * 5 + 16)) / 2;
+            for (int i = 0; i < actions.length; i++) {
+                buttonList.add(new GuiButtonExt(actions[i], x, height - 26, widths[i], 20, titles[i]));
+                x += widths[i] + 4;
+            }
         }
-        updateButtons();
+        restoreIdText(); updateButtons();
+    }
+    private void initRetained() {
+        retainedPage = Math.min(retainedPage, Math.max(0, (inspectionLines().size() - 1) / 8));
+        int w = Math.min(112, (width - 36) / 2), x = (width - (w * 2 + 8)) / 2;
+        button(702, x, height - 52, w, "Previous lines");
+        button(703, x + w + 8, height - 52, w, "Next lines");
+        button(700, x, height - 27, w, "Recover draft");
+        button(701, x + w + 8, height - 27, w, confirmRetainedDiscard ? "Confirm Discard" : "Discard draft");
+    }
+    private void restoreIdText() {
+        if (parkedIdText != null && id != null) { id.setText(parkedIdText); parkedIdText = null; }
+    }
+    private void rememberVisibleUnappliedFields() {
+        if (label == null || bottom == null || top == null || !target.equals(editor.getTargetId())) return;
+        if (editor.hasRetainedDraft()) {
+            KOMEPolygonPrism prism = editor.getGeometry();
+            if (prism != null && ( !label.getText().equals(editor.getGeometryLabel())
+                    || !bottom.getText().equals(Integer.toString(prism.getMinYInclusive()))
+                    || !top.getText().equals(Long.toString((long) prism.getMaxYExclusive() - 1L))))
+                editor.rememberUnappliedFields(label.getText(), bottom.getText(), top.getText(), fieldZoneType, fieldZoneId);
+        } else if (editor.isEditing() && editor.getUnappliedFields() != null)
+            editor.rememberUnappliedFields(label.getText(), bottom.getText(), top.getText(), fieldZoneType, fieldZoneId);
+    }
+    private java.util.List<String> inspectionLines() {
+        java.util.List<String> result = new java.util.ArrayList<String>();
+        int available = Math.max(32, width - 32);
+        for (String line : editor.retainedInspectionLines()) {
+            if (line.isEmpty()) { result.add(""); continue; }
+            while (!line.isEmpty()) {
+                String visible = fontRendererObj.trimStringToWidth(line, available);
+                if (visible.isEmpty()) break;
+                result.add(visible); line = line.substring(visible.length());
+            }
+        }
+        return result;
     }
     private void updateButtons() {
         KOMETacticalAreaCatalog catalog = editor.getCatalog();
         for (Object value : buttonList) {
             GuiButton b = (GuiButton) value; b.enabled = !editor.isBusy();
+            if (b.id == 700) b.enabled &= editor.canRecoverRetainedDraft();
+            if (b.id == 702) b.enabled &= retainedPage > 0;
+            if (b.id == 703) b.enabled &= (retainedPage + 1) * 8 < inspectionLines().size();
             if (!editor.isComplexBrowser()) {
                 if (b.id == 1) b.enabled &= catalog != null && catalog.page > 0;
                 if (b.id == 2) b.enabled &= catalog != null && (long) (catalog.page + 1) * KOMETacticalAreaCatalog.PAGE_SIZE < catalog.total;
@@ -122,22 +190,59 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     private void synchronizeLayout() {
         KOMETacticalAreaCatalog c = editor.getCatalog();
         String current = editor.getTargetId();
+        if (geometryView && editor.isComplexEditing() && editor.getZone() == null) geometryView = false;
         if (!target.equals(current)) { geometryView = false; optionView = null; zonePage = 0; selectedBuild = null;
             connectionView = connectionForm = false; connectionChoice = ConnectionChoice.NONE; }
         if (!target.equals(current) || !complexLayout.equals(layoutKey()) || c != null && (c.revision != catalogRevision || c.page != page)) initGui();
     }
-    private void fields() {
-        editor.setLabel(label.getText());
-        try { editor.setYRangeInclusive(Integer.parseInt(bottom.getText()), Integer.parseInt(top.getText())); }
+    private int[] parsedYFields() {
+        try { return new int[] {Integer.parseInt(bottom.getText()), Integer.parseInt(top.getText())}; }
         catch (NumberFormatException invalid) { throw new IllegalArgumentException("Y bounds must be whole block numbers."); }
+    }
+    private void fields() {
+        int[] y = parsedYFields();
+        editor.setYRangeInclusive(y[0], y[1]);
+        editor.setLabel(label.getText());
+        editor.appliedUnappliedFields();
+    }
+    private void nudgeY(int buttonId) {
+        int[] y = parsedYFields();
+        int bound = buttonId <= 31 ? 0 : 1;
+        int delta = buttonId == 30 || buttonId == 32 ? -1 : 1;
+        try { y[bound] = Math.addExact(y[bound], delta); }
+        catch (ArithmeticException overflow) { throw new IllegalArgumentException(bound == 0 ? "Bottom block Y is out of range." : "Top block Y is too large."); }
+        editor.setYRangeInclusive(y[0], y[1]);
+        bottom.setText(Integer.toString(editor.getGeometry().getMinYInclusive()));
+        top.setText(Long.toString((long) editor.getGeometry().getMaxYExclusive() - 1L));
+        if (editor.getUnappliedFields() != null) rememberVisibleUnappliedFields();
+    }
+    private boolean geometryInputPending() {
+        return editor.isBusy() && (editor.isEditing() || editor.isReopeningAfterSave());
+    }
+    private void enterWorldView() {
+        if (editor.getDraft() != null || geometryView && optionView == null) fields();
+        parkedIdText = id == null ? null : id.getText();
+        editor.beginWorldView(this, editor.isComplexEditing() && !geometryView);
     }
     @Override protected void actionPerformed(GuiButton button) {
         // Vanilla 1.7.10 iterates the live buttonList after this method rebuilds it.
         // One click must never activate a newly-created control (especially Delete/Confirm).
         if (dispatchingClick && clickActionHandled) return;
         if (dispatchingClick) clickActionHandled = true;
+        if (geometryInputPending()) return;
         try {
             synchronizeLayout();
+            if (editor.hasRetainedDraft()) {
+                if (button.id == 700 && mc != null && mc.thePlayer != null)
+                    editor.recoverRetainedDraft(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
+                else if (button.id == 700) editor.error("Reconnect to the same player and tile before recovering this draft.");
+                else if (button.id == 701) {
+                    if (confirmRetainedDiscard) { editor.discardRetainedDraft(); confirmRetainedDiscard = false; retainedPage = 0; initGui(); }
+                    else { confirmRetainedDiscard = true; editor.error("Discard the unsaved local draft? Click Confirm Discard."); initGui(); }
+                } else if (button.id == 702 && retainedPage > 0) { --retainedPage; initGui(); }
+                else if (button.id == 703 && (retainedPage + 1) * 8 < inspectionLines().size()) { ++retainedPage; initGui(); }
+                return;
+            }
             if (button.id == 6 || button.id == 7) { editor.switchBrowser(button.id == 7); initGui(); return; }
             if (editor.isComplexBrowser() && !editor.isEditing() || editor.isComplexEditing() && (!geometryView || optionView != null)) {
                 complexAction(button); return;
@@ -154,7 +259,12 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
                     mc.displayGuiScreen(null); break;
                 case 13: fields(); editor.undo(); break;
                 case 14: fields(); editor.clearVertices(); break;
-                case 15: fields(); geometryView = false; initGui(); break;
+                case 30: case 31: case 32: case 33: nudgeY(button.id); break;
+                case 15:
+                    fields();
+                    if (editor.isComplexEditing()) { geometryView = false; initGui(); }
+                    else editor.backToAreaList();
+                    break;
                 case 16: fields(); optionView = KOMETacticalComplexCatalog.Kind.COMPLEXES; accessPage = 0; initGui(); break;
                 case 20: fields(); editor.validate(); break;
                 case 21: fields(); editor.save(); break;
@@ -171,12 +281,26 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     }
     @Override protected void keyTyped(char character, int key) {
         synchronizeLayout();
-        if (key == Keyboard.KEY_ESCAPE) { if (editor.isEditing()) { editor.cancel(); initGui(); } else mc.displayGuiScreen(null); return; }
-        if (editor.isEditing() && (editor.getDraft() != null || geometryView && optionView == null)) { label.textboxKeyTyped(character, key); bottom.textboxKeyTyped(character, key); top.textboxKeyTyped(character, key); }
+        if (editor.hasRetainedDraft()) { if (key == Keyboard.KEY_ESCAPE && mc != null) mc.displayGuiScreen(null); return; }
+        if (geometryInputPending()) return;
+        if (key == Keyboard.KEY_ESCAPE) {
+            if (editor.isEditing()) {
+                try {
+                    enterWorldView();
+                    mc.displayGuiScreen(null);
+                } catch (RuntimeException invalid) { editor.error(invalid.getMessage() == null ? "Correct the editor fields before opening Geometry View." : invalid.getMessage()); }
+            } else mc.displayGuiScreen(null);
+            return;
+        }
+        if (editor.isEditing() && (editor.getDraft() != null || geometryView && optionView == null)) {
+            label.textboxKeyTyped(character, key); bottom.textboxKeyTyped(character, key); top.textboxKeyTyped(character, key);
+            if (editor.getUnappliedFields() != null) rememberVisibleUnappliedFields();
+        }
         else if (id != null) id.textboxKeyTyped(character, key);
     }
     @Override protected void mouseClicked(int x, int y, int button) {
         synchronizeLayout();
+        if (geometryInputPending()) return;
         dispatchingClick = true; clickActionHandled = false;
         try { super.mouseClicked(x, y, button); }
         finally { dispatchingClick = false; }
@@ -187,6 +311,22 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         synchronizeLayout();
         drawDefaultBackground();
         drawCenteredString(fontRendererObj, "Tactical Area Editor", width / 2, 8, 0xFFFFFF);
+        if (editor.hasRetainedDraft()) {
+            drawCenteredString(fontRendererObj, "UNSAVED LOCAL DRAFT - SESSION CLOSED", width / 2, 28, 0xFF7070);
+            java.util.List<String> lines = inspectionLines();
+            int first = retainedPage * 8;
+            for (int i = 0; i < 8 && first + i < lines.size(); i++)
+                drawString(fontRendererObj, lines.get(first + i), 16, 50 + i * 13, 0xFFFFFF);
+            java.util.List<String> note = fontRendererObj.listFormattedStringToWidth(editor.getMessage(), width - 32);
+            for (int i = 0; i < Math.min(2, note.size()); i++) drawString(fontRendererObj, note.get(i), 16, height - 78 + i * 10, 0xFFD080);
+            super.drawScreen(mouseX, mouseY, partialTicks);
+            return;
+        }
+        if (editor.isReopeningAfterSave()) {
+            drawCenteredString(fontRendererObj, editor.getMessage(), width / 2, 194, 0xFFD080);
+            super.drawScreen(mouseX, mouseY, partialTicks);
+            return;
+        }
         KOMETacticalAreaCatalog c = editor.getCatalog();
         if (c != null) drawString(fontRendererObj, "Tile " + c.tileId + "  |  Dimension " + c.dimension + "  |  Config rev " + editor.displayedStoreRevision(), 16, 24, 0xBBBBBB);
         boolean complexPanel = editor.isComplexBrowser() && !editor.isEditing() || editor.isComplexEditing() && (!geometryView || optionView != null);
@@ -195,15 +335,15 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             KOMEPolygonPrism prism = editor.getGeometry();
             long rev = editor.isComplexEditing() ? editor.getComplexDraft().getRevision() : editor.getDraft().getRevision();
             drawString(fontRendererObj, editor.getGeometryId() + "  |  " + (editor.isCreating() ? "New draft" : "Revision " + rev), 16, 36, 0x80E0FF);
-            drawString(fontRendererObj, "Label:", 16, 53, 0xFFFFFF);
+            drawString(fontRendererObj, "Label:", label.xPosition - 46, 53, 0xFFFFFF);
             label.drawTextBox();
-            drawString(fontRendererObj, "Bottom block Y (included)", 16, 73, 0xFFFFFF);
-            drawString(fontRendererObj, "Top block Y (included)", width / 2 + 8, 73, 0xFFFFFF);
+            drawString(fontRendererObj, "Min Y (included)", bottom.xPosition, 73, 0xFFFFFF);
+            drawString(fontRendererObj, "Max Y (included)", top.xPosition, 73, 0xFFFFFF);
             bottom.drawTextBox(); top.drawTextBox();
             drawString(fontRendererObj, editor.getConfirmedVertexCount() + " vertices / " + editor.getDistinctVertexCount() + " distinct", 16, 181, 0xFFFFFF);
         } else if (c != null) {
             if (c.rows.isEmpty()) drawString(fontRendererObj, "No areas on this tile yet.", 16, 60, 0xBBBBBB);
-            drawString(fontRendererObj, "New stable area ID", 16, height - 66, 0xFFFFFF);
+            drawString(fontRendererObj, "New stable area ID", id.xPosition, height - 66, 0xFFFFFF);
             if (id != null) id.drawTextBox();
         }
         int y = complexPanel ? height - 35 : editor.isEditing() ? 194 : height - 35;
@@ -218,26 +358,26 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             drawString(fontRendererObj, lines.get(i), 16, y + i * 10, feedback.isInvalid() || invalidConnection ? 0xFF7070 : 0xFFD080);
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (mouseY >= y && mouseY < height - 26 && !lines.isEmpty()) func_146283_a(lines, mouseX, mouseY);
-        if (!editor.isEditing() && editor.isComplexBrowser() && editor.getComplexCatalog() != null && mouseX >= 16 && mouseX < width - 16) {
-            int rowIndex = (mouseY - 58) / 18;
-            if (mouseY >= 58 && rowIndex < editor.getComplexCatalog().rows.size()) {
+        if (!editor.isEditing() && editor.isComplexBrowser() && editor.getComplexCatalog() != null) {
+            int rowIndex = hoveredRowIndex(mouseX, mouseY, 100, editor.getComplexCatalog().rows.size());
+            if (rowIndex >= 0) {
                 KOMETacticalComplexCatalog.Row row = editor.getComplexCatalog().rows.get(rowIndex);
                 func_146283_a(java.util.Arrays.asList(row.id, "Revision " + row.revision, row.detail,
                     row.assignedBuildCount + " assigned Builds", "Preferred area: " + (row.relatedId == null ? "none" : row.relatedId)), mouseX, mouseY);
             }
         }
-        if (editor.isComplexEditing() && mouseX >= 16 && mouseX < width - 16) {
+        if (editor.isComplexEditing()) {
             if (optionView != null && optionView != KOMETacticalComplexCatalog.Kind.COMPLEXES && editor.getOptions() != null
-                    && editor.getOptions().kind == optionView && mouseY >= 75 && mouseY < 175) {
-                int index = (mouseY - 75) / 20;
-                if (index < editor.getOptions().rows.size()) {
+                    && editor.getOptions().kind == optionView) {
+                int index = hoveredRowIndex(mouseX, mouseY, 400, editor.getOptions().rows.size());
+                if (index >= 0) {
                     KOMETacticalComplexCatalog.Row row = editor.getOptions().rows.get(index);
                     func_146283_a(java.util.Arrays.asList(optionView == KOMETacticalComplexCatalog.Kind.GATES ? row.relatedId + " / " + row.id : row.id,
                         row.label, row.detail, optionView == KOMETacticalComplexCatalog.Kind.GATES ? editor.gateChoiceUsage(row) : ""), mouseX, mouseY);
                 }
-            } else if (connectionView && !connectionForm && optionView == null && mouseY >= 82 && mouseY < 142) {
-                int index = connectionPage * 3 + (mouseY - 82) / 20;
-                if (index < editor.getConnections().size()) {
+            } else if (connectionView && !connectionForm && optionView == null) {
+                int index = connectionTooltipIndex(mouseX, mouseY);
+                if (index >= 0) {
                     KOMESiegeConnection connection = editor.getConnections().get(index);
                     func_146283_a(java.util.Arrays.asList(connection.getId(), connection.getEndpointA() + " <-> " + connection.getEndpointB(),
                         "Transition: " + connection.getTransitionZoneId(), "Gate: " + (connection.isGated()
@@ -249,24 +389,56 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
     }
     private String layoutKey() {
         KOMETacticalComplexCatalog c = editor.isEditing() ? editor.getOptions() : editor.getComplexCatalog();
-        return editor.getCatalogueVersion() + ":" + editor.isComplexBrowser() + ":" + geometryView + ":" + optionView + ":" + editor.getZoneType() + ":" + editor.getZoneId()
+        return editor.getCatalogueVersion() + ":" + editor.hasRetainedDraft() + ":" + editor.isComplexBrowser() + ":" + geometryView + ":" + optionView + ":" + editor.getZoneType() + ":" + editor.getZoneId()
             + ":" + connectionView + ":" + connectionForm + ":" + connectionChoice + ":" + editor.getConnectionId()
             + ":" + (c == null ? "" : c.kind + ":" + c.revision + ":" + c.page);
     }
-    private void button(int id, int x, int y, int w, String title) { buttonList.add(new GuiButton(id, x, y, w, 18, title)); }
+    private void button(int id, int x, int y, int w, String title) {
+        if (w > 200) { if (x == 16) x = (width - 200) / 2; w = 200; }
+        buttonList.add(new GuiButtonExt(id, x, y, w, 18, title));
+    }
+    private void rowButton(int id, int y, String title) {
+        int w = Math.min(200, width - 32);
+        button(id, (width - w) / 2, y, w, fontRendererObj.trimStringToWidth(title, w - 16));
+    }
+    private int hoveredRowIndex(int mouseX, int mouseY, int firstButtonId, int rowCount) {
+        for (Object value : buttonList) {
+            GuiButton row = (GuiButton) value;
+            int index = row.id - firstButtonId;
+            if (index >= 0 && index < rowCount && mouseX >= row.xPosition && mouseX < row.xPosition + row.width
+                    && mouseY >= row.yPosition && mouseY < row.yPosition + row.height) return index;
+        }
+        return -1;
+    }
+    private int connectionTooltipIndex(int mouseX, int mouseY) {
+        int visible = Math.min(3, Math.max(0, editor.getConnections().size() - connectionPage * 3));
+        int row = hoveredRowIndex(mouseX, mouseY, 620, visible);
+        return row < 0 ? -1 : connectionPage * 3 + row;
+    }
+    private void browserNavigation(int y) {
+        int start = (width - 202) / 2;
+        button(1, start, y, 60, "Previous"); button(2, start + 64, y, 60, "Next");
+        button(3, start + 128, y, 74, "Refresh");
+    }
+    private int visibleZoneRows() {
+        for (Object value : buttonList) {
+            GuiButton tab = (GuiButton) value;
+            if (tab.id == 206) return tab.yPosition == 54 ? 3 : 2;
+        }
+        return 2;
+    }
     private void initComplex() {
         if (!editor.isEditing()) {
             KOMETacticalComplexCatalog c = editor.getComplexCatalog();
             if (c != null) for (int i = 0; i < c.rows.size(); i++) {
                 KOMETacticalComplexCatalog.Row row = c.rows.get(i);
-                button(100 + i, 16, 58 + i * 18, width - 32, fontRendererObj.trimStringToWidth(
-                    row.id + " r" + row.revision + " | " + row.detail + " | " + row.assignedBuildCount + " Builds | "
-                        + (row.relatedId == null ? "no preferred area" : row.relatedId), width - 48));
+                rowButton(100 + i, 58 + i * 18, row.id + " r" + row.revision + " | " + row.detail + " | "
+                    + row.assignedBuildCount + " Builds | " + (row.relatedId == null ? "no preferred area" : row.relatedId));
             }
-            button(1, 16, height - 88, 60, "Previous"); button(2, 82, height - 88, 60, "Next");
-            button(3, width - 90, height - 88, 74, "Refresh");
-            id = new GuiTextField(fontRendererObj, 16, height - 54, width - 144, 18); id.setMaxStringLength(128);
-            button(4, width - 120, height - 54, 104, "Create complex"); button(5, width / 2 - 40, height - 26, 80, "Close");
+            browserNavigation(height - 88);
+            int fieldWidth = Math.min(178, width - 148), fieldStart = (width - fieldWidth - 108) / 2;
+            id = new GuiTextField(fontRendererObj, fieldStart, height - 54, fieldWidth, 18); id.setMaxStringLength(128);
+            button(4, fieldStart + fieldWidth + 4, height - 54, 104, "Create complex"); button(5, width / 2 - 40, height - 26, 80, "Close");
             return;
         }
         if (optionView != null) {
@@ -276,13 +448,13 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
                 for (int i = 0, start = accessPage * 5; i < 5 && start + i < normals.size(); i++) {
                     String normal = normals.get(start + i).getId();
                     boolean checked = ((KOMEWallZone) editor.getZone()).getAccessibleFromNormalSegmentIds().contains(normal);
-                    button(400 + i, 16, 75 + i * 20, width - 32, (checked ? "[x] " : "[ ] ") + normal);
+                    rowButton(400 + i, 75 + i * 20, (checked ? "[x] " : "[ ] ") + normal);
                 }
             } else if (options != null && options.kind == optionView) for (int i = 0; i < options.rows.size(); i++) {
                 KOMETacticalComplexCatalog.Row row = options.rows.get(i);
-                button(400 + i, 16, 75 + i * 20, width - 32, fontRendererObj.trimStringToWidth(
+                rowButton(400 + i, 75 + i * 20,
                     (optionView == KOMETacticalComplexCatalog.Kind.GATES ? row.relatedId + " / " : "") + row.id
-                    + (optionView == KOMETacticalComplexCatalog.Kind.GATES ? " | " + editor.gateChoiceUsage(row) : "") + " " + row.label + " | " + row.detail, width - 48));
+                    + (optionView == KOMETacticalComplexCatalog.Kind.GATES ? " | " + editor.gateChoiceUsage(row) : "") + " " + row.label + " | " + row.detail);
             }
             button(220, 16, height - 62, 60, "Previous"); button(221, 82, height - 62, 60, "Next");
             button(224, width - 90, height - 62, 74, "Refresh");
@@ -297,19 +469,37 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             return;
         }
         if (connectionView) { initConnections(); return; }
-        int w = (width - 52) / 6;
-        for (int i = 0; i < 6; i++) button(201 + i, 16 + i * (w + 4), 54, w, new String[] {"Normals", "Walls", "Transitions", "Preferred", "Builds", "Links"}[i]);
-        java.util.List<KOMESiegeZone> zones = KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType());
-        if (zonePage * 3 >= zones.size()) zonePage = 0;
-        for (int i = 0, start = zonePage * 3; i < 3 && start + i < zones.size(); i++) {
-            KOMESiegeZone zone = zones.get(start + i);
-            button(300 + i, 16, 82 + i * 20, width - 32, fontRendererObj.trimStringToWidth(zone.getId() + " " + zone.getLabel(), width - 48));
+        String[] tabs = {"Normals (" + editor.savedZoneCount(ZoneType.NORMAL) + ")", "Walls (" + editor.savedZoneCount(ZoneType.WALL) + ")",
+            "Transitions (" + editor.savedZoneCount(ZoneType.TRANSITION) + ")", "Preferred", "Builds", "Links (" + editor.savedConnectionCount() + ")"};
+        int needed = 80;
+        for (String tab : tabs) needed = Math.max(needed, fontRendererObj.getStringWidth(tab) + 12);
+        boolean oneRow = needed * 6 + 20 <= width - 32;
+        int columns = oneRow ? 6 : 3;
+        int w = oneRow ? needed : Math.min(160, (width - 40) / 3);
+        int tabStart = (width - (w * columns + (columns - 1) * 4)) / 2;
+        for (int i = 0; i < 6; i++) {
+            String title = tabs[i];
+            if (i == 2 && fontRendererObj.getStringWidth(title) > w - 6) title = "Trans (" + editor.savedZoneCount(ZoneType.TRANSITION) + ")";
+            button(201 + i, tabStart + i % columns * (w + 4), 54 + i / columns * 22, w, title);
         }
-        button(210, 16, 144, 54, "Previous"); button(211, 74, 144, 54, "Next");
-        id = new GuiTextField(fontRendererObj, 16, 169, width - 190, 18); id.setMaxStringLength(128);
-        button(212, width - 166, 169, 70, "New zone"); button(213, width - 90, 169, 74, confirmZone ? "Confirm" : "Remove zone");
-        int size = (width - 44) / 4;
-        for (int i = 0; i < 4; i++) button(20 + i, 16 + i * (size + 4), height - 26, size, new String[] {"Validate", "Save", "Cancel", "Delete"}[i]);
+        java.util.List<KOMESiegeZone> zones = KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType());
+        int rows = oneRow ? 3 : 2, listY = oneRow ? 82 : 102;
+        if (zonePage * rows >= zones.size()) zonePage = 0;
+        for (int i = 0, start = zonePage * rows; i < rows && start + i < zones.size(); i++) {
+            KOMESiegeZone zone = zones.get(start + i);
+            rowButton(300 + i, listY + i * 20, zone.getId() + " " + zone.getLabel());
+        }
+        int pagerStart = (width - 112) / 2;
+        button(210, pagerStart, 144, 54, "Previous"); button(211, pagerStart + 58, 144, 54, "Next");
+        int fieldWidth = Math.min(160, width - 190), fieldStart = (width - fieldWidth - 152) / 2;
+        id = new GuiTextField(fontRendererObj, fieldStart, 169, fieldWidth, 18); id.setMaxStringLength(128);
+        button(212, fieldStart + fieldWidth + 4, 169, 70, "New zone"); button(213, fieldStart + fieldWidth + 78, 169, 74, confirmZone ? "Confirm" : "Remove zone");
+        int grow = Math.min(20, Math.max(0, (width - 280) / 5));
+        int[] widths = {56 + grow, 44 + grow, 44 + grow, 54 + grow, 54 + grow};
+        int[] actions = {20, 21, 214, 22, 23};
+        String[] titles = {"Validate", "Save", "Back", "Cancel", "Delete"};
+        int x = (width - (252 + grow * 5 + 16)) / 2;
+        for (int i = 0; i < actions.length; i++) { button(actions[i], x, height - 26, widths[i], titles[i]); x += widths[i] + 4; }
     }
     private void complexAction(GuiButton b) {
         if (!editor.isEditing()) {
@@ -361,7 +551,7 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         }
         if (connectionView) { connectionAction(b); return; }
         if (b.id >= 300) {
-            editor.selectZone(KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType()).get(zonePage * 3 + b.id - 300).getId());
+            editor.selectZone(KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType()).get(zonePage * visibleZoneRows() + b.id - 300).getId());
             geometryView = true; confirmZone = false; initGui(); return;
         }
         if (b.id >= 201 && b.id <= 203) { editor.zoneType(ZoneType.values()[b.id - 201]); zonePage = 0; confirmZone = false; initGui(); }
@@ -374,13 +564,14 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             selectedBuild = null; editor.complexPage(optionView, 0); initGui();
         } else if (b.id == 210 || b.id == 211) {
             int next = b.id == 210 ? zonePage - 1 : zonePage + 1;
-            if (next >= 0 && next * 3 < KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType()).size()) zonePage = next;
+            if (next >= 0 && next * visibleZoneRows() < KOMETacticalComplexDraft.zones(editor.getComplexDraft(), editor.getZoneType()).size()) zonePage = next;
             initGui();
         } else if (b.id == 212) { editor.createZone(id.getText()); geometryView = true; initGui(); }
         else if (b.id == 213) {
             if (!confirmZone) { confirmZone = true; editor.error("Remove selected zone from this draft? Click again. Existing references stay inspectable."); ((GuiButton)b).displayString = "Confirm"; }
             else { editor.deleteZone(); confirmZone = false; initGui(); }
-        } else if (b.id == 20) editor.validate();
+        } else if (b.id == 214) editor.backToComplexList();
+        else if (b.id == 20) editor.validate();
         else if (b.id == 21) editor.save();
         else if (b.id == 22) { editor.cancel(); geometryView = false; optionView = null; initGui(); }
         else if (b.id == 23) {
@@ -392,7 +583,7 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         if (!editor.isEditing()) {
             KOMETacticalComplexCatalog c = editor.getComplexCatalog();
             if (c == null || c.rows.isEmpty()) drawString(fontRendererObj, "No complexes listed. Refresh or create one.", 16, 62, 0xBBBBBB);
-            drawString(fontRendererObj, "New stable complex ID", 16, height - 66, 0xFFFFFF);
+            drawString(fontRendererObj, "New stable complex ID", id.xPosition, height - 66, 0xFFFFFF);
             if (id != null) id.drawTextBox(); return;
         }
         KOMESiegeComplex c = editor.getComplexDraft();
@@ -416,8 +607,8 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             }
             else { drawString(fontRendererObj, "Connections | " + editor.readinessSummary(), 16, 74, 0xFFFFFF); if (id != null) id.drawTextBox(); }
         } else {
-            drawString(fontRendererObj, editor.getZoneType() + " zones | " + editor.readinessSummary(), 16, 74, 0xBBBBBB);
-            drawString(fontRendererObj, "Preferred: " + c.getPreferredForceDeploymentAreaId().orElse("none"), 138, 149, 0xBBBBBB);
+            drawString(fontRendererObj, fontRendererObj.trimStringToWidth(editor.readinessSummary() + " | Preferred: "
+                + c.getPreferredForceDeploymentAreaId().orElse("none"), width - 32), 16, 190, 0xBBBBBB);
             if (id != null) id.drawTextBox();
         }
     }
@@ -435,12 +626,12 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
             button(602, 16, 88, width - 32, "Endpoint B: " + c.getEndpointB());
             button(603, 16, 110, width - 32, "Transition: " + c.getTransitionZoneId());
             button(604, 16, 132, width - 32, "Gate: " + (c.isGated() ? c.getGateRef().get().getBuildId() + " / " + c.getGateRef().get().getGateRecordId() : "NONE (Gateless)"));
-            int third = (width - 40) / 3;
-            button(606, 16, 154, third, "Infer endpoints"); button(607, 20 + third, 154, third, "Accept suggestion"); button(608, 24 + third * 2, 154, third, "Dismiss");
-            int size = (width - 48) / 5;
+            int third = Math.min(130, (width - 40) / 3), thirdStart = (width - (third * 3 + 8)) / 2;
+            button(606, thirdStart, 154, third, "Infer endpoints"); button(607, thirdStart + third + 4, 154, third, "Accept suggestion"); button(608, thirdStart + (third + 4) * 2, 154, third, "Dismiss");
+            int size = Math.min(90, (width - 48) / 5), actionStart = (width - (size * 5 + 16)) / 2;
             int[] actions = {609, 611, 20, 21, 610};
             String[] titles = {"Back", "World", "Validate", "Save", confirmConnection ? "Confirm" : "Remove"};
-            for (int i = 0; i < actions.length; i++) button(actions[i], 16 + i * (size + 4), height - 26, size, titles[i]);
+            for (int i = 0; i < actions.length; i++) button(actions[i], actionStart + i * (size + 4), height - 26, size, titles[i]);
             return;
         }
         button(609, 16, 54, 70, "Back"); button(612, 92, 54, 90, "Refresh status");
@@ -455,8 +646,8 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         button(613, 16, 144, 54, "Previous"); button(614, 74, 144, 54, "Next");
         id = new GuiTextField(fontRendererObj, 16, 169, width - 146, 18); id.setMaxStringLength(128);
         button(615, width - 122, 169, 106, "New Connection");
-        int size = (width - 40) / 3;
-        button(20, 16, height - 26, size, "Validate"); button(21, 20 + size, height - 26, size, "Save"); button(22, 24 + size * 2, height - 26, size, "Cancel");
+        int size = Math.min(110, (width - 40) / 3), actionStart = (width - (size * 3 + 8)) / 2;
+        button(20, actionStart, height - 26, size, "Validate"); button(21, actionStart + size + 4, height - 26, size, "Save"); button(22, actionStart + (size + 4) * 2, height - 26, size, "Cancel");
     }
     private java.util.List<String> connectionChoices() {
         java.util.List<String> result = new java.util.ArrayList<>();
@@ -505,5 +696,5 @@ public final class KOMEGuiTacticalAreaEditor extends GuiScreen {
         }
     }
     @Override public boolean doesGuiPauseGame() { return false; }
-    @Override public void onGuiClosed() { Keyboard.enableRepeatEvents(false); }
+    @Override public void onGuiClosed() { rememberVisibleUnappliedFields(); Keyboard.enableRepeatEvents(false); }
 }

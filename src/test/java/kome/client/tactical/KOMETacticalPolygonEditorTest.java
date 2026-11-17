@@ -127,8 +127,10 @@ public class KOMETacticalPolygonEditorTest {
         KOMETacticalEditDraft submitted=KOMETacticalEditWire.decodeDraft(requests.get(requests.size()-1).getPayload());assertEquals(preview,submitted.getArea().getPrism());
         editor.accept(snapshot(submitted,1,false),KOMETacticalEditSessionManager.Status.UPDATED);assertEquals(KOMETacticalEditRequest.Action.SAVE,requests.get(requests.size()-1).getAction());
         editor.accept(snapshot(submitted,1,true),KOMETacticalEditSessionManager.Status.SAVED);
-        editor.acceptCatalog(new KOMETacticalAreaCatalog("T100",-1,11,0,1,Collections.singletonList(new KOMETacticalAreaCatalog.Row("FIELD","",1))));
-        token=UUID.randomUUID();editor.open("FIELD",false);editor.accept(snapshot(submitted.atRevision(1),0,false),KOMETacticalEditSessionManager.Status.OPENED);
+        assertTrue(editor.isReopeningAfterSave());
+        token=UUID.randomUUID();editor.accept(new KOMETacticalEditSnapshot(player,token,
+            new KOMETacticalEditScope(KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA,"T100",null,"FIELD",-1),
+            2,4,11,1,0,11,false,submitted.atRevision(1),null),KOMETacticalEditSessionManager.Status.OPENED);
         assertEquals(preview,editor.getGeometry());assertEquals(preview.getPolygon().getVertices(),editor.getConfirmedVertices());
         editor.select(KOMETacticalAreaEditor.Selection.VERTICES);assertEquals(preview,editor.getGeometry());
         editor.undo();assertEquals(preview.getPolygon().getVertices().subList(0,3),editor.getConfirmedVertices());
@@ -145,7 +147,7 @@ public class KOMETacticalPolygonEditorTest {
             KOMESiegeReadinessFixtures.prism(0,0,10,10))),Collections.emptyList(),Collections.emptyList(),null,Collections.emptyList());
     }
     @Test public void forbiddenOverlapTurnsPreviewRedAndIdentifiesConflictingZoneUsingServerValidator() {
-        complex(withNormal());editor.zoneType(ZoneType.WALL);editor.createZone("WALL");rectangle(5,5);
+        complex(withNormal());editor.zoneType(ZoneType.WALL);editor.createZone("WALL");editor.setYRangeInclusive(0,9);rectangle(5,5);
         assertTrue(new KOMESiegeComplexValidator().validate(editor.getComplexDraft()).hasCode(kome.common.siege.validation.KOMEValidationCode.NORMAL_WALL_OVERLAP));
         assertTrue(editor.geometryFeedback().messages.stream().anyMatch(m->m.contains("NORMAL_WALL_OVERLAP")&&m.contains("COURT")&&m.contains("WALL")));
         assertTrue(editor.geometryFeedback().conflictingZoneIds.contains("COURT"));assertTrue(editor.overlays(player,-1).stream().filter(o->o.selected).allMatch(o->o.invalid));
@@ -159,7 +161,7 @@ public class KOMETacticalPolygonEditorTest {
         editor.save();assertEquals(KOMETacticalEditRequest.Action.UPDATE,requests.get(requests.size()-1).getAction());
     }
     @Test public void liveYSeparationUsesExistingThreeDimensionalRulesAndCleanupClearsVertices() {
-        complex(withNormal());editor.zoneType(ZoneType.WALL);editor.createZone("W");rectangle(1,1);
+        complex(withNormal());editor.zoneType(ZoneType.WALL);editor.createZone("W");editor.setYRangeInclusive(0,9);rectangle(1,1);
         assertTrue(editor.geometryFeedback().isInvalid());editor.setYRangeInclusive(10,19);assertFalse(editor.geometryFeedback().isInvalid());
         editor.cancel();assertTrue(editor.getConfirmedVertices().isEmpty());assertTrue(editor.overlays(player,-1).isEmpty());editor.reset();assertTrue(editor.geometryFeedback().messages.isEmpty());
     }

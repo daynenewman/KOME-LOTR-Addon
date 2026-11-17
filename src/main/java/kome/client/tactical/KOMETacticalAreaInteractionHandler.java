@@ -29,7 +29,13 @@ public final class KOMETacticalAreaInteractionHandler {
         return e != null && mc.thePlayer != null && mc.currentScreen == null
             && e.consumesClicks(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
     }
+    private boolean viewing() {
+        Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
+        return e != null && mc.thePlayer != null && mc.currentScreen == null
+            && e.worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
+    }
     @SubscribeEvent public void mouse(MouseEvent event) {
+        if (viewing() && (event.button == 0 || event.button == 1)) { event.setCanceled(true); return; }
         if (!selecting() || (event.button != 0 && event.button != 1)) return;
         event.setCanceled(true); // Cancel before vanilla break/place/attack dispatch.
         if (event.button == 1 && event.buttonstate) {
@@ -41,7 +47,7 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void interact(PlayerInteractEvent event) {
-        if (event.world != null && event.world.isRemote && selecting()
+        if (event.world != null && event.world.isRemote && (selecting() || viewing())
                 && event.entityPlayer.getUniqueID().equals(Minecraft.getMinecraft().thePlayer.getUniqueID())) event.setCanceled(true);
     }
     @SubscribeEvent public void keys(InputEvent.KeyInputEvent event) {
@@ -57,6 +63,7 @@ public final class KOMETacticalAreaInteractionHandler {
     }
     /** The real FML callback delegates here; one physical Tab press changes only the corner. */
     public boolean handleKey(int key, boolean pressed, boolean repeat) {
+        if (viewing()) return false; // No corner, undo, clear or world-height edits in read-only view.
         if (viewingTopology() && key == Keyboard.KEY_RETURN && pressed && !repeat) { returnToScreen(); return true; }
         if (key == Keyboard.KEY_TAB) {
             if (!selectingVertices()) { tabHeld = false; return false; }
@@ -89,6 +96,13 @@ public final class KOMETacticalAreaInteractionHandler {
         Minecraft.getMinecraft().displayGuiScreen(new KOMEGuiTacticalAreaEditor(editor()));
     }
     @SubscribeEvent public void gui(GuiOpenEvent event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (event.gui instanceof GuiIngameMenu && editor() != null && mc.thePlayer != null
+                && editor().worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) {
+            net.minecraft.client.gui.GuiScreen origin = editor().endWorldView();
+            event.gui = origin == null ? new KOMEGuiTacticalAreaEditor(editor()) : origin;
+            return;
+        }
         if (editor() != null && editor().isEditing() && editor().getSelection() != KOMETacticalAreaEditor.Selection.NONE
                 && event.gui instanceof GuiIngameMenu) {
             editor().select(KOMETacticalAreaEditor.Selection.NONE);
@@ -97,7 +111,7 @@ public final class KOMETacticalAreaInteractionHandler {
     }
     @SubscribeEvent public void tick(TickEvent.ClientTickEvent event) {
         if (selectingVertices()) suppressPlayerListBinding(); else tabHeld = false;
-        if (event.phase == TickEvent.Phase.START && selecting()) {
+        if (event.phase == TickEvent.Phase.START && (selecting() || viewing())) {
             Minecraft mc = Minecraft.getMinecraft();
             // MouseEvent cancels fresh clicks; clear held/buffered attack/use bindings as well.
             if (mc.gameSettings != null) {
@@ -107,10 +121,19 @@ public final class KOMETacticalAreaInteractionHandler {
                 while (mc.gameSettings.keyBindUseItem.isPressed()) { }
             }
         }
-        if (event.phase != TickEvent.Phase.END || editor() == null || !editor().isEditing()) return;
+        if (event.phase != TickEvent.Phase.END || editor() == null) return;
         Minecraft mc = Minecraft.getMinecraft();
+        if (editor().hasWorldViewContext() && (mc.thePlayer == null || mc.thePlayer.isDead
+                || !editor().worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension))) { editor().reset(); return; }
+        if (editor().hasRetainedDraft()) {
+            if (mc.thePlayer != null) editor().tickSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
+            return;
+        }
+        if (!editor().isEditing()) return;
         if (mc.thePlayer == null || mc.thePlayer.isDead || !editor().hasSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) editor().reset();
-        else if (editor().getSelection() == KOMETacticalAreaEditor.Selection.NONE && !(mc.currentScreen instanceof KOMEGuiTacticalAreaEditor)) editor().cancel();
+        else if (editor().getSelection() == KOMETacticalAreaEditor.Selection.NONE && !editor().hasWorldViewContext()
+                && !(mc.currentScreen instanceof KOMEGuiTacticalAreaEditor)) editor().cancel();
+        else editor().tickSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
     }
     @SubscribeEvent public void render(RenderWorldLastEvent event) {
         Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
@@ -179,6 +202,17 @@ public final class KOMETacticalAreaInteractionHandler {
                 }
             }
             t.draw();
+            if (e.isViewingGeometry() && overlay.prism.getPolygon().hasBounds()) {
+                GL11.glEnable(GL11.GL_TEXTURE_2D);
+                String kind = overlay.type == null ? "Area" : overlay.type == KOMETacticalComplexDraft.ZoneType.NORMAL ? "Normal"
+                    : overlay.type == KOMETacticalComplexDraft.ZoneType.WALL ? "Wall" : "Transition";
+                String authored = overlay.label == null || overlay.label.trim().isEmpty() ? "" : " - " + overlay.label.trim();
+                String title = mc.fontRenderer.trimStringToWidth(kind + " " + overlay.id + authored
+                    + (overlay.unsaved ? " [unsaved]" : ""), 180);
+                label(mc, camera, centerX(overlay.prism), high + 0.6, centerZ(overlay.prism),
+                    title, overlay.invalid ? 0xFF5555 : overlay.selected ? 0x55FFDD : 0xFFFFFF);
+                GL11.glDisable(GL11.GL_TEXTURE_2D);
+            }
             if (overlay.selected) {
                 GL11.glEnable(GL11.GL_TEXTURE_2D);
                 for (int i = 0; i < points.size(); i++) {
@@ -237,6 +271,17 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void hud(RenderGameOverlayEvent.Text event) {
+        if (viewing()) {
+            KOMETacticalAreaEditor e = editor();
+            event.left.add("Tactical Geometry View | Esc: return to editor | Read-only");
+            event.left.add((e.isComplexEditing() ? "Siege Complex " : "Deployment Area ") + e.getTargetId());
+            if (e.isViewingGeometry()) {
+                if (e.isComplexEditing()) event.left.add("Normal blue | Wall orange | Transition purple | Selected draft green | Invalid red");
+                if (!e.isWorldViewWholeComplex() && e.getGeometry() != null) event.left.addAll(e.geometryFeedback().messages);
+            } else event.left.add("Session expired. Return and reopen the geometry before editing.");
+            if (!e.getMessage().isEmpty()) event.left.add(e.getMessage());
+            return;
+        }
         if (viewingTopology()) {
             event.left.add("Tactical Connections | Enter/Esc editor | Yellow selected | Cyan gated | White gateless | Red invalid");
             if (editor().getConnection() != null) { event.left.add(editor().getConnection().getEndpointA() + " <-> " + editor().getConnection().getEndpointB()); event.left.add(editor().connectionStatus()); }

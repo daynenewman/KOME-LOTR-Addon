@@ -310,6 +310,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public kome.client.tactical.KOMETacticalAreaEditor getTacticalAreaEditor() { return tacticalAreaEditor; }
     private void showTacticalEditor() {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (tacticalAreaEditor != null && tacticalAreaEditor.hasWorldViewContext()) return;
         if (mc.fontRenderer != null && !(mc.currentScreen instanceof kome.client.gui.KOMEGuiTacticalAreaEditor))
             mc.displayGuiScreen(new kome.client.gui.KOMEGuiTacticalAreaEditor(tacticalAreaEditor));
     }

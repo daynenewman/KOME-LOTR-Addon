@@ -52,6 +52,31 @@ public class KOMETacticalAreaEditorSessionTest {
         manager = new KOMETacticalEditSessionManager(1, 2); validNew("FIELD");
         assertEquals(EXPIRED, manager.tick().get(0).getStatus()); assertEquals(before, state()); assertFalse(data.isDirty());
     }
+    @Test public void minuteRefreshesKeepAnUnpublishedDraftAuthorizedBeyondFiveMinutes() {
+        KOMETacticalEditSnapshot opened = open("FIELD", true);
+        NBTTagCompound before = state();
+        for (int i = 0; i < 7200; i++) {
+            if (i > 0 && i % 1200 == 0) {
+                KOMETacticalEditSessionManager.Result refreshed = action(KOMETacticalEditRequest.Action.REFRESH, opened);
+                assertEquals(REFRESHED, refreshed.getStatus()); opened = refreshed.getSnapshot();
+            }
+            assertTrue(manager.tick().isEmpty());
+        }
+        assertEquals(1, manager.getSessionCount()); assertEquals(before, state()); assertEquals(0, data.dirtyCalls);
+        assertEquals(CANCELLED, action(KOMETacticalEditRequest.Action.CANCEL, opened).getStatus());
+    }
+    @Test public void permissionRestorationCanReturnExistingTokenUntilAuthorizedCancel() {
+        KOMETacticalEditSnapshot first = open("FIELD", true);
+        actor.authorized = false;
+        assertEquals(DENIED, action(KOMETacticalEditRequest.Action.REFRESH, first).getStatus());
+        actor.authorized = true;
+        KOMETacticalEditSessionManager.Result existing = manager.handle(actor, data, KOMETacticalEditRequest.create(areaScope("FIELD")));
+        assertEquals(OPENED, existing.getStatus()); assertEquals(first.getToken(), existing.getSnapshot().getToken());
+        assertEquals(CANCELLED, action(KOMETacticalEditRequest.Action.CANCEL, existing.getSnapshot()).getStatus());
+        KOMETacticalEditSnapshot fresh = open("FIELD", true);
+        assertNotEquals(first.getToken(), fresh.getToken());
+        assertEquals(first.getBaseRevision(), fresh.getBaseRevision());
+    }
     @Test public void duplicateCanonicalAreaCreationCannotReplaceOriginal() {
         KOMETacticalEditSnapshot s = validNew("FIELD"); action(KOMETacticalEditRequest.Action.SAVE, s); clean(); NBTTagCompound before = state();
         assertEquals(DUPLICATE_ID, manager.handle(actor, data, KOMETacticalEditRequest.create(areaScope(" field "))).getStatus());

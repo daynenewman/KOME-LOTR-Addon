@@ -133,6 +133,94 @@ public class KOMETacticalEditClientTest {
         assertEquals(kome.client.tactical.KOMETacticalAreaEditor.Selection.NONE,editor.getSelection()); assertEquals("ENTRY",editor.getConnectionId());
         proxy.onClientWorldUnload(new WorldEvent.Unload(world)); assertTrue(editor.connectionOverlays(playerId,-1).isEmpty()); assertFalse(editor.isEditing());
     }
+    @Test public void worldGeometryViewerUsesOriginScreenAndCannotSelectCorners() {
+        catalogue(); queue.drain(); kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        kome.common.siege.KOMESiegeComplex complex = KOMESiegeReadinessFixtures.minimal("FORT", "T100", -1, null);
+        editor.accept(new KOMETacticalEditSnapshot(playerId, token,
+            new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX, "T100", "FORT", "FORT", -1),
+            1, 1, 10, complex.getRevision(), 0, 10, false, new KOMETacticalEditDraft(complex), null),
+            KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.gui.KOMEGuiTacticalAreaEditor origin = new kome.client.gui.KOMEGuiTacticalAreaEditor(editor);
+        editor.beginWorldView(origin, true);
+        assertEquals(complex.getNormalSegments().size() + complex.getWallZones().size() + complex.getTransitionZones().size(),
+            editor.overlays(playerId, -1).size());
+        assertTrue(editor.overlays(playerId, -1).stream().noneMatch(overlay -> overlay.selected));
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        input.tick(new cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent(cpw.mods.fml.common.gameevent.TickEvent.Phase.END));
+        assertTrue(editor.isEditing()); assertTrue(editor.hasWorldViewContext());
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_TAB, true, false));
+        assertThrows(IllegalArgumentException.class, () -> editor.addVertex(1, 2));
+        try {
+            net.minecraftforge.client.event.MouseEvent click = mousePress(1);
+            input.mouse(click); assertTrue(click.isCanceled());
+        } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+        net.minecraftforge.client.event.GuiOpenEvent escape = new net.minecraftforge.client.event.GuiOpenEvent(new net.minecraft.client.gui.GuiIngameMenu());
+        input.gui(escape); assertSame(origin, escape.gui); assertFalse(editor.hasWorldViewContext());
+        editor.beginWorldView(origin, true); input.gui(escape = new net.minecraftforge.client.event.GuiOpenEvent(new net.minecraft.client.gui.GuiIngameMenu()));
+        assertSame(origin, escape.gui); assertTrue(editor.isEditing());
+        editor.reset();
+        net.minecraftforge.client.event.GuiOpenEvent ordinary = new net.minecraftforge.client.event.GuiOpenEvent(new net.minecraft.client.gui.GuiIngameMenu());
+        input.gui(ordinary); assertTrue(ordinary.gui instanceof net.minecraft.client.gui.GuiIngameMenu);
+    }
+    @Test public void clientTicksRefreshGuiAndWorldViewerWithoutDuplicateRequests() throws Exception {
+        catalogue(); queue.drain();
+        java.util.List<KOMETacticalEditRequest> requests = new java.util.ArrayList<KOMETacticalEditRequest>();
+        kome.client.tactical.KOMETacticalAreaEditor editor = new kome.client.tactical.KOMETacticalAreaEditor(requests::add);
+        editor.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog());
+        Field controller = KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor"); controller.setAccessible(true); controller.set(proxy, editor);
+        KOMETacticalEditSnapshot opened = packet(1, 1, 0).getSnapshot();
+        editor.accept(opened, KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.gui.KOMEGuiTacticalAreaEditor origin = new kome.client.gui.KOMEGuiTacticalAreaEditor(editor);
+        Minecraft.getMinecraft().currentScreen = origin;
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent end =
+            new cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent(cpw.mods.fml.common.gameevent.TickEvent.Phase.END);
+        for (int i = 0; i < 1200; i++) input.tick(end);
+        assertEquals(1, requests.size()); assertEquals(KOMETacticalEditRequest.Action.REFRESH, requests.get(0).getAction());
+        for (int i = 0; i < 1200; i++) input.tick(end);
+        assertEquals(1, requests.size());
+        editor.accept(new KOMETacticalEditSnapshot(playerId, token, opened.getScope(), 1, 2, 10, 7, 0, 10,
+            false, opened.getDraft(), null), KOMETacticalEditSessionManager.Status.REFRESHED);
+        editor.beginWorldView(origin, false); Minecraft.getMinecraft().currentScreen = null;
+        for (int i = 0; i < 1200; i++) input.tick(end);
+        assertEquals(2, requests.size()); assertEquals(KOMETacticalEditRequest.Action.REFRESH, requests.get(1).getAction());
+        assertTrue(editor.isViewingGeometry());
+        editor.accept(new KOMETacticalEditSnapshot(playerId, token, opened.getScope(), 1, 3, 10, 7, 0, 10,
+            false, opened.getDraft(), null), KOMETacticalEditSessionManager.Status.REFRESHED);
+        editor.endWorldView(); editor.cancel();
+        for (int i = 0; i < 2400; i++) input.tick(end);
+        assertEquals(3, requests.size()); assertEquals(KOMETacticalEditRequest.Action.CANCEL, requests.get(2).getAction());
+    }
+    @Test public void expiredWorldViewerReturnsToNoneditingBrowser() {
+        catalogue(); queue.drain(); kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        KOMETacticalEditSnapshot opened = packet(1, 1, 0).getSnapshot();
+        editor.accept(opened, KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.gui.KOMEGuiTacticalAreaEditor origin = new kome.client.gui.KOMEGuiTacticalAreaEditor(editor);
+        editor.beginWorldView(origin, false);
+        editor.accept(new KOMETacticalEditSnapshot(playerId, token, opened.getScope(), 1, 2, 10, 7, 0, 10,
+            true, opened.getDraft(), null), KOMETacticalEditSessionManager.Status.EXPIRED);
+        assertFalse(editor.isEditing()); assertFalse(editor.isViewingGeometry()); assertTrue(editor.hasWorldViewContext());
+        editor.accept(opened, KOMETacticalEditSessionManager.Status.OPENED);
+        assertFalse(editor.isEditing()); assertTrue(editor.hasWorldViewContext());
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        net.minecraftforge.client.event.GuiOpenEvent escape = new net.minecraftforge.client.event.GuiOpenEvent(new net.minecraft.client.gui.GuiIngameMenu());
+        input.gui(escape); assertTrue(escape.gui instanceof kome.client.gui.KOMEGuiTacticalAreaEditor);
+        assertNotSame(origin, escape.gui); assertFalse(editor.hasWorldViewContext());
+        assertThrows(IllegalArgumentException.class, () -> editor.addVertex(1, 2));
+    }
+    @Test public void disconnectKeepsAlreadyExpiredLocalDraftInspectibleButUnauthorized() {
+        catalogue(); queue.drain(); kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        KOMETacticalEditSnapshot opened = packet(1, 1, 0).getSnapshot();
+        editor.accept(opened, KOMETacticalEditSessionManager.Status.OPENED);
+        editor.setLabel("Unsaved after expiry"); KOMEForceDeploymentArea local = editor.getDraft();
+        editor.accept(new KOMETacticalEditSnapshot(playerId, token, opened.getScope(), 1, 2, 10, 7, 0, 10,
+            true, opened.getDraft(), null), KOMETacticalEditSessionManager.Status.EXPIRED);
+        proxy.onClientDisconnect(null); queue.drain();
+        assertSame(local, editor.getDraft()); assertTrue(editor.hasRetainedDraft()); assertFalse(editor.isEditing());
+        assertFalse(editor.canRecoverRetainedDraft()); assertThrows(IllegalArgumentException.class, editor::save);
+    }
     @Test public void browserUsesSameLifecycleBarrierAndWorldUnloadClearsTileDraftOverlay() {
         catalogue(); proxy.onClientWorldUnload(new WorldEvent.Unload(world)); queue.drain();
         assertNull(proxy.getTacticalAreaEditor());
