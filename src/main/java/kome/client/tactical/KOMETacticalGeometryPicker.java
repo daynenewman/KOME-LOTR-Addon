@@ -9,6 +9,14 @@ public final class KOMETacticalGeometryPicker {
     private static final double EPSILON = 1.0E-8D;
     private KOMETacticalGeometryPicker() { }
 
+    /** Authoring feedback only: X/Z boundary and bottom are included; the exclusive top is not. */
+    public static boolean containsPosition(KOMEPolygonPrism prism, double x, double y, double z) {
+        return prism != null && Double.isFinite(x) && Double.isFinite(y) && Double.isFinite(z)
+            && prism.hasValidYRange() && y >= prism.getMinYInclusive() && y < prism.getMaxYExclusive()
+            && prism.getPolygon().getVertices().size() >= 3
+            && contains(prism.getPolygon().getVertices(), x, z);
+    }
+
     public static double distance(KOMEPolygonPrism prism, double ox, double oy, double oz,
             double dx, double dy, double dz, double reach) {
         if (prism == null || prism.getMaxYExclusive() <= prism.getMinYInclusive() || reach <= 0) return Double.POSITIVE_INFINITY;

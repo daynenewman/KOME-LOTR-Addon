@@ -330,12 +330,12 @@ public class KOMETacticalEditClientTest {
         assertEquals(original,editor.getConfirmedVertices()); assertFalse(editor.hasWorldViewContext());
     }
     @Test public void worldHeightShortcutsToggleAndExpireWithoutEditingDeniedDraft() throws Exception {
-        catalogue(); queue.drain();
+        catalogue(); queue.drain(); enableWorldRay(-2, 2);
         kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
         editor.accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
         kome.client.gui.KOMEGuiTacticalAreaEditor origin = new kome.client.gui.KOMEGuiTacticalAreaEditor(editor);
         editor.beginWorldView(origin, false);
-        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = inputWithSyntheticPhysicalTarget();
         int min = editor.getGeometry().getMinYInclusive();
         assertTrue(editor.selectWorldPolygon(playerId, -1, 2, min, 2));
         assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_UP, true, false, true));
@@ -359,6 +359,84 @@ public class KOMETacticalEditClientTest {
         net.minecraftforge.client.event.MouseEvent denied = mousePress(1); input.mouse(denied); assertTrue(denied.isCanceled());
         assertEquals(2, editor.getUndoCount());
         assertThrows(IllegalArgumentException.class, () -> editor.applyWorldHeight(50));
+    }
+    @Test public void worldBackspaceUndoesAndDeleteRemovesHeldOrLastVertex() throws Exception {
+        catalogue(); queue.drain(); enableWorldRay(-2, 2);
+        kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        editor.accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), false);
+        assertTrue(editor.selectWorldPolygon(playerId, -1, 2, editor.getGeometry().getMinYInclusive(), 2));
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = inputWithSyntheticPhysicalTarget();
+        int original = editor.getConfirmedVertexCount();
+        editor.addWorldVertex(12, 12);
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertEquals(original, editor.getConfirmedVertexCount());
+        editor.pickUpVertex(1);
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
+        assertEquals(original - 1, editor.getConfirmedVertexCount());
+        assertEquals(-1, editor.getHeldVertex());
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertEquals(original, editor.getConfirmedVertexCount());
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
+        assertEquals(original - 1, editor.getConfirmedVertexCount());
+    }
+    @Test public void worldHeightClickUsesExtendedPhysicalTargetInsteadOfVanillaCrosshair() throws Exception {
+        catalogue(); queue.drain(); enableWorldRay(-2, 2);
+        Minecraft.getMinecraft().thePlayer.posY = 40;
+        kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        editor.accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), false);
+        assertTrue(editor.selectWorldPolygon(playerId, -1, 2, editor.getGeometry().getMinYInclusive(), 2));
+        final double[] reach = {0};
+        final int[] first = {20};
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy,
+            (mc, ox, oy, oz, dx, dy, dz, range) -> {
+                reach[0] = range;
+                return kome.client.tactical.KOMETacticalBlockTarget.trace(new kome.client.tactical.KOMETacticalBlockTarget.Cells() {
+                    @Override public boolean loaded(int x, int y, int z) { return x < 110; }
+                    @Override public net.minecraft.util.MovingObjectPosition collide(int x, int y, int z,
+                            net.minecraft.util.Vec3 from, net.minecraft.util.Vec3 to) {
+                        int blockY = x == first[0] ? 40 : 41;
+                        return x == first[0] || x == 90 ? new net.minecraft.util.MovingObjectPosition(x, blockY, z, 4,
+                            net.minecraft.util.Vec3.createVectorHelper(x, blockY + 0.5, z + 0.5)) : null;
+                    }
+                }, ox, oy, oz, dx, dy, dz, range);
+            });
+        aimBlock(2, 20, 2, 2);
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_UP, true, false, true));
+        input.handleWorldClick(1, false);
+        assertEquals(128D, reach[0], 0D);
+        assertEquals(41, editor.getGeometry().getMaxYExclusive());
+        first[0] = 129;
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_DOWN, true, false, true));
+        input.handleWorldClick(1, false);
+        assertEquals(41, editor.getGeometry().getMinYInclusive());
+    }
+    @Test public void worldShortcutsNoOpOnEmptyHistoryAndOutsideWorldMode() throws Exception {
+        catalogue(); queue.drain(); enableWorldRay(-2, 2);
+        kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        editor.accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = inputWithSyntheticPhysicalTarget();
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
+        editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), false);
+        assertTrue(editor.selectWorldPolygon(playerId, -1, 2, editor.getGeometry().getMinYInclusive(), 2));
+        int size = editor.getConfirmedVertexCount();
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertEquals(size, editor.getConfirmedVertexCount());
+        assertEquals(0, editor.getUndoCount());
+        editor.pickUpVertex(0);
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_UP, true, false, true));
+        assertEquals(0, editor.getHeldVertex());
+        assertEquals(kome.client.tactical.KOMETacticalAreaEditor.Selection.NONE, editor.getWorldHeightMode());
+        editor.cancelHeldVertex();
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_UP, true, false, true));
+        assertTrue(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
+        assertEquals(size - 1, editor.getConfirmedVertexCount());
+        assertEquals(kome.client.tactical.KOMETacticalAreaEditor.Selection.UPPER_Y, editor.getWorldHeightMode());
+        editor.endWorldView();
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_BACK, true, false));
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_DELETE, true, false));
     }
     @Test public void clientTicksRefreshGuiAndWorldViewerWithoutDuplicateRequests() throws Exception {
         catalogue(); queue.drain();

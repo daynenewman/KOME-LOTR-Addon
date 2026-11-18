@@ -46,6 +46,14 @@ public class KOMETacticalPolygonEditorTest {
         editor.select(KOMETacticalAreaEditor.Selection.NONE);
         editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), wholeComplex);
     }
+    @Test public void emptyWorldPolygonDeleteAndUndoAreSafeNoOps() {
+        area(); editor.beginWorldView(new kome.client.gui.KOMEGuiTacticalAreaEditor(editor), false, true);
+        assertTrue(editor.isWorldPolygonSelected());
+        editor.deleteSelectedVertex(); editor.undoWorldGeometry();
+        assertEquals(0, editor.getConfirmedVertexCount());
+        assertEquals(0, editor.getUndoCount());
+        assertTrue(requests.isEmpty());
+    }
     @Test public void returningFromWorldLeavesCompletedPolygonPassiveUntilExplicitAuthoring() {
         area(); rectangle(0, 0); worldView(false);
         assertTrue(editor.selectWorldPolygon(player, -1, 2, 60, 1));
