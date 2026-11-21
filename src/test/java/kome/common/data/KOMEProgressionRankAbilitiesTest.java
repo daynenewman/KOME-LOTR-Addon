@@ -75,7 +75,7 @@ public class KOMEProgressionRankAbilitiesTest {
         KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.LORD);
         KOMERulerService.assignRuler(f.data,"gondor",f.player.id,"King");
         Outcome row=row(f,Ability.CAMPAIGN_RECRUITMENT);
-        assertTrue(row.rankUnlocked);assertEquals("Insufficient faction population.",row.reason);
+        assertTrue(row.rankUnlocked);assertEquals("Not enough faction population.",row.reason);
         f.data.grantFactionPopulationCenti("gondor",10000L);
         assertEquals(Availability.CONTEXT_REQUIRED,row(f,Ability.CAMPAIGN_RECRUITMENT).availability);
     }

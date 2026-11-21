@@ -20,18 +20,18 @@ public final class KOMESerfServiceObjectives {
         KOMESerfKnightDutyType type=KOMESerfKnightDutyType.forKey(a.trialId);
         if(a.stage==KOMESerfKnightTrialAssignment.Stage.FAILED){
             cleanup(player,a);s.cancelTestDuty(type);s.retireMandatoryTrial(false);world.markDirty();
-            KOMEProgressionNpcSpeech.say(player,master,"This assignment was lost. Your earlier service remains honoured. Ask me for new work.");return true;
+            KOMEProgressionNpcSpeech.say(player,master,"This duty has failed. Your completed service remains recorded; ask for new work.");return true;
         }
         if(a.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED){
             if(a.data.getBoolean("ActivationPending")&&player.worldObj.getTotalWorldTime()<a.data.getLong("ActivationRetryAt"))return true;
             if(a.data.getInteger("ActivationFailures")>=3){
                 cleanup(player,a);s.cancelTestDuty(type);s.retireMandatoryTrial(false);world.markDirty();
-                KOMEProgressionNpcSpeech.say(player,master,"This work could not be arranged safely. Your earlier service is preserved. Ask me for another assignment.");
+                KOMEProgressionNpcSpeech.say(player,master,"This duty cannot begin safely. Your completed service remains recorded; ask again.");
                 KOMEProgressionAutoCompleter.syncPlayer(player,p);return true;
             }
             boolean activated=type==KOMESerfKnightDutyType.ESCORT?KOMESerfKnightEscortService.activate(player,p,master):
                 type==KOMESerfKnightDutyType.RECOVERY?KOMESerfKnightRecoveryService.activate(player,p,master):KOMESerfKnightDefenseService.activate(player,p,master);
-            if(!activated){KOMEProgressionEncounterCleanup.activationFailed(world,player.worldObj,s);KOMEProgressionNpcSpeech.say(player,master,"The work cannot be arranged safely yet. Your assignment and earlier service are preserved. Return shortly.");}
+            if(!activated){KOMEProgressionEncounterCleanup.activationFailed(world,player.worldObj,s);KOMEProgressionNpcSpeech.say(player,master,"The duty cannot begin yet. Your service is safe; return shortly.");}
             else KOMEProgressionNpcSpeech.say(player,master,KOMESerfKnightService.trialSpeech(s.getTrialAssignment()));
             return true;
         }
@@ -40,7 +40,7 @@ public final class KOMESerfServiceObjectives {
         if(a!=null&&a.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE){
             s.setDutyAssignmentData(type,a.writeToNBT());KOMESerfKnightService.completeDuty(p,type);
             KOMEProgressionServiceRewards.duty(player,s,type);cleanup(player,a);s.retireMandatoryTrial(false);
-            world.markDirty();if(!KOMEServicePromotionService.report(player,master))KOMEProgressionNpcSpeech.say(player,master,"Your service is remembered. Speak with me when you are ready for another duty.");
+            world.markDirty();if(!KOMEServicePromotionService.report(player,master))KOMEProgressionNpcSpeech.say(player,master,"Your service is noted. Return for another duty.");
             KOMEProgressionAutoCompleter.syncPlayer(player,p);return true;
         }
         KOMEProgressionNpcSpeech.say(player,master,KOMESerfKnightService.existingTrialSpeech(a));return true;

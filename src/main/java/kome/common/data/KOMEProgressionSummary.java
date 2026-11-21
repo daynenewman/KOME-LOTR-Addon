@@ -9,7 +9,7 @@ public final class KOMEProgressionSummary {
         KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
         if(a==null||a.stage==KOMESerfCourierAssignment.Stage.DELIVERED)return "";
         long remaining=a.replacementTicksRemaining(now);
-        return "\nReplacement message: "+(a.replacements>=3?"No copies remain":remaining>0?"Speak with your Master in "+KOMECourierIssuance.cooldownText(remaining):"Ask your Master for a copy");
+        return "\nLetter: "+(a.replacements>=3?"No copies left":remaining>0?"Speak with your Master in "+KOMECourierIssuance.cooldownText(remaining):"Ask your Master for another copy");
     }
 
     public static String text(KOMEPlayerProgression p) { return text(p, ""); }
@@ -28,7 +28,7 @@ public final class KOMEProgressionSummary {
         return text.toString();
     }
     static String professionText(String base, KOMESerfProfessionAssignment assignment) {
-        String q = base + "\nCurrent Duty: Profession\nMaster's Trade: " + assignment.tradeDisplayName;
+        String q = base + "\nCurrent duty: Trade assistance\nMaster's trade: " + assignment.tradeDisplayName;
         for (KOMESerfProfessionAssignment.Requirement material : assignment.requirements) q += "\n" + KOMEProgressionGoodsRules.name(material.requestedStack(),material.displayName) + ": " + material.delivered + " / " + material.required;
         return q;
     }
@@ -55,7 +55,7 @@ public final class KOMEProgressionSummary {
 
     public static String leaveRelationshipLabel(KOMEPlayerProgression p) {
         String type = leaveRelationshipType(p);
-        return "master".equals(type) ? "Leave Master" : "liege".equals(type) ? "Leave Liege" : "";
+        return "master".equals(type) ? "Leave Master service" : "liege".equals(type) ? "Leave Liege service" : "";
     }
 
     public static String leaveRelationshipName(KOMEPlayerProgression p) {

@@ -60,7 +60,7 @@ public final class KOMESerfKnightEscortService {
         KOMEProgressionEncounterMarker.mark(target,KOMEProgressionEncounterMarker.ESCORT,player.getUniqueID(),assignment.assignmentToken);
         KOMEProgressionEscortFollowing.disable(target);
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty(); KOMEProgressionAutoCompleter.syncPlayer(player,progression);
-        KOMEProgressionNpcSpeech.say(player,target,assignment.storyVariant%2==0?"I have been asked to travel under your protection. Lead on.":"The road is not safe alone. I will follow your lead."); return true;
+        KOMEProgressionNpcSpeech.say(player,target,assignment.storyVariant%2==0?"I am in your care. Lead on.":"The road is dangerous. I shall follow you."); return true;
     }
 
     /** Loaded-only reconciliation: absence means an unloaded chunk, never a silent failure or respawn. */

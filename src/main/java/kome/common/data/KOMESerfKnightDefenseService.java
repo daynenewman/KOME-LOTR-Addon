@@ -54,7 +54,7 @@ public final class KOMESerfKnightDefenseService {
         for(String id:enemyIds(assignment)){Entity attacker=findLoaded(player.worldObj,id);if(attacker!=null&&(!(attacker instanceof LOTREntityNPC)||!matchesBinding((LOTREntityNPC)attacker,assignment))){fail(state,world,player.worldObj);return;}}
         if(!recoverMissing(player,world,state,assignment,(LOTREntityNPC)entity)){fail(state,world,player.worldObj);return;} assignment=state.getTrialAssignment();
         if(allDead(assignment)&&!hasParticipation(assignment)){fail(state,world,player.worldObj);return;}
-        if(allDead(assignment)&&KOMESerfKnightService.markTrialObjectiveComplete(state).success){KOMEProgressionServiceRewards.trial(player,state);KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);KOMEProgressionNpcSpeech.say(player,(LOTREntityNPC)entity,"Our people stand because you stood with them. Your service will be remembered.");}
+        if(allDead(assignment)&&KOMESerfKnightService.markTrialObjectiveComplete(state).success){KOMEProgressionServiceRewards.trial(player,state);KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);KOMEProgressionNpcSpeech.say(player,(LOTREntityNPC)entity,"Our people are safe because you stood with them. Well done.");}
     }
 
 

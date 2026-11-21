@@ -9,13 +9,13 @@ public final class KOMEKnightBookPresentation {
         KOMEProgressionNpcRef liege=p.getSerfKnightProgression().getLiege();
         KOMELordshipTrial t=p.getLordship().assignment();
         String text="Relationship\n";
-        if(t!=null&&t.authority.isSet())text+="Service authority: "+t.authority.displayName+".\n";
-        text+=liege.isSet()?"Liege: "+liege.displayName+".":"Your Knight standing is earned. When ready, seek sponsored service with a Lord or Prince at a verified regional seat.";
+        if(t!=null&&t.authority.isSet())text+="Serving Liege: "+t.authority.displayName+".\n";
+        text+=liege.isSet()?"Liege: "+liege.displayName+".":"You have earned Knight standing. Present your recommendation at a recognized regional seat.";
         lotr.common.fac.LOTRFaction served=KOMEProgressionFactionResolver.resolve(faction);
         if(served!=null)text+="\nFaction: "+served.factionName()+".";
         Set<KOMEKnightCommission.Type> credits=p.getKnightService().qualifyingTypes(faction);
         if(!credits.isEmpty()){
-            text+="\n\nCredited service";
+            text+="\n\nService reported";
             for(KOMEKnightCommission.Type type:credits)text+="\n"+KOMEKnightCommissionPresentation.title(type);
         }
         return text;

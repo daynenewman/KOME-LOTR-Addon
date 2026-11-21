@@ -13,7 +13,7 @@ public class KOMEProgressionRankSummaryTest {
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master")).success);completeDuty(state,KOMESerfKnightDutyType.PROVISIONING);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,149D);
         assertEquals("Commoner",summary.currentRank);assertEquals("Knight",summary.nextRank);assertEquals(2,summary.requirements.size());
-        assertRequirement(summary,0,"Reported service",1,3,false);assertRequirement(summary,1,"Faction Alignment",149,150,false);
+        assertRequirement(summary,0,"Duties reported",1,3,false);assertRequirement(summary,1,"Faction alignment",149,150,false);
         for(KOMEProgressionRankSummary.Requirement r:summary.requirements){assertFalse(r.label.contains("Trial"));assertFalse(r.label.contains("Gift"));}
     }
 
@@ -24,7 +24,7 @@ public class KOMEProgressionRankSummaryTest {
         assertEquals("rohan",KOMEAlliance.normalizeFactionKey(summary.factionKey));
         assertEquals("Commoner",summary.currentRank);
         assertEquals("Knight",summary.nextRank);
-        assertEquals("Requirements for Knight",summary.promotionTitle);
+        assertEquals("To earn Knight",summary.promotionTitle);
     }
 
     @Test public void noAssignmentHasNoFakePanelAndActiveDutyIsHumanReadable() {
@@ -33,7 +33,7 @@ public class KOMEProgressionRankSummaryTest {
         assertTrue(KOMEProgressionRankSummary.project(player,0).hasActivity());
         assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,1L).success);
         KOMEProgressionRankSummary active=KOMEProgressionRankSummary.project(player,0);
-        assertEquals("Current Duty",active.activityHeading);assertEquals("Provisions",active.activityTitle);
+        assertEquals("Current duty",active.activityHeading);assertEquals("Provisions",active.activityTitle);
         assertTrue(active.activityObjective.contains("requested provisions"));assertFalse(active.activityObjective.contains("UUID"));
     }
 
@@ -43,7 +43,7 @@ public class KOMEProgressionRankSummaryTest {
         assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,npc("Liege")).success);
         assertTrue(KOMESerfKnightService.assignTrial(state,new Random(1L),9L).success);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,150,"rohan");
-        assertEquals("Master service",summary.activityHeading);assertTrue(summary.activityObjective.contains("Report to your Master"));
+        assertEquals("Master service",summary.activityHeading);assertTrue(summary.activityObjective.contains("report to your Master"));
         assertFalse(summary.activityObjective.contains(state.getTrialAssignment().assignmentToken));assertFalse(summary.activityObjective.contains("Trial"));
     }
 
@@ -53,7 +53,7 @@ public class KOMEProgressionRankSummaryTest {
         state.setLastAssignmentEpochDay(KOMESerfKnightService.calendarDayNow());
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,150D,"ROHAN",UUID.randomUUID());
         assertEquals("Master service",summary.activityHeading);assertEquals("Master",summary.activityTitle);
-        assertTrue(summary.activityObjective.contains("Report to your Master"));assertFalse(state.hasLiege());
+        assertTrue(summary.activityObjective.contains("report to your Master"));assertFalse(state.hasLiege());
     }
 
     @Test public void completedCanonicalStateUpdatesQuotasAndHigherRequirementsAppearAtKnight() {
@@ -68,8 +68,8 @@ public class KOMEProgressionRankSummaryTest {
         KOMEProgressionRankSummary knight=KOMEProgressionRankSummary.project(player,150);
         assertEquals("Knight",knight.currentRank);assertEquals("Lord",knight.nextRank);
         assertEquals(2,knight.requirements.size());
-        assertEquals("Reported commissions",knight.requirements.get(0).label);assertEquals(3,knight.requirements.get(0).required);
-        assertEquals("Faction Alignment",knight.requirements.get(1).label);assertEquals(2000,knight.requirements.get(1).required);
+        assertEquals("Commissions reported",knight.requirements.get(0).label);assertEquals(3,knight.requirements.get(0).required);
+        assertEquals("Faction alignment",knight.requirements.get(1).label);assertEquals(2000,knight.requirements.get(1).required);
         assertFalse(knight.activityObjective.contains("Trial"));
     }
 
@@ -78,7 +78,7 @@ public class KOMEProgressionRankSummaryTest {
         KOMEHigherRankTransitionService.Transition transition=KOMEHigherRankTransitionService.forCurrentRank(KOMEProgressionRank.KNIGHT);
         for(KOMEHigherRankTransitionService.RequirementGroup group:transition.groups)for(String id:group.achievementIds)player.grant(id);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,2000D,"rohan");
-        assertEquals("Lord service",summary.activityHeading);assertEquals("Regional service",summary.activityTitle);
+        assertEquals("Liege service",summary.activityHeading);assertEquals("Seek a regional Liege",summary.activityTitle);
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("knight.craftsman")));
         assertFalse(summary.requirements.get(0).complete);assertTrue(summary.requirements.get(1).complete);assertEquals(2,summary.requirements.size());
     }

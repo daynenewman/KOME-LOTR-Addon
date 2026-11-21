@@ -67,7 +67,7 @@ public final class KOMESerfdomOfferQuest extends LOTRMiniQuest {
     public boolean isExpired(long currentWindow) { return currentWindow != opportunityWindow; }
     public String getStory() { return story; }
 
-    @Override public String getQuestObjective() { return "Enter the service of " + (entityNameFull == null || entityNameFull.length() == 0 ? "this worker" : entityNameFull); }
+    @Override public String getQuestObjective() { return "Enter the service of " + (entityNameFull == null || entityNameFull.length() == 0 ? "this civilian" : entityNameFull); }
     @Override public String getObjectiveInSpeech() { return "enter my service"; }
     @Override public String getProgressedObjectiveInSpeech() { return getObjectiveInSpeech(); }
     @Override public String getQuestProgress() { return "Offer of service"; }

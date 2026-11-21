@@ -14,14 +14,14 @@ public final class KOMEProgressionDialogue {
     }
     public static String promotion(LOTREntityNPC npc,String faction){
         String title=KOMEFactionProgressionTitles.title(faction,KOMEProgressionRank.KNIGHT);
-        return culture(npc,"You have proved your courage and kept faith with your charge. I receive you into my service as ","Your deeds have shown patience and resolve. You shall serve as ","You have proved dependable when it counted. I name you ","You did what I commanded. You have earned the standing of ")+title+". Remember the duty that comes with it.";
+        return culture(npc,"You kept your charge safe. I welcome you as ","You have shown patience and resolve. Serve as ","You have proved your worth. I name you ","You obeyed and prevailed. You have earned the standing of ")+title+". Honour the duty it carries.";
     }
     public static String materials(LOTREntityNPC npc,boolean complete){
         String role=KOMESerfProfessionClassifier.classify(npc).key;
-        if("smith".equals(role))return complete?"Good supplies make sound work. That is all my forge needs from you.":"My forge needs fuel and sound materials. Bring the supplies recorded in your book.";
-        if("farmer".equals(role)||"farmhand".equals(role))return complete?"That will help with the work of the fields. You have earned your keep.":"There is work in the fields. Bring the supplies I have set down for you.";
-        return culture(npc,complete?"That will serve my trade. You have done well.":"My work needs supplies. Bring the materials in your book.",complete?"Your care has served our work well.":"Bring what our work requires, as recorded in your book.",complete?"Sound supplies, and all accounted for. Well done.":"Workmanship begins with materials. Bring what I have recorded.",complete?"Everything accounted for. You may go.":"Bring the supplies I ordered. Leave nothing out.");
+        if("smith".equals(role))return complete?"Good work. My forge has what it needs.":"Bring the fuel and materials listed in your book.";
+        if("farmer".equals(role)||"farmhand".equals(role))return complete?"Good. The fields will be better for it.":"The fields need supplies. Bring what I have listed.";
+        return culture(npc,complete?"That will serve my trade. Well done.":"Bring the materials listed in your book.",complete?"You have served us well.":"Bring what is listed in your book.",complete?"All accounted for. Well done.":"Good work begins with sound materials. Bring what I listed.",complete?"Everything accounted for. Go on.":"Bring every supply I ordered.");
     }
-    public static String warning(LOTREntityNPC npc,int variant){return culture(npc,new String[]{"Wait for me!","A moment! I cannot keep your pace!","Do not leave me behind!"}[variant%3],new String[]{"Wait. Our paths must remain together.","A moment, if you please.","Do not leave your charge behind."}[variant%3],new String[]{"Slow your pace!","Wait for me!","We must keep together!"}[variant%3],new String[]{"Wait!","Slow down!","Do not leave me here!"}[variant%3]);}
-    public static String thanks(LOTREntityNPC npc){return culture(npc,"You have seen me safely through. You have my thanks.","I am grateful for your care upon this journey.","You kept your word and brought me safely through. My thanks.","We made it. You did your part.");}
+    public static String warning(LOTREntityNPC npc,int variant){return culture(npc,new String[]{"Wait for me!","A moment! I cannot keep up!","Do not leave me behind!"}[variant%3],new String[]{"Wait. Our paths must remain together.","A moment, if you please.","Keep your charge close."}[variant%3],new String[]{"Slow your pace!","Wait for me!","We must keep together!"}[variant%3],new String[]{"Wait!","Slow down!","Do not leave me here!"}[variant%3]);}
+    public static String thanks(LOTREntityNPC npc){return culture(npc,"You brought me through safely. My thanks.","My thanks for your care on the road.","You kept your word. My thanks.","We made it. You did well.");}
 }

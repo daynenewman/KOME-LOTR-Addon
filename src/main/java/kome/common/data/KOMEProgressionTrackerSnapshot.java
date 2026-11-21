@@ -66,7 +66,7 @@ public final class KOMEProgressionTrackerSnapshot {
             if(trial!=null)return lordship(trial);
             KOMEKnightCommission commission=progression.getKnightService().assignment();
             if(commission==null){
-                if(KOMELordshipTrialService.prerequisites(progression,alignment,key))return shown("commission","Report to your current Lord for Lord standing","",0F);
+                if(KOMELordshipTrialService.prerequisites(progression,alignment,key))return shown("commission","Report to your Liege for Lord standing","",0F);
                 int credits=progression.getKnightService().qualifyingTypes(key).size();
                 return shown("commission",KOMELordshipTrialPresentation.status(progression,alignment,key),credits<3?credits+" / 3 commissions":(int)alignment+" / 2000 alignment",credits<3?credits/3F:(float)alignment/2000F);
             }
@@ -183,9 +183,9 @@ public final class KOMEProgressionTrackerSnapshot {
         return new KOMEProgressionTrackerSnapshot(true,a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",objective,required>0?done+"/"+required:"",required>0?done/(float)required:0F,item);
     }
     static KOMEProgressionTrackerSnapshot lordship(KOMELordshipTrial t){
-        if(!t.nativeInvasion)return t.ready()?shown("commission","Report to your current Liege","",0F):commission(t.objective);
+        if(!t.nativeInvasion)return t.ready()?shown("commission","Report to your Liege","",0F):commission(t.objective);
         boolean combat=t.objective.stage==KOMEKnightCommission.Stage.ACTIVE&&t.objective.encounterCreated&&!t.objective.activationPending;
-        return shown("commission",t.ready()?"Report to your current Liege":t.objective.activationPending?"Return to your Liege for reassignment":t.objective.stage==KOMEKnightCommission.Stage.FAILED?"Request another commission from your Liege":combat?"Defeat the invasion and survive":"Travel to the invasion ground",combat?t.invasionRemaining+" / "+t.invasionSize+" strength remaining":"",combat&&t.invasionSize>0?1-t.invasionRemaining/(float)t.invasionSize:0F);
+        return shown("commission",t.ready()?"Report to your Liege":t.objective.activationPending?"Ask your Liege for new orders":t.objective.stage==KOMEKnightCommission.Stage.FAILED?"Ask your Liege for another commission":combat?"Defeat the invaders and survive":"Travel to the invasion site",combat?t.invasionRemaining+" / "+t.invasionSize+" strength remaining":"",combat&&t.invasionSize>0?1-t.invasionRemaining/(float)t.invasionSize:0F);
     }
 
     private static KOMEProgressionTrackerSnapshot courier(
@@ -277,7 +277,7 @@ public final class KOMEProgressionTrackerSnapshot {
                     KOMESerfKnightRecoveryService.DATA_RETRIEVED);
 
             ItemStack item=assignment.data.hasKey("RecoveryItem",10)?ItemStack.loadItemStackFromNBT(assignment.data.getCompoundTag("RecoveryItem")):null;
-            return new KOMEProgressionTrackerSnapshot(true,"recovery",retrieved?"Return the recovered item to your Master.":"Recover the lost item.","",0F,item);
+            return new KOMEProgressionTrackerSnapshot(true,"recovery",retrieved?"Bring the recovered item to your Master.":"Recover the missing item.","",0F,item);
         }
 
         if("defense".equals(assignment.trialId)) {
@@ -322,9 +322,9 @@ public final class KOMEProgressionTrackerSnapshot {
 
     private static KOMEProgressionTrackerSnapshot nextStep(EntityPlayerMP player,KOMESerfKnightProgression state){
         int credits=KOMEServicePromotionService.duties(state);double alignment=currentAlignment(player);
-        if(!state.getSerfdomMaster().isSet())return shown("progression","Enter Master service to earn Knight standing","",0F);
-        if(credits>=3)return shown("progression",alignment>=150?"Report to your Master for Knight standing":"Reach 150 faction alignment, then report to your Master",alignment>=150?"":(int)alignment+" / 150 alignment",0F);
-        return shown("progression","Speak with your Master for your next duty",credits+" / 3 duties",credits/3F);
+        if(!state.getSerfdomMaster().isSet())return shown("progression","Serve a Master to earn Knight standing","",0F);
+        if(credits>=3)return shown("progression",alignment>=150?"Report to your Master for Knight standing":"Reach 150 alignment, then report to your Master",alignment>=150?"":(int)alignment+" / 150 alignment",0F);
+        return shown("progression","Ask your Master for your next duty",credits+" / 3 duties",credits/3F);
     }
     private static KOMEProgressionTrackerSnapshot requirement(
             String icon,

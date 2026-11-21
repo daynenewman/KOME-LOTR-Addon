@@ -78,7 +78,7 @@ public final class KOMELordshipTrialService {
         if(!eligible(player,liege)||player.getDistanceSqToEntity(liege)>64)return false;
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
         KOMELordshipTrial t=p.getLordship().assignment();if(t==null)return false;KOMEKnightCommission a=t.objective;
-        if(a.activationPending){if(!p.getLordship().discardTechnical(player.worldObj.getTotalWorldTime())){speech(player,liege,t,"progress");return true;}cleanup(player.worldObj,player.getUniqueID(),t);KOMEProgressionNpcSpeech.say(player,liege,"This field could not sustain a safe service. Your service remains honoured. Petition me for a new invasion service.");changed(data,player,p);return true;}
+        if(a.activationPending){if(!p.getLordship().discardTechnical(player.worldObj.getTotalWorldTime())){speech(player,liege,t,"progress");return true;}cleanup(player.worldObj,player.getUniqueID(),t);KOMEProgressionNpcSpeech.say(player,liege,"This location cannot support the invasion. Your earlier service is safe; ask for another commission.");changed(data,player,p);return true;}
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().archive();speech(player,liege,t,"retry");changed(data,player,p);return true;}
         if(t.ready()){
             if(!t.ordinaryService)return false;
@@ -96,13 +96,13 @@ public final class KOMELordshipTrialService {
             for(int i=0;i<t.guardClasses.size();i++){
                 double[] site=KOMEKnightCommissionService.safeSite(player.worldObj,(int)liege.posX+i*2,(int)liege.posZ+3);
                 LOTREntityNPC guard=site==null?null:KOMEKnightCommissionService.spawn(player,a,t.guardClasses.get(i),Role.GUARD,site,MARKER);
-                if(guard==null){KOMEObjectiveInvasionBridge.retry(player,t,"Soldiers could not be entrusted safely.");cleanup(player.worldObj,player.getUniqueID(),t);a.actors.clear();a.stage=Stage.OFFERED;break;}follow(guard,player);
+                if(guard==null){KOMEObjectiveInvasionBridge.retry(player,t,"Soldiers could not be prepared.");cleanup(player.worldObj,player.getUniqueID(),t);a.actors.clear();a.stage=Stage.OFFERED;break;}follow(guard,player);
             }
             if(a.stage==Stage.ACTIVE&&t.nativeInvasion){speech(player,liege,t,"assigned");changed(data,player,p);return true;}
             if(a.stage==Stage.ACTIVE&&a.type==Type.DANGEROUS_ESCORT){
                 double[] site=KOMEKnightCommissionService.safeSite(player.worldObj,(int)liege.posX,(int)liege.posZ);
                 LOTREntityNPC charge=site==null?null:KOMEKnightCommissionService.spawn(player,a,a.civilianClass,Role.CHARGE,site,MARKER);
-                if(charge==null){KOMEObjectiveInvasionBridge.retry(player,t,"The saved escort could not be prepared safely.");cleanup(player.worldObj,player.getUniqueID(),t);a.actors.clear();a.stage=Stage.OFFERED;}else {follow(charge,player);KOMEProgressionEscortFollowing.disable(charge);}
+                if(charge==null){KOMEObjectiveInvasionBridge.retry(player,t,"The escort could not be prepared.");cleanup(player.worldObj,player.getUniqueID(),t);a.actors.clear();a.stage=Stage.OFFERED;}else {follow(charge,player);KOMEProgressionEscortFollowing.disable(charge);}
             }
             speech(player,liege,t,a.stage==Stage.FAILED?"failed":"assigned");
         } else speech(player,liege,t,"progress");
@@ -149,7 +149,7 @@ public final class KOMELordshipTrialService {
         if(!KOMEKnightCommissionService.validateDestination(player.worldObj,a)){KOMEObjectiveInvasionBridge.retry(player,t,"Destination unavailable.");return;}
         if(!a.encounterCreated&&a.atSite(player.dimension,player.posX,player.posZ,72)
                 &&KOMEKnightCommissionService.loaded(player.worldObj,a.x,a.z)) {
-            if(!KOMEKnightCommissionService.activate(player,a,MARKER)){KOMEObjectiveInvasionBridge.retry(player,t,"Encounter could not be prepared.");return;}
+            if(!KOMEKnightCommissionService.activate(player,a,MARKER)){KOMEObjectiveInvasionBridge.retry(player,t,"The encounter could not be prepared.");return;}
             changed(data,player,p);
         }
         boolean missing=false;

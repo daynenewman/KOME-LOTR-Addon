@@ -11,12 +11,12 @@ public final class KOMEProgressionGoodsPresentation {
         StringBuilder text=new StringBuilder();
         if("provisioning".equals(state.getActiveAssignmentKind())){
             KOMESerfProvisioningAssignment a=KOMESerfProvisioningAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
-            if(a==null)return "";text.append("Bring to your Master:");
+            if(a==null)return "";text.append("Bring your Master:");
             for(KOMESerfProvisioningAssignment.Requirement r:a.foods)provision(text,r,inventory);
             provision(text,a.drink,inventory);
         }else if("profession".equals(state.getActiveAssignmentKind())){
             KOMESerfProfessionAssignment a=KOMESerfProfessionAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.PROFESSION).getAssignmentData());
-            if(a==null)return "";text.append("Bring to your Master:");
+            if(a==null)return "";text.append("Bring your Master:");
             for(KOMESerfProfessionAssignment.Requirement r:a.requirements){
                 int have=r.delivered;if(inventory!=null)for(ItemStack s:inventory)if(KOMESerfProfessionService.matches(s,r))have+=s.stackSize;
                 line(text,KOMEProgressionGoodsRules.name(r.requestedStack(),r.displayName),have,r.required);
@@ -24,7 +24,7 @@ public final class KOMEProgressionGoodsPresentation {
         }else{
             KOMEKnightCommission a=p.getKnightService().assignment();
             if(a!=null&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated&&a.type==KOMEKnightCommission.Type.RELIEF){
-                text.append("Bring relief to your people:");
+                text.append("Bring relief supplies:");
                 for(KOMEKnightCommission.Goods g:a.goods){
                     Item item=(Item)Item.itemRegistry.getObject(g.itemKey);if(item==null)continue;
                     ItemStack target=new ItemStack(item,1,g.damage);int have=g.delivered;
@@ -43,7 +43,7 @@ public final class KOMEProgressionGoodsPresentation {
     public static KOMEProgressionRankSummary enrich(KOMEProgressionRankSummary summary,KOMEPlayerProgression p,ItemStack[] inventory){
         String objective=objective(p,inventory);
         if(!objective.isEmpty()&&p.getCanonicalRank()==KOMEProgressionRank.KNIGHT){KOMEKnightCommission a=p.getKnightService().assignment();
-            if(a!=null)objective="Deliver relief to the marked recipient at ("+(int)a.destinationX+", "+(int)a.destinationZ+").\n"+objective+"\nThen report to "+a.liege.displayName+".";
+            if(a!=null)objective="Deliver supplies to the marked recipient at ("+(int)a.destinationX+", "+(int)a.destinationZ+").\n"+objective+"\nReport to "+a.liege.displayName+".";
         }
         return objective.isEmpty()?summary:new KOMEProgressionRankSummary(summary.factionKey,summary.currentRank,summary.nextRank,summary.promotionTitle,summary.requirements,summary.activityHeading,summary.activityTitle,objective);
     }

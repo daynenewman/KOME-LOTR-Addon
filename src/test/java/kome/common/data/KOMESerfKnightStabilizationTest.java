@@ -41,7 +41,7 @@ public class KOMESerfKnightStabilizationTest {
             assertFalse(KOMEProgressionNpcRoles.protects(s.f.data,UUID.fromString(master.entityUuid)));
             assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
             assertFalse(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
-            assertTrue(s.f.player.messages.toString().contains("faithful service"));
+            assertTrue(s.f.player.messages.toString().contains("served faithfully"));
         }
     }
 

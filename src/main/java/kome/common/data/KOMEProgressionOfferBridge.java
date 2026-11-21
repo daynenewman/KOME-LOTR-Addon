@@ -209,7 +209,7 @@ public final class KOMEProgressionOfferBridge {
         if(!canRequestLiegeOfferFrom(player,npc))return false;
         LOTRMiniQuest current=npc.questInfo.getOfferFor(player);long day=KOMESerfKnightService.calendarDayNow();KOMELiegeOfferQuest offer=null;
         if(isStandingTrialOffer(current)){offer=(KOMELiegeOfferQuest)current;if(offer.isCommissionOffer()||offer.isLordshipOffer()||offer.expired(day)||offer.isReplacementOffer()!=canReplaceLiegeFrom(player,npc)){npc.questInfo.clearPlayerSpecificOffer(player);offer=null;}}
-        else if(current!=null){player.addChatMessage(new ChatComponentText("Finish or decline this NPC's current quest offer before requesting their Liege offer."));return true;}
+        else if(current!=null){player.addChatMessage(new ChatComponentText("Finish or decline this NPC's current quest before seeking service."));return true;}
         if(offer==null){KOMELordshipTrial lordship=KOMELordshipTrialService.eligible(player,npc)?KOMELordshipTrialService.prepare(player,npc):null;
         if(KOMELordshipTrialService.eligible(player,npc)&&lordship==null)return false;
         KOMEKnightCommission commission=KOMEKnightCommissionService.eligible(player,npc)?KOMEKnightCommissionService.prepare(player,npc):null;if(KOMEKnightCommissionService.eligible(player,npc)&&commission==null)return false;offer=lordship!=null?KOMELiegeOfferQuest.createLordship(LOTRLevelData.getData(player),npc,day,lordship):commission!=null?KOMELiegeOfferQuest.createCommission(LOTRLevelData.getData(player),npc,day,commission):canReplaceLiegeFrom(player,npc)?KOMELiegeOfferQuest.createReplacement(LOTRLevelData.getData(player),npc,day):KOMELiegeOfferQuest.createStandingTrial(LOTRLevelData.getData(player),npc,day);if(offer==null)return false;npc.questInfo.setPlayerSpecificOffer(player,offer);npc.questInfo.sendData(player);}
@@ -266,7 +266,7 @@ public final class KOMEProgressionOfferBridge {
         if (!(player instanceof EntityPlayerMP))return true;
         if (!isOfferActive(offer, player, npc) || player.getDistanceSqToEntity(npc) > 64.0D) {
             KOMESerfdomMasterService.Result validation=KOMESerfdomMasterService.validateMasterSelection((EntityPlayerMP)player,KOMEWorldData.get(player.worldObj),npc,true);
-            KOMEProgressionNpcSpeech.say((EntityPlayerMP)player,npc,validation.success?"That offer of service has expired.":validation.reason);
+            KOMEProgressionNpcSpeech.say((EntityPlayerMP)player,npc,validation.success?"That offer has expired.":validation.reason);
             info.clearPlayerSpecificOffer(player);info.sendData((EntityPlayerMP)player);return true;
         }
         EntityPlayerMP mp = (EntityPlayerMP) player;
@@ -303,7 +303,7 @@ public final class KOMEProgressionOfferBridge {
             info.clearPlayerSpecificOffer(mp);
             info.sendData(mp);
             sendStandingTrialEligibility(mp,npc,false);
-            mp.addChatMessage(new ChatComponentText("That Liege offer is no longer available."));
+            mp.addChatMessage(new ChatComponentText("That offer is no longer available."));
             return true;
         }
         KOMEWorldData data=KOMEWorldData.get(mp.worldObj);
@@ -315,7 +315,7 @@ public final class KOMEProgressionOfferBridge {
             info.clearPlayerSpecificOffer(mp);info.sendData(mp);
             KOMEProgressionAutoCompleter.syncPlayer(mp,progression);
             sendStandingTrialEligibility(mp,npc,false);
-            KOMEProgressionNpcSpeech.say(mp,npc,"I will receive your service and offerings. You may look to me as your Liege.");
+            KOMEProgressionNpcSpeech.say(mp,npc,"I accept your service. You shall answer to me as your Liege.");
             return true;
         }
         KOMESerfKnightService.Result result=KOMESerfKnightService.acceptStandingTrial(
@@ -396,9 +396,9 @@ public final class KOMEProgressionOfferBridge {
     }
     private static String storyFor(LOTREntityNPC npc) {
         String type = npc.getClass().getSimpleName().toLowerCase();
-        if (type.contains("smith")) return "There is more work at my forge than I can manage alone. If you mean to earn your place here, I could use another pair of hands.";
-        if (type.contains("farmer") || type.contains("farm")) return "There is always more work than daylight on this holding. I could use someone willing to earn their keep.";
-        return "I have work enough for another pair of hands. If you are willing to serve faithfully, I may have a place for you.";
+        if (type.contains("smith")) return "My forge has more work than hands. Will you serve?";
+        if (type.contains("farmer") || type.contains("farm")) return "There is more work here than daylight. Will you earn your keep?";
+        return "I have work for a faithful servant. Will you take it?";
     }
     private static LOTREntityNPC npc(LOTREntityQuestInfo info) {
         if (info == null) return null;

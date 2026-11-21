@@ -28,11 +28,11 @@ public final class KOMEProgressionEscortFollowing {
                 ||a.protectedActor()==null||!a.protectedActor().id.equals(npc.getUniqueID().toString())))return false;
         disable(npc);
         if(player.isSneaking()&&!npc.hiredNPCInfo.isHalted()){
-            npc.hiredNPCInfo.halt();npc.getNavigator().clearPathEntity();KOMEProgressionNpcSpeech.say(player,npc,"I shall wait here. Speak to me when you are ready to go on.");
+            npc.hiredNPCInfo.halt();npc.getNavigator().clearPathEntity();KOMEProgressionNpcSpeech.say(player,npc,"I shall wait here. Speak when you are ready.");
         }else{
             npc.hiredNPCInfo.ready();npc.hiredNPCInfo.setGuardMode(false);npc.setAttackTarget(null);
             npc.getNavigator().clearPathEntity();npc.getNavigator().tryMoveToEntityLiving(player,1D);
-            KOMEProgressionNpcSpeech.say(player,npc,"Lead on. I will follow you.");
+            KOMEProgressionNpcSpeech.say(player,npc,"Lead on. I will follow.");
         }
         return true;
     }

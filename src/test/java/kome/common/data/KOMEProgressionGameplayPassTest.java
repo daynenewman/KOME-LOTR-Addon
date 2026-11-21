@@ -146,7 +146,7 @@ public class KOMEProgressionGameplayPassTest {
     @Test public void dialogueNeverCarriesLegacyInventedRefugeNames() {
         KOMEKnightCommission a=new KOMEKnightCommission(Type.DANGEROUS_ESCORT,KOMEKnightCommissionStateTest.liege());a.place="Imaginary village";
         assertFalse(KOMEKnightCommissionPresentation.speech(a,"assigned").contains("Imaginary"));assertFalse(KOMEKnightCommissionPresentation.speech(a,"assigned").contains("shelter"));
-        a.destinationProof.setString("Status","EXISTING_VERIFIED");assertTrue(KOMEKnightCommissionPresentation.speech(a,"assigned").contains("shelter marked on your map"));
+        a.destinationProof.setString("Status","EXISTING_VERIFIED");assertTrue(KOMEKnightCommissionPresentation.speech(a,"assigned").contains("shelter on your map"));
     }
     @Test public void protectedHomeLeaseRestoresNativeHomeAfterFailure()throws Exception {
         try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
@@ -204,7 +204,7 @@ public class KOMEProgressionGameplayPassTest {
             assertNotNull(state.getTrialAssignment());assertTrue(state.hasLiege());assertTrue(state.failures().isEmpty());
             assertEquals(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,state.getTrialAssignment().stage);
             String token=state.getTrialAssignment().assignmentToken;
-            assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("cannot arrange this trial safely")));
+            assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("cannot arrange this old trial here")));
             assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
             int failures=state.failures().size();KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
             assertNotNull(state.getTrialAssignment());assertEquals(token,state.getTrialAssignment().assignmentToken);assertEquals(failures,state.failures().size());assertEquals(0,s.original.drops());

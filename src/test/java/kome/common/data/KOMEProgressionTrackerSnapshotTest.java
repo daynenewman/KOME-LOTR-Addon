@@ -58,7 +58,7 @@ public class KOMEProgressionTrackerSnapshotTest {
             "progression",
             cooldown.iconKey);
         assertEquals(
-            "Speak with your Master for your next duty",
+            "Ask your Master for your next duty",
             cooldown.objective);
         assertEquals(
             "1 / 3 duties",
@@ -73,7 +73,7 @@ public class KOMEProgressionTrackerSnapshotTest {
 
         assertTrue(available.visible);
         assertEquals(
-            "Speak with your Master for your next duty",
+            "Ask your Master for your next duty",
             available.objective);
 
         state.assignDuty(

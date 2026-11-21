@@ -110,8 +110,8 @@ public class KOMEProgressionUxInteractionTest {
             KOMESerfKnightEscortService.tickPlayer(s.f.player);assertFalse(state.isTrialCompleted());
             charge.posX=1000;charge.posZ=1000;KOMESerfKnightEscortService.tickPlayer(s.f.player);
             assertTrue(state.isTrialCompleted());assertTrue(charge.hiredNPCInfo.teleportAutomatically);assertFalse(charge.hiredNPCInfo.isActive);
-            assertEquals(1,s.f.player.messages.stream().filter(text->text.contains("You have seen me safely through")).count());
-            KOMESerfKnightEscortService.tickPlayer(s.f.player);assertEquals(1,s.f.player.messages.stream().filter(text->text.contains("You have seen me safely through")).count());
+            assertEquals(1,s.f.player.messages.stream().filter(text->text.contains("You brought me through safely")).count());
+            KOMESerfKnightEscortService.tickPlayer(s.f.player);assertEquals(1,s.f.player.messages.stream().filter(text->text.contains("You brought me through safely")).count());
         }
     }
     @Test public void noTeleportLeaseRestoresOriginalFalseAndMalformedOrphan()throws Exception {

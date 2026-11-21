@@ -51,13 +51,13 @@ public final class KOMEProgressionDevelopment {
     public static String finish(EntityPlayerMP player){
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());KOMESerfKnightProgression s=p.getSerfKnightProgression();
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
-        if(pledge==null)return "Pledge to the assignment's faction first.";
+        if(pledge==null)return "Pledge to the service faction first.";
         String active=s.getActiveAssignmentKind();KOMESerfKnightDutyType duty=KOMESerfKnightDutyType.forKey(active);
         if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&duty!=null){
-            if(!KOMEProgressionFactionResolver.matches(s.getSerfdomMaster().factionKey,pledge))return "Your pledge does not match your Master.";
+            if(!KOMEProgressionFactionResolver.matches(s.getSerfdomMaster().factionKey,pledge))return "Your pledge differs from your Master's faction.";
             s.getDuty(duty).adminForced=true;s.getDuty(duty).rewardReserved=true;
             if(duty==KOMESerfKnightDutyType.COURIER){
-                KOMESerfCourierAssignment dispatch=KOMESerfCourierAssignment.readFromNBT(s.getDuty(duty).getAssignmentData());if(dispatch==null)return "No valid dispatch to finish.";
+                KOMESerfCourierAssignment dispatch=KOMESerfCourierAssignment.readFromNBT(s.getDuty(duty).getAssignmentData());if(dispatch==null)return "No valid message to finish.";
                 KOMEProgressionEncounterCleanup.cleanup(player,p);dispatch.stage=KOMESerfCourierAssignment.Stage.DELIVERED;s.setDutyAssignmentData(duty,dispatch.writeToNBT());
                 changed(player,data,p,"finishDuty");return "Test dispatch ready to report to your Master. No normal delivery evidence or payment recorded.";
             }
@@ -65,17 +65,17 @@ public final class KOMEProgressionDevelopment {
             changed(player,data,p,"finishDuty");return "Test duty completed. No goods, payment or normal delivery evidence recorded.";
         }
         if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&s.getTrialAssignment()!=null&&!s.isTrialCompleted()){
-            KOMESerfKnightTrialAssignment a=s.getTrialAssignment();if(!KOMEProgressionFactionResolver.matches(a.factionKey,pledge)||!s.getLiege().hasSameIdentity(a.liege))return "Your trial relationship or pledge is invalid.";
-            if(a.stage==KOMESerfKnightTrialAssignment.Stage.FAILED)return "Reset the failed trial first.";
+            KOMESerfKnightTrialAssignment a=s.getTrialAssignment();if(!KOMEProgressionFactionResolver.matches(a.factionKey,pledge)||!s.getLiege().hasSameIdentity(a.liege))return "Your legacy trial or pledge is invalid.";
+            if(a.stage==KOMESerfKnightTrialAssignment.Stage.FAILED)return "Reset the failed legacy trial first.";
             KOMEProgressionEncounterCleanup.cleanup(player,p);NBTTagCompound n=(NBTTagCompound)a.data.copy();n.setBoolean("AdminForced",true);
             s.updateTrialAssignment(a.withStage(KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE,n));s.trialRewardReserved=true;
             KOMESerfKnightService.Result result=KOMESerfKnightService.completeTrial(s);if(!result.success)return result.reason;
             changed(player,data,p,"finishDuty");return "Test trial ready. Report personally to your Liege; rank is unchanged.";
         }
         KOMELordshipTrial trial=p.getLordship().assignment();KOMEKnightCommission a=trial==null?p.getKnightService().assignment():trial.objective;
-        if(p.getCanonicalRank()!=KOMEProgressionRank.KNIGHT||a==null)return "No eligible active progression service.";
-        if(!KOMEProgressionFactionResolver.matches(a.faction,pledge)||!a.liege.hasSameIdentity(s.getLiege()))return "Your commission relationship or pledge is invalid.";
-        if(a.stage==KOMEKnightCommission.Stage.OFFERED||a.stage==KOMEKnightCommission.Stage.FAILED||a.stage==KOMEKnightCommission.Stage.REPORTED)return "Receive your orders before finishing an active test service.";
+        if(p.getCanonicalRank()!=KOMEProgressionRank.KNIGHT||a==null)return "No active service to test.";
+        if(!KOMEProgressionFactionResolver.matches(a.faction,pledge)||!a.liege.hasSameIdentity(s.getLiege()))return "Your commission or pledge is invalid.";
+        if(a.stage==KOMEKnightCommission.Stage.OFFERED||a.stage==KOMEKnightCommission.Stage.FAILED||a.stage==KOMEKnightCommission.Stage.REPORTED)return "Accept the commission before forcing completion.";
         if(trial!=null){KOMELordshipTrialService.cleanup(player.worldObj,player.getUniqueID(),trial);trial.forceReleased=true;}
         else KOMEKnightCommissionService.cleanup(player.worldObj,player.getUniqueID(),a);
         a.adminForced=true;a.rewardReserved=true;a.stage=KOMEKnightCommission.Stage.READY_TO_REPORT;

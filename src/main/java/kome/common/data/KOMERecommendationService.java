@@ -35,19 +35,19 @@ public final class KOMERecommendationService {
     }
     public static String recognition(LOTRFaction f,KOMEProgressionRank from){
         boolean harsh=f!=null&&f.isBadRelation(LOTRFaction.GONDOR);
-        if(from==KOMEProgressionRank.SERF)return harsh?"Your work has proved useful. In our people's name I recognize you as a Knight. Take my word to a Lord; make it count.":
-            "Your faithful service has earned recognition. On behalf of our people, I confer Knight standing. Take my recommendation to a Lord when you are ready.";
-        return harsh?"You have earned your place among our Lords. My word will reach the Crown at our capital; do not shame it.":
-            "Your courage and service have earned you a place among our Lords. I recognize your standing on behalf of our people. My recommendation is addressed to the Crown at our capital.";
+        if(from==KOMEProgressionRank.SERF)return harsh?"You have proved useful. Our people recognize you as a Knight. Take my word to a Lord.":
+            "You have served faithfully. In our name, I grant you Knight standing. Take my letter to a Lord.";
+        return harsh?"You have earned Lord standing. Carry my word to the Crown, and do not shame it.":
+            "Your courage has earned Lord standing. My letter commends you to the Crown at our capital.";
     }
     public static String recognition(LOTRFaction f,KOMEProgressionRank from,KOMEProgressionNpcRank issuerRank){
         String standing=KOMEFactionProgressionTitles.title(f==null?"":f.codeName(),from==KOMEProgressionRank.SERF?KOMEProgressionRank.KNIGHT:KOMEProgressionRank.LORD);
         if(from==KOMEProgressionRank.SERF)return recognition(f,from).replace("Knight standing",standing+" standing").replace("as a Knight","as "+standing);
         boolean harsh=f!=null&&f.isBadRelation(LOTRFaction.GONDOR);
-        return (harsh?"Your strength and service have proved your worth. ":"Your courage and service have earned our people's recognition. ")
-            +"In our faction's name I confer "+standing+" standing. "
-            +(issuerRank==KOMEProgressionNpcRank.LORD?"We now meet as equals in standing. ":"You have earned a place among our realm's nobility. ")
-            +"My recommendation is addressed to the Crown at our capital.";
+        return (harsh?"Your strength has proved your worth. ":"Your deeds have earned our people's trust. ")
+            +"In our people's name, I grant "+standing+" standing. "
+            +(issuerRank==KOMEProgressionNpcRank.LORD?"We now stand as equals. ":"You have joined our realm's nobility. ")
+            +"My letter is for the Crown at our capital.";
     }
     public static boolean eligible(KOMEPlayerProgression p,java.util.UUID owner,String faction){
         return p!=null&&!p.getSerfKnightProgression().hasLiege()
@@ -77,9 +77,9 @@ public final class KOMERecommendationService {
             "the "+KOMEProgressionNativeAuthority.name(r.faction,KOMEProgressionNpcRank.KING,"")+" at our faction capital";
         String role=r.from==KOMEProgressionRank.SERF?"their former Master":"their former Liege";
         NBTTagList pages=new NBTTagList();pages.appendTag(new NBTTagString("To "+receiver+" of our people,\n\nI commend "+playerName+" to your service.\n\n"+
-            (harsh?"Strength, loyalty and useful work have earned this standing.":"rohan".equals(culture)?"Their loyalty and courage have been proved in deeds.":("durinsfolk".equals(culture)||"bluemountains".equals(culture))?"Their deeds and faithful labour stand witnessed; they have earned our trust.":"gondor".equals(culture)?"Their honour and faithful service to our people stand witnessed.":"Their faithful service has earned my trust.")+"\n\n"+r.issuer.displayName+", "+role+"\n"+(f==null?r.faction:f.factionName())));
+            (harsh?"Strength and loyalty have earned this standing.":"rohan".equals(culture)?"Their courage and loyalty are proven.":("durinsfolk".equals(culture)||"bluemountains".equals(culture))?"Their deeds and labour have earned our trust.":"gondor".equals(culture)?"Their honour and service are known to us.":"Their service has earned my trust.")+"\n\n"+r.issuer.displayName+", "+role+"\n"+(f==null?r.faction:f.factionName())));
         String service=r.accomplishments;
-        for(int start=0;start<service.length();start+=190)pages.appendTag(new NBTTagString((start==0?"Service remembered:\n\n":"")+service.substring(start,Math.min(service.length(),start+190))));
+        for(int start=0;start<service.length();start+=190)pages.appendTag(new NBTTagString((start==0?"Service rendered:\n\n":"")+service.substring(start,Math.min(service.length(),start+190))));
         pages.appendTag(new NBTTagString("I recognized their "+KOMEFactionProgressionTitles.title(r.faction,r.conferred)+" standing in our faction's name. Receive them when they seek your service.\n\nThis letter remains a keepsake after its introduction is accepted."));
         NBTTagList wrapped=new NBTTagList();for(int i=0;i<pages.tagCount();i++)for(String page:KOMECourierCorrespondence.pages(pages.getStringTagAt(i)))wrapped.appendTag(new NBTTagString(page));
         n.setTag("pages",wrapped);n.setString("KOMERecommendation",r.id);n.setString("Recipient",r.recipient.toString());
@@ -93,7 +93,7 @@ public final class KOMERecommendationService {
         for(ItemStack stack:player.inventory.mainInventory)if(matches(stack,r))return true;
         int slot=-1;for(int i=0;i<player.inventory.mainInventory.length;i++)if(player.inventory.mainInventory[i]==null){slot=i;break;}
         if(slot<0){
-            player.addChatMessage(new ChatComponentText("Your recommendation is safely recorded. Make room and request it again from your former superior, or use /progression recommendation."));return false;
+            player.addChatMessage(new ChatComponentText("Your letter is recorded. Make room, then request it again or use /progression recommendation."));return false;
         }
         player.inventory.setInventorySlotContents(slot,letter(r,player.getCommandSenderName()));
         player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();data.markDirty();return true;
@@ -102,8 +102,8 @@ public final class KOMERecommendationService {
         if(player==null||npc==null||player.worldObj.isRemote||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||player.getDistanceSqToEntity(npc)>64)return false;
         KOMEPlayerProgression p=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());
         for(KOMEServiceRecognition.Record r:p.getServiceRecognition().records())if(r.issuer.entityUuid.equals(npc.getUniqueID().toString())||r.priorSuperior.entityUuid.equals(npc.getUniqueID().toString())){
-            KOMEProgressionNpcSpeech.say(player,npc,npc.getFaction().isBadRelation(LOTRFaction.GONDOR)?"I remember your service. You earned your standing; see that you keep it.":
-                r.conferred==KOMEProgressionRank.LORD?"It is good to meet you as a fellow Lord. Your service is remembered.":"It is good to see how far you have come. I remember your faithful service.");
+            KOMEProgressionNpcSpeech.say(player,npc,npc.getFaction().isBadRelation(LOTRFaction.GONDOR)?"I remember your service. Do not disgrace your standing.":
+                r.conferred==KOMEProgressionRank.LORD?"We meet as fellow Lords. I remember your service.":"You have come far. I remember your service.");
             deliver(player);return true;
         }return false;
     }

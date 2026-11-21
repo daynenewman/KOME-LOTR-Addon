@@ -85,18 +85,18 @@ public final class KOMEProgressionRankSummary {
         if(rank==KOMEProgressionRank.COMMONER){
             KOMESerfKnightProgression state=progression.getSerfKnightProgression();
             int credits=KOMEServicePromotionService.duties(state);
-            requirements.add(new Requirement("Reported service",credits,3,credits>=3));
-            requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,150,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=150));
-            heading="Master service";title=state.getSerfdomMaster().isSet()?state.getSerfdomMaster().displayName:"Seek a Master";
+            requirements.add(new Requirement("Duties reported",credits,3,credits>=3));
+            requirements.add(new Requirement("Faction alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,150,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=150));
+            heading="Master service";title=state.getSerfdomMaster().isSet()?state.getSerfdomMaster().displayName:"Find a Master";
             String active=state.getActiveAssignmentKind();
             objective=!state.getSerfdomMaster().isSet()?"Find a friendly civilian in your faction's territory.":credits>=3?
                 (pledgedFactionAlignment>=150?"Service complete; report to your Master.":"Improve your faction alignment, then report to your Master."):
                 "Ask your Master for a duty.";
-            if("provisioning".equals(active)){heading="Current Duty";title="Provisions";objective=provisioningObjective(state);}
-            else if("profession".equals(active)){heading="Current Duty";title="Trade Assistance";objective=professionObjective(state);}
-            else if("courier".equals(active)){heading="Current Duty";title="Courier Service";objective=courierObjective(state);}
+            if("provisioning".equals(active)){heading="Current duty";title="Provisions";objective=provisioningObjective(state);}
+            else if("profession".equals(active)){heading="Current duty";title="Trade assistance";objective=professionObjective(state);}
+            else if("courier".equals(active)){heading="Current duty";title="Courier service";objective=courierObjective(state);}
             else if(state.ordinaryObjective()){
-                heading="Current Duty";title=KOMESerfKnightDutyType.forKey(state.getTrialId()).displayName;
+                heading="Current duty";title=KOMESerfKnightDutyType.forKey(state.getTrialId()).displayName;
                 objective=state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Master.":trialObjective(state,KOMESerfKnightTrial.forId(state.getTrialId())).replace("Liege","Master").replace("trial","duty");
             }
             if(KOMEProgressionFactionResolver.resolve(factionKey)==null&&!state.getSerfdomMaster().isSet()) {
@@ -104,13 +104,13 @@ public final class KOMEProgressionRankSummary {
             }
         } else if(rank==KOMEProgressionRank.KNIGHT){
             int credits=progression.getKnightService().qualifyingTypes(factionKey).size();
-            requirements.add(new Requirement("Reported commissions",credits,3,credits>=3));
-            requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,2000,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=2000));
-            heading="Lord service";KOMEProgressionNpcRef lord=progression.getSerfKnightProgression().getLiege();title=lord.isSet()?lord.displayName:"Your recommendation";
+            requirements.add(new Requirement("Commissions reported",credits,3,credits>=3));
+            requirements.add(new Requirement("Faction alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,2000,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=2000));
+            heading="Liege service";KOMEProgressionNpcRef lord=progression.getSerfKnightProgression().getLiege();title=lord.isSet()?lord.displayName:"Your recommendation";
             KOMEServiceRecognition.Record introduction=null;
             for(KOMEServiceRecognition.Record r:progression.getServiceRecognition().records())if(r.conferred==rank&&KOMEProgressionRelationshipLifecycle.sameFaction(r.faction,factionKey))introduction=r;
-            title=lord.isSet()?lord.displayName:introduction==null?"Regional service":introduction.invalidated?"Recommendation expired":introduction.redeemed?"Introduction used":"Your recommendation";
-            objective=!lord.isSet()?(introduction==null?"Seek advice about sponsored regional service; no earned recommendation is recorded.":introduction.invalidated?"Your former faction's letter remains a keepsake. It cannot sponsor service under a new pledge.":introduction.redeemed?"Your introduction has been used. Saved service survives the legitimate loss of a Liege.":"When ready, take your recommendation to a Lord or Prince at a verified native regional seat. Recover a lost copy with /progression recommendation."):credits>=3?(pledgedFactionAlignment>=2000?"Service complete; report to your Liege.":"Improve your faction alignment, then report to your Liege."):"Ask your Liege for a commission.";
+            title=lord.isSet()?lord.displayName:introduction==null?"Seek a regional Liege":introduction.invalidated?"Letter expired":introduction.redeemed?"Letter presented":"Your recommendation";
+            objective=!lord.isSet()?(introduction==null?"No recommendation is recorded. Seek guidance on regional service.":introduction.invalidated?"Your old letter is a keepsake; it cannot secure service with your new faction.":introduction.redeemed?"Your introduction was used. If your Liege was lost, seek a legitimate replacement.":"Present your letter to a Lord or Prince at a recognized regional seat. Recover it with /progression recommendation."):credits>=3?(pledgedFactionAlignment>=2000?"Service complete; report to your Liege.":"Improve your faction alignment, then report to your Liege."):"Ask your Liege for a commission.";
             KOMEKnightCommission a=progression.getKnightService().assignment();KOMELordshipTrial invasion=progression.getLordship().assignment();
             if(a!=null){heading="Current commission";title=KOMEKnightCommissionPresentation.title(a.type);objective=KOMEKnightCommissionPresentation.details(a);}
             else if(invasion!=null&&invasion.ordinaryService){heading="Current commission";title="Repel an Invasion";objective=KOMELordshipTrialPresentation.objective(invasion);}
@@ -138,7 +138,7 @@ public final class KOMEProgressionRankSummary {
                 if (!markerComplete
                         && KOMEHigherRankTransitionService.requirementsComplete(progression, transition)) {
                     heading = "Standing";
-                    title = "Ready to advance";
+                    title = "Ready for advancement";
                     objective = "Complete " + (marker == null ? "the final standing step" : marker.title)
                         + " to advance to " + KOMEFactionProgressionTitles.title(factionKey, transition.toRank) + ".";
                 }
@@ -148,13 +148,13 @@ public final class KOMEProgressionRankSummary {
         String currentName = rank.displayName;
         if(rank.order<=KOMEProgressionRank.KNIGHT.order&&KOMEProgressionFactionResolver.missingNativeLiege(factionKey))objective+="\n"+KOMEKnightCommissionPresentation.unavailableLiege();
         String nextName = next == null ? "" : next.displayName;
-        String promotion = next == null ? "Highest Rank" : "Requirements for " + nextName;
+        String promotion = next == null ? "Highest rank" : "To earn " + nextName;
         if (rank == KOMEProgressionRank.LORD) {
-            promotion = "Legacy Prince checklist";
-            heading="Future royal service";title="Crown at the faction capital";
-            objective="Lord standing is earned. Royal leadership service awaits redesign; the legacy Prince checklist remains available.";
+            promotion = "Prince requirements (legacy)";
+            heading="Royal service";title="The Crown at the capital";
+            objective="Royal service is not yet available. The legacy Prince requirements remain.";
             for(KOMEServiceRecognition.Record r:progression.getServiceRecognition().records())if(r.conferred==rank&&!r.invalidated&&KOMEProgressionRelationshipLifecycle.sameFaction(r.faction,factionKey))
-                objective+=" Your former Liege's recommendation is addressed to the Crown. Recover a lost copy with /progression recommendation.";
+                objective+=" Your letter to the Crown can be recovered with /progression recommendation.";
         }
         return new KOMEProgressionRankSummary(factionKey, currentName, nextName, promotion, requirements,
             heading, title, objective);
@@ -180,7 +180,7 @@ public final class KOMEProgressionRankSummary {
         KOMESerfProvisioningAssignment assignment = KOMESerfProvisioningAssignment.readFromNBT(
             state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
         if (assignment == null) return "Bring the requested provisions to your Master.";
-        return "Bring to your Master: " + assignment.progressList("; ") + ".";
+        return "Bring your Master: " + assignment.progressList("; ") + ".";
     }
 
     private static String professionObjective(KOMESerfKnightProgression state) {
@@ -196,32 +196,32 @@ public final class KOMEProgressionRankSummary {
     private static String courierObjective(KOMESerfKnightProgression state) {
         KOMESerfCourierAssignment assignment = KOMESerfCourierAssignment.readFromNBT(
             state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-        if (assignment == null) return "Carry out your Master's delivery.";
-        if (assignment.confirmedRecipientDeath) return "The recipient has died. Return the current letter to your Master.";
+        if (assignment == null) return "Deliver your Master's message.";
+        if (assignment.confirmedRecipientDeath) return "The recipient has died. Return the letter to your Master.";
         if (assignment.stage == KOMESerfCourierAssignment.Stage.DELIVERED)
-            return "Return to your Master and report the delivery.";
-        String recipient = assignment.recipient.isSet() ? " and seek " + assignment.recipient.displayName
-            : " and find the recipient there";
-        return "Carry the message to " + assignment.destinationName + recipient + ".";
+            return "Report the delivery to your Master.";
+        String recipient = assignment.recipient.isSet() ? "; find " + assignment.recipient.displayName
+            : "; find the recipient";
+        return "Take the message to " + assignment.destinationName + recipient + ".";
     }
 
     private static String trialObjective(KOMESerfKnightProgression state, KOMESerfKnightTrial trial) {
         KOMESerfKnightTrialAssignment assignment = state.getTrialAssignment();
         if (assignment != null && assignment.stage == KOMESerfKnightTrialAssignment.Stage.FAILED)
-            return "This trial is lost. Seek a new Liege.";
+            return "This duty has failed. Return to your Master.";
         if (assignment != null && "escort".equals(assignment.trialId))
             return assignment.stage == KOMESerfKnightTrialAssignment.Stage.ASSIGNED
-                ? "Meet your charge at your Liege's side, then escort them to "+KOMESerfKnightEscortService.destinationName(assignment)+"."
+                ? "Meet your charge, then escort them to "+KOMESerfKnightEscortService.destinationName(assignment)+"."
                 : "Escort your charge to "+KOMESerfKnightEscortService.destinationName(assignment)+".";
         if (assignment != null && "recovery".equals(assignment.trialId))
             return assignment.data.getBoolean("RecoveryRetrieved")
-                ? "Return the recovered item to your Liege." : "Recover the lost item.";
+                ? "Bring the recovered item to your Master." : "Recover the missing item.";
         if (assignment != null && "defense".equals(assignment.trialId))
             return assignment.stage == KOMESerfKnightTrialAssignment.Stage.ASSIGNED
-                ? "Defend your people from the attack."
+                ? "Protect your people from the attack."
                 : KOMESerfKnightDefenseService.allDead(assignment)
-                    ? "Return to your Liege." : "Defeat the remaining attackers.";
-        return trial == null ? "Complete your Trial." : trial.description;
+                    ? "Report to your Master." : "Defeat the remaining attackers.";
+        return trial == null ? "Complete your duty." : trial.description;
     }
 
     private static String appendQuota(String text, String label, int current, int required) {

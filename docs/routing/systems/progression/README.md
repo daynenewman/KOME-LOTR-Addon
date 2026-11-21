@@ -225,6 +225,19 @@ extended `KOMEOrdinaryBattleResolutionServiceTest`. Native fixture source is
 [KnightNativeVerification.java](../../../../tools/progression-pass5/java/kome/common/data/KnightNativeVerification.java).
 It proves controlled mechanics, not client/pathfinding adventure acceptance.
 
+October 16 language integration recovery: the
+[repair report](../../../PROGRESSION_LANGUAGE_INTEGRATION_REPAIR.md) records the
+Pass 3 source overwrite and restoration from the current Pass 4/5 checkpoints.
+`KOMEEvents` supplies actual damage to the four-argument `noteDamage` methods and
+observes uncancelled player death; `/kome progression commission` retains its
+operator exercise lifecycle and promotion isolation. Master-duty fallback,
+deceased-Liege reporting, field followers and phase-aware presentation are retained.
+`KOMEProgressionCombatLifecycleTest` covers event dispatch, evidence reload and
+field death boundaries alongside the existing field-operation, Master-reliability,
+battle, save and network regression suites. Player-facing wording does not change
+machine IDs, NBT schemas, packet contracts or military authority. See the report
+for exact verification and outstanding live acceptance limits.
+
 - [KOMEPlayerProgression](../../../../src/main/java/kome/common/data/KOMEPlayerProgression.java), [KOMEProgressionAchievement](../../../../src/main/java/kome/common/data/KOMEProgressionAchievement.java), [KOMECanonicalRankService](../../../../src/main/java/kome/common/data/KOMECanonicalRankService.java), [KOMEProgressionPermissions.has](../../../../src/main/java/kome/common/data/KOMEProgressionPermissions.java): persisted player progression in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java), definitions, canonical rank, action gates. Native pledge/alignment and NPC/entity NBT are additional authorities.
 - [KOMEProgressionAutoCompleter.runForPlayer](../../../../src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java), `applyUnlocks`, `syncPlayer`, [KOMEEvents](../../../../src/main/java/kome/common/data/KOMEEvents.java): login/player tick, item/entity/NPC events, unlock recomputation and synchronization.
 - [KOMEProgressionNpcInteractionService.interact](../../../../src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java), [KOMEProgressionNpcRankService](../../../../src/main/java/kome/common/data/KOMEProgressionNpcRankService.java), [KOMEProgressionRelationshipLifecycle](../../../../src/main/java/kome/common/data/KOMEProgressionRelationshipLifecycle.java): NPC rank/role leases, master/liege selection, death/release/succession.

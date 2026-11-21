@@ -22,7 +22,7 @@ public final class KOMELiegeProgressionInteraction {
             if(testing.getKnightService().testing()&&testing.getKnightService().assignment()==null&&testing.getLordship().assignment()==null){KOMEProgressionNpcSpeech.say(player,lord,"The field exercise is concluded. Arrange another through the staff commission command, or end the exercise before resuming earned service.");return true;}
             if(KOMEServicePromotionService.report(player,lord))return true;
             KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
-            if(KOMEKnightCommissionService.prepare(player,lord)==null)KOMEProgressionNpcSpeech.say(player,lord,"I cannot arrange a safe commission here. Your earlier service remains honoured. Explore our lands and return after finding shelter among our people.");
+            if(KOMEKnightCommissionService.prepare(player,lord)==null)KOMEProgressionNpcSpeech.say(player,lord,"I cannot assign a safe commission here. Your service is recorded; seek another suitable place.");
             else KOMEKnightCommissionService.acceptOrReport(player,lord);
             KOMEProgressionAutoCompleter.syncPlayer(player,p);return true;
         }

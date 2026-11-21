@@ -89,11 +89,11 @@ public final class KOMESerfKnightRecoveryService {
         int slot=findAssignedStack(player,assignment);
         if(slot<0){
             KOMEProgressionEncounterCleanup.failTrial(KOMEWorldData.get(player.worldObj),player.worldObj,state);
-            KOMEProgressionNpcSpeech.say(player,liege,"The keepsake has been lost again. This trial is ended. Seek new service before you try again.");
+            KOMEProgressionNpcSpeech.say(player,liege,"The item is lost again. This old duty has ended. Ask for new work.");
             KOMEProgressionAutoCompleter.syncPlayer(player,progression);return true;
         }
         if(!isAssignedTo(player.getCurrentEquippedItem(),assignment,player.getUniqueID())){
-            KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered keepsake in your hand, and give it to me.");return true;
+            KOMEProgressionNpcSpeech.say(player,liege,"Hold the recovered item and hand it to me.");return true;
         }
         if(!consumeAssignedStack(player.inventory.mainInventory,assignment,player.getUniqueID()))return false;
         NBTTagCompound returned=(NBTTagCompound)assignment.data.copy();returned.setBoolean(DATA_RETRIEVED,true);state.updateTrialAssignment(assignment.withStage(assignment.stage,returned));
@@ -101,7 +101,7 @@ public final class KOMESerfKnightRecoveryService {
         if(KOMESerfKnightService.markTrialObjectiveComplete(state).success) {
             KOMEProgressionServiceRewards.trial(player,state);
             KOMEWorldData.get(player.worldObj).markDirty(); player.inventoryContainer.detectAndSendChanges();
-            KOMEProgressionAutoCompleter.syncPlayer(player,progression); KOMEProgressionNpcSpeech.say(player,liege,"You have returned what was lost. You have shown the care I require of a knight."); return true;
+            KOMEProgressionAutoCompleter.syncPlayer(player,progression); KOMEProgressionNpcSpeech.say(player,liege,"You recovered what was lost. You have proved your care."); return true;
         }
         return false;
     }

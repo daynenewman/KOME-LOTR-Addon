@@ -15,16 +15,16 @@ public final class KOMEServicePromotionService {
         return count;
     }
     public static String reason(KOMEPlayerProgression p,KOMEProgressionNpcRef superior,String faction,double alignment){
-        if(p==null||superior==null||!superior.isSet())return "Return to your current superior.";
+        if(p==null||superior==null||!superior.isSet())return "Report to your current superior.";
         KOMEProgressionRank rank=p.getCanonicalRank();KOMESerfKnightProgression s=p.getSerfKnightProgression();
         if(rank==KOMEProgressionRank.KNIGHT&&p.getKnightService().testing())return "A staff field exercise is active; earned recognition is suspended until the exercise is ended.";
-        if(rank!=KOMEProgressionRank.SERF&&rank!=KOMEProgressionRank.KNIGHT)return "This standing has already been conferred.";
+        if(rank!=KOMEProgressionRank.SERF&&rank!=KOMEProgressionRank.KNIGHT)return "Standing already granted.";
         for(KOMEServiceRecognition.Record r:p.getServiceRecognition().records())if(r.from==rank)
             return "This service has already earned its recognition. A rank correction cannot reuse it.";
         KOMEProgressionNpcRef current=rank==KOMEProgressionRank.SERF?s.getSerfdomMaster():s.getLiege();
-        if(!current.hasSameIdentity(superior)||!KOMEProgressionFactionResolver.matches(superior.factionKey,KOMEProgressionFactionResolver.resolve(faction)))return "Return to your current superior in your pledged faction.";
+        if(!current.hasSameIdentity(superior)||!KOMEProgressionFactionResolver.matches(superior.factionKey,KOMEProgressionFactionResolver.resolve(faction)))return "Report to your superior in your pledged faction.";
         int credits=rank==KOMEProgressionRank.SERF?duties(s):p.getKnightService().qualifyingTypes(faction).size();
-        if(credits<3)return "Complete and report three assignments first.";
+        if(credits<3)return "Report three duties or commissions first.";
         int needed=rank==KOMEProgressionRank.SERF?150:2000;
         if(!Double.isFinite(alignment)||alignment<needed)return "Your service is complete. Reach "+needed+" faction alignment, then report here; your work remains honoured.";
         return "";
@@ -108,7 +108,7 @@ public final class KOMEServicePromotionService {
         KOMELordshipTrial lordship=p.getLordship().assignment();
         if(lordship!=null&&!lordship.ordinaryService){KOMELordshipTrialService.cleanup(player.worldObj,player.getUniqueID(),lordship);lordship.retired=true;p.getLordship().archive();}
         if((old!=null&&!s.ordinaryObjective())||(lordship!=null&&!lordship.ordinaryService))
-            player.addChatMessage(new net.minecraft.util.ChatComponentText("Separate promotion trials have been retired. Your reported service is preserved. After three assignments, report to your current Master or Lord for recognition."));
+            player.addChatMessage(new net.minecraft.util.ChatComponentText("Promotion trials are retired. Your service is preserved. Report three assignments to your current superior."));
         p.getServiceRecognition().migrationVersion=1;KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());data.markDirty();return true;
     }
 }

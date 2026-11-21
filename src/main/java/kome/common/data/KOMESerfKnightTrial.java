@@ -23,5 +23,5 @@ public final class KOMESerfKnightTrial {
         Collections.sort(trials, new java.util.Comparator<KOMESerfKnightTrial>() { public int compare(KOMESerfKnightTrial a, KOMESerfKnightTrial b) { int c=a.order-b.order; return c != 0 ? c : a.id.compareTo(b.id); } });
         return Collections.unmodifiableList(trials);
     }
-    static { register("escort", "Escort", "Escort a faction NPC safely through dangerous territory.", 0); register("recovery", "Recovery", "Locate and recover a missing NPC, patrol, caravan, livestock group, or similar charge.", 1); register("defense", "Defense", "Accompany a patrol or defend a small location against a modest threat.", 2); }
+    static { register("escort", "Escort", "Escort a traveler safely through dangerous territory.", 0); register("recovery", "Recovery", "Find and recover a missing person, patrol, or goods.", 1); register("defense", "Defense", "Defend a patrol or holding against raiders.", 2); }
 }

@@ -124,7 +124,7 @@ public class KOMEProgressionFollowupTest {
             assertTrue(KOMECourierIssuance.warning("rohan","farmer",3).contains("final warning"));
             s.p.grant("baseline.miniquests");s.f.world.testWorldTime=s.active().nextReplacementWorldTime;
             assertEquals("",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).progress);assertFalse(KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).hasNumericProgress());
-            assertTrue(KOMEProgressionSummary.courierCopy(s.p,s.f.world.testWorldTime).contains("No copies remain"));
+            assertTrue(KOMEProgressionSummary.courierCopy(s.p,s.f.world.testWorldTime).contains("No copies left"));
             s.loseDispatch();assertTrue(s.replace());assertFalse(s.state.getSerfdomMaster().isSet());assertEquals("",s.state.getActiveAssignmentKind());
             assertEquals(KOMEProgressionRank.SERF,s.p.getCanonicalRank());assertTrue(s.p.isCompleted(KOMEProgressionAchievement.forID("baseline.miniquests")));
             for(Object entity:s.f.world.loadedEntityList)if(entity instanceof EntityItem)assertTrue(((Entity)entity).isDead);

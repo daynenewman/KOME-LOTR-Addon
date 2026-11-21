@@ -21,47 +21,47 @@ public final class KOMEProgressionNpcSpeech {
 
     public static void welcomeSerf(EntityPlayerMP player, LOTREntityNPC master, boolean enteredSerfdom) {
         say(player, master, enteredSerfdom
-            ? "Very well, " + player.getCommandSenderName() + ". You are in my service now. When I have work for you, I expect it done."
-            : "Very well. You may serve me. See that you prove yourself useful.");
+            ? "Very well, " + player.getCommandSenderName() + ". You are in my service. See that my work is done."
+            : "You may serve me. Prove your worth.");
     }
 
     public static void assignDuty(EntityPlayerMP player, LOTREntityNPC master, KOMESerfKnightDutyType duty) {
         if(KOMESerfServiceObjectives.objective(duty)){say(player,master,KOMESerfKnightService.trialSpeech(KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getSerfKnightProgression().getTrialAssignment()));return;}
         String culture=master.getFaction().codeName();
-        String household="rohan".equals(culture)?"There must be food at our hearths, even when the riders are away. ":
-            "gondor".equals(culture)?"Our folk must be supplied through these troubled days. ":"Our household has need of your service. ";
+        String household="rohan".equals(culture)?"Our hearths must be fed while the riders are away. ":
+            "gondor".equals(culture)?"Our people need supplies in these troubled days. ":"Our household needs your help. ";
         say(player, master, duty == KOMESerfKnightDutyType.PROVISIONING
-            ? household+"Bring me the provisions I have set down for you."
+            ? household+"Bring the provisions I have listed."
             : duty == KOMESerfKnightDutyType.PROFESSION
                 ? KOMEProgressionDialogue.materials(master,false)
-                : "I have work for you. See that it is done.");
+                : "I have work for you. See to it.");
     }
 
     public static void sameDay(EntityPlayerMP player, LOTREntityNPC master) {
-        say(player, master, "Finish the work already entrusted to you before requesting another assignment.");
+        say(player, master, "Finish your present duty before asking for another.");
     }
     public static void assignCourier(EntityPlayerMP player, LOTREntityNPC master) {
         KOMESerfKnightProgression state=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getSerfKnightProgression();
         KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
         String recipient=a!=null&&a.recipient.isSet()?a.recipient.displayName:a==null?"one of our people":"the recipient marked on your map";
-        say(player,master,"Carry this word to "+recipient+". Mind the road, and return to me when it has been delivered.");
+        say(player,master,"Carry this message to "+recipient+". Keep it safe, then return to me.");
     }
-    public static void replaceCourierMessage(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"You've lost it? Take another, and mind it this time."); }
-    public static void receiveCourier(EntityPlayerMP player, LOTREntityNPC recipient, String masterName) { say(player,recipient,"I'll see that this is received. Tell "+masterName+" the message reached its destination."); }
-    public static void completeCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"Good. You carried out my word and returned as you were told. You have done well."); }
+    public static void replaceCourierMessage(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"Lost it? Take another, and guard it well."); }
+    public static void receiveCourier(EntityPlayerMP player, LOTREntityNPC recipient, String masterName) { say(player,recipient,"I have it. Tell "+masterName+" the message arrived."); }
+    public static void completeCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"The message is delivered. Well done."); }
 
     public static void viewDuty(EntityPlayerMP player, LOTREntityNPC master, KOMESerfKnightProgression state) {
-        if (state != null && "provisioning".equals(state.getActiveAssignmentKind())) say(player, master, "I am still waiting on those provisions.");
-        else if (state != null && "profession".equals(state.getActiveAssignmentKind())) say(player, master, "I am still waiting on those materials.");
-        else if (state != null && state.getActiveAssignmentKind().length() != 0) say(player, master, "The work I gave you is not yet done.");
-        else if (state != null && state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted()) say(player, master, "Your work is remembered. Speak with me when you are ready for another duty.");
-        else say(player, master, "I have no task for you at present.");
+        if (state != null && "provisioning".equals(state.getActiveAssignmentKind())) say(player, master, "I still need those provisions.");
+        else if (state != null && "profession".equals(state.getActiveAssignmentKind())) say(player, master, "I still need those materials.");
+        else if (state != null && state.getActiveAssignmentKind().length() != 0) say(player, master, "Your duty remains unfinished.");
+        else if (state != null && state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted()) say(player, master, "Your service is noted. Return for another duty.");
+        else say(player, master, "I have no work for you now.");
     }
 
-    public static void noMatchingProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "I see nothing here that I asked for.");}
-    public static void partialProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "Good. I will take these. Bring me the rest.");}
-    public static void completedProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "That is everything I asked for. You have done well.");}
-    public static void noMatchingProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "I have no use for what you carry.");}
-    public static void partialProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "Good. Bring me the rest.");}
+    public static void noMatchingProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "None of that was requested.");}
+    public static void partialProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "Good. Bring the rest.");}
+    public static void completedProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "That is everything. Well done.");}
+    public static void noMatchingProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "I have no use for those materials.");}
+    public static void partialProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "Good. Bring the rest.");}
     public static void completedProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, KOMEProgressionDialogue.materials(master,true));}
 }

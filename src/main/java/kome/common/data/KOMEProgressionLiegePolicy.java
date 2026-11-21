@@ -35,6 +35,6 @@ public final class KOMEProgressionLiegePolicy {
     public static KOMEProgressionRankSummary presentAuthority(KOMEProgressionRankSummary summary,KOMEWorldData data,KOMEPlayerProgression p,String faction){
         if(p.getCanonicalRank()!=KOMEProgressionRank.PRINCE||sovereignPlayer(data,faction)==null)return summary;
         return new KOMEProgressionRankSummary(summary.factionKey,summary.currentRank,summary.nextRank,summary.promotionTitle,summary.requirements,
-            "Fealty","Your sovereign","Your faction's King is "+KOMERulerService.getRulerName(data,faction)+". Seek your sovereign; the ruler here cannot receive your political fealty.");
+            "Fealty","Your sovereign","Your faction's King is "+KOMERulerService.getRulerName(data,faction)+". Seek your sovereign to pledge political fealty.");
     }
 }

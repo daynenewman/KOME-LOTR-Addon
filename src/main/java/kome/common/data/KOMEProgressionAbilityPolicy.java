@@ -54,9 +54,9 @@ public final class KOMEProgressionAbilityPolicy {
         if (!denial.isEmpty()) return denial+" Ordinary native followers remain available under LOTR rules.";
         String key=KOMEAlliance.normalizeFactionKey(faction);
         if (key.isEmpty() || !key.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor))))
-            return "Requires a current pledge to the population-owning faction.";
+            return "Pledge to the faction that owns this population.";
         if (KOMERulerAuthorization.canActAsRuler(data,key,actor)) return "";
-        return "Requires Crown recruitment authority. Royal recruitment commissions are not available yet.";
+        return "Crown recruitment authority required. Delegation is not yet available.";
     }
     public static List<Outcome> project(KOMEWorldData data, EntityPlayerMP player) {
         if (data==null || player==null) return Collections.emptyList();
@@ -76,7 +76,7 @@ public final class KOMEProgressionAbilityPolicy {
             Availability state=Availability.CONTEXT_REQUIRED;
             if (ability==Ability.START_RETURN) {
                 LOTRWaypoint waypoint=KOMEWaypointAccessService.originalStartingWaypoint(player);
-                if (waypoint==null) { state=Availability.UNAVAILABLE; reason="No verified original starting waypoint is saved."; }
+                if (waypoint==null) { state=Availability.UNAVAILABLE; reason="No verified starting waypoint is saved."; }
                 else {
                     target=waypoint.getCodeName();
                     KOMEWaypointAccessService.Decision decision=KOMEWaypointAccessService.evaluatePlayer(player,waypoint,
@@ -85,20 +85,20 @@ public final class KOMEProgressionAbilityPolicy {
                     if (!lotr.common.LOTRConfig.enableFastTravel) { state=Availability.UNAVAILABLE; reason="Fast travel is disabled."; }
                     else if (!decision.finalAllowed) { state=Availability.UNAVAILABLE; reason=decision.reason; }
                     else if (nativeData.getTimeSinceFT()<nativeData.getWaypointFTTime(waypoint,player)) {
-                        state=Availability.UNAVAILABLE; reason="Return travel is still on cooldown.";
+                        state=Availability.UNAVAILABLE; reason="Return travel is on cooldown.";
                     } else if (!nativeData.canFastTravel()) {
-                        state=Availability.UNAVAILABLE; reason="You cannot fast travel while under attack.";
+                        state=Availability.UNAVAILABLE; reason="You cannot travel while under attack.";
                     } else if (player.isPlayerSleeping()) {
-                        state=Availability.UNAVAILABLE; reason="Leave your bed before travelling.";
+                        state=Availability.UNAVAILABLE; reason="Leave your bed to travel.";
                     } else { state=Availability.AVAILABLE; reason="Return to "+waypoint.getDisplayName()+"."; }
                 }
-            } else if (faction.isEmpty() && ability!=Ability.COMPANY_COMMAND && ability!=Ability.STRATEGIC_ORDERS) { state=Availability.UNAVAILABLE; reason="Requires a current faction pledge."; }
+            } else if (faction.isEmpty() && ability!=Ability.COMPANY_COMMAND && ability!=Ability.STRATEGIC_ORDERS) { state=Availability.UNAVAILABLE; reason="Faction pledge required."; }
             else if (ability==Ability.CAMPAIGN_RECRUITMENT) {
                 reason=recruitmentAuthorityDenial(data,actor,faction,false);
                 if (!reason.isEmpty()) state=Availability.UNAVAILABLE;
                 else if (KOMEPopulationService.getAvailablePopulationCenti(data,faction)<=0) {
-                    state=Availability.UNAVAILABLE; reason="Insufficient faction population.";
-                } else reason="Crown authority present. Choose a legal recruitment tile and unit; population cost and native hire rules are rechecked.";
+                    state=Availability.UNAVAILABLE; reason="Not enough faction population.";
+                } else reason="Crown authority confirmed. Choose a valid tile and unit; costs and hire rules still apply.";
             } else if (ability==Ability.BATTLE_SERVICE) {
                 state=Availability.UNAVAILABLE; reason=KOMEJoinBattleText.forReason(KOMEJoinBattleService.Reason.NO_ACTIVE_CONFLICT);
                 for (KOMEConflictRecord conflict:data.getConflictService().records().values()) {
@@ -111,11 +111,11 @@ public final class KOMEProgressionAbilityPolicy {
                 boolean commanded=false;
                 for (KOMEArmyCompany company:data.armyCompanies.values())
                     if (KOMECompanyCommandAuthority.canPersonallyCommand(data,company,actor)) { commanded=true; break; }
-                if (!commanded) { state=Availability.UNAVAILABLE; reason="Requires a legally owned or delegated company."; }
-                else reason=ability==Ability.COMPANY_COMMAND?"You control a company. Its current state and action rules still apply."
-                    :"Select a company and destination; route and conflict rules still apply.";
-            } else if (ability==Ability.MILITARY_EQUIPMENT) reason="Native faction/alignment and item rules apply. Exceptional equipment is separate.";
-            else reason="Choose a legal faction Build or tile. Existing construction, review and time rules apply.";
+                if (!commanded) { state=Availability.UNAVAILABLE; reason="Requires a company you own or are authorized to command."; }
+                else reason=ability==Ability.COMPANY_COMMAND?"Company under your command; current orders and restrictions still apply."
+                    :"Choose a company and destination; route and conflict rules apply.";
+            } else if (ability==Ability.MILITARY_EQUIPMENT) reason="Native faction rules apply. Exceptional equipment keeps its restrictions.";
+            else reason="Choose an eligible build or tile. Construction rules still apply.";
             rows.add(outcome(ability,true,state,reason,target));
         }
         return Collections.unmodifiableList(rows);

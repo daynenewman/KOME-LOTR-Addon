@@ -38,7 +38,7 @@ public final class KOMEProgressionNpcInteractionService {
         if(KOMEServicePromotionService.report(player,npc))return true;
         KOMERecommendationService.recognizeFormer(player,npc);
         if(KOMEPartingGiftService.drop(player,data,npc)){
-            KOMEProgressionNpcSpeech.say(player,npc,"You have served me well. Take this gift with my blessing for the road.");
+            KOMEProgressionNpcSpeech.say(player,npc,"You served me well. Take this gift for the road.");
             KOMEProgressionAutoCompleter.syncPlayer(player,progression);
             return true;
         }
@@ -80,10 +80,10 @@ public final class KOMEProgressionNpcInteractionService {
                 &&player.getDistanceSqToEntity(npc)<=64D) {
             if(KOMEPartingGiftService.drop(player,data,npc)){
                 KOMEProgressionAutoCompleter.syncPlayer(player,progression);
-                KOMEProgressionNpcSpeech.say(player,npc,"Take this pouch with my blessing for the road.");return true;
+                KOMEProgressionNpcSpeech.say(player,npc,"Take this pouch with my blessing.");return true;
             }
             KOMEProgressionNpcSpeech.say(player,npc,
-                "It is good to see you again. I remember your faithful service in my household.");
+                "Welcome back. Your service is remembered.");
             // Acknowledgement must not replace ordinary trading or conversation.
         }
 
@@ -437,7 +437,7 @@ if(next==null) {
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(state.getTrialAssignment()!=null&&state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED){
             KOMEProgressionEncounterCleanup.activationFailed(world,player.worldObj,state);
-            KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange this trial safely here yet. Return to me shortly; your trial and standing are preserved.");
+            KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange this old trial here. Your standing is safe; return shortly.");
             KOMEProgressionAutoCompleter.syncPlayer(player,progression);
         }
     }

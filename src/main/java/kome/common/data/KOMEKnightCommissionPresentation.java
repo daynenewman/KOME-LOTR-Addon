@@ -46,7 +46,7 @@ public final class KOMEKnightCommissionPresentation {
         if(a.stage==Stage.READY_TO_REPORT)return "Ready to report";
         if(a.stage==Stage.FAILED)return "Failed";
         if(!a.encounterCreated)return "Traveling";
-        return combatCounter(a)?"Battle":"Complete the field objective";
+        return combatCounter(a)?"Battle":"Complete the objective";
     }
     public static int completed(KOMEKnightCommission a){
         if(a.stage==Stage.ACTIVE&&a.encounterCreated&&!a.threatResolved&&a.type!=Type.RELIEF){
@@ -77,11 +77,11 @@ public final class KOMEKnightCommissionPresentation {
         if(f.equals("mordor")||f.equals("isengard")||f.equals("gundabad")||f.equals("angmar")||f.equals("dolguldur"))return a.tier==1?"We shall see whether you are useful outside these walls.":a.tier==2?"You have proved useful. Do not waste the trust I give you.":"This charge calls for steel and cunning. Succeed, and your standing will be remembered.";
         return a.tier==1?"Show me that I may rely upon you in the field.":a.tier==2?"Your earlier service gives me confidence in you.":"I entrust you with this peril because you have shown courage and sound judgment.";
     }
-    static String location(KOMEKnightCommission a){return "EXISTING_VERIFIED".equals(a.destinationProof.getString("Status"))?"the shelter marked on your map":"the ground marked on your map";}
+    static String location(KOMEKnightCommission a){return "EXISTING_VERIFIED".equals(a.destinationProof.getString("Status"))?"the shelter on your map":"the marked site";}
     public static String summary(KOMEPlayerProgression p) {return summary(p,p.getSerfKnightProgression().getLiege().factionKey);}
     public static String summary(KOMEPlayerProgression p,String faction) {
         KOMEKnightServiceRecord s=p.getKnightService();KOMEKnightCommission a=s.assignment();KOMEProgressionNpcRef liege=p.getSerfKnightProgression().getLiege();
-        String summary="\n"+text("liege",liege.isSet()?liege.displayName:text("none"))+"\n"+text("credits",Math.min(3,s.qualifyingTypes(faction).size()))+"\nThree reports earn Lord standing. Required faction alignment: 2000.";
+        String summary="\n"+text("liege",liege.isSet()?liege.displayName:text("none"))+"\n"+text("credits",Math.min(3,s.qualifyingTypes(faction).size()))+"\nThree distinct reported commissions and 2,000 faction alignment earn Lord standing.";
         if(!s.completedTypes().isEmpty()){
             summary+="\n"+text("services");java.util.Set<Type> attributed=java.util.EnumSet.noneOf(Type.class);
             for(KOMEKnightCommission deed:s.history())if(deed.stage==Stage.REPORTED){
@@ -98,13 +98,13 @@ public final class KOMEKnightCommissionPresentation {
     }
     public static String unavailableLiege(){return text("native_liege_unavailable");}
     public static String details(KOMEKnightCommission a){
-        if(a.stage==Stage.READY_TO_REPORT)return "Report to "+a.liege.displayName+"."+(a.type==Type.STOLEN_GOODS?" Hold the recovered "+KOMEProgressionLostItems.name(a)+" for handover.":"");
+        if(a.stage==Stage.READY_TO_REPORT)return "Report to "+a.liege.displayName+"."+(a.type==Type.STOLEN_GOODS?" Hold the recovered "+KOMEProgressionLostItems.name(a)+" in your hand for handover.":"");
         if(a.activationPending)return objective(a);
         String result="Stage: "+stageLabel(a)+"\n"+objective(a)
             +"\nDestination: "+location(a)+" ("+(int)a.destinationX+", "+(int)a.destinationZ+")";
-        Actor charge=a.protectedActor();if(charge!=null&&!charge.dead)result+="\nCharge: "+(charge.displayName.isEmpty()?"the marked traveler":charge.displayName);
-        if(a.type==Type.STOLEN_GOODS)result+="\nProperty: "+KOMEProgressionLostItems.name(a)+". Identify the thief carrying it, then return it in your hand.";
-        if(a.type==Type.DANGEROUS_ESCORT)result+="\nKeep your traveler close. Speak to follow or recalculate; sneak and speak to wait. Arrival must include your traveler.";
+        Actor charge=a.protectedActor();if(charge!=null&&!charge.dead)result+="\nCharge: "+(charge.displayName.isEmpty()?"your traveler":charge.displayName);
+        if(a.type==Type.STOLEN_GOODS)result+="\nRecovered property: "+KOMEProgressionLostItems.name(a)+". Find the thief and return the item in hand.";
+        if(a.type==Type.DANGEROUS_ESCORT)result+="\nKeep your traveler close. Speak to follow; sneak and speak to wait. Arrive together.";
         if(a.type==Type.WAR_PLANS)result+="\nReturn the authentic dispatch in your hand. If it is lost, crouch and request orders from your Liege to recover through a fresh attempt.";
         return result+"\nReport personally to "+a.liege.displayName+".";
     }

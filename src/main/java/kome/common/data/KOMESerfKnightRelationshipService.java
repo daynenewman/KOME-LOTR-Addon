@@ -49,12 +49,12 @@ public final class KOMESerfKnightRelationshipService {
                 ||player.getDistanceSqToEntity(npc)>64D
                 ||data!=KOMEWorldData.get(player.worldObj)
                 ||!KOMEProgressionOfferBridge.canReplaceLiegeFrom(player,npc))
-            return reject("That NPC is not eligible to become your Liege.");
+            return reject("This NPC cannot become your Liege.");
         KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT||progression.getCanonicalRank()==KOMEProgressionRank.LORD){
             lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
             if(pledge!=null&&KOMERecommendationService.recoveryAdmission(progression,pledge.codeName()))progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
-            else if(pledge==null||!KOMERecommendationService.redeem(progression,player.getUniqueID(),pledge.codeName(),KOMEProgressionNpcRankService.referenceOf(npc)))return reject("An earned recommendation is required. Use /progression recommendation to recover yours.");
+            else if(pledge==null||!KOMERecommendationService.redeem(progression,player.getUniqueID(),pledge.codeName(),KOMEProgressionNpcRankService.referenceOf(npc)))return reject("A recommendation is required. Recover yours with /progression recommendation.");
         }else progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
         KOMERecommendationService.keepsake(player);
         KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());
@@ -71,7 +71,7 @@ public final class KOMESerfKnightRelationshipService {
      */
     public static Result force(KOMEWorldData data, UUID playerId, KOMEProgressionNpcRef target, ForceLevel level) {
         if (data == null || playerId == null || target == null || !target.isSet() || level == null)
-            return reject("A valid relationship target and level are required.");
+            return reject("Choose a valid superior.");
         KOMEPlayerProgression progression = data.getProgression(playerId);
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         if (state.getSerfdomMaster().isSet()) state.leaveSerfdomMaster();
@@ -98,7 +98,7 @@ public final class KOMESerfKnightRelationshipService {
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         boolean master = state.getSerfdomMaster().isSet() && state.getSerfdomMaster().entityUuid.equals(targetedNpcId);
         boolean liege = state.hasLiege() && state.getLiege().entityUuid.equals(targetedNpcId);
-        if (!master && !liege) return reject("The targeted NPC has no relationship to clear.");
+        if (!master && !liege) return reject("You have no relationship with this NPC.");
         KOMESerfKnightService.Result result = master
             ? KOMESerfKnightService.leaveSerfdomMaster(state)
             : KOMESerfKnightService.leaveLiege(progression);

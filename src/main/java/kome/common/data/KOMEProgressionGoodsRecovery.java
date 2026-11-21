@@ -25,7 +25,7 @@ public final class KOMEProgressionGoodsRecovery {
             if(old!=null)for(KOMESerfProvisioningAssignment.Requirement r:replacement.foods)for(KOMESerfProvisioningAssignment.Requirement before:old.foods)if(r.itemKey.equals(before.itemKey)&&r.damage==before.damage){r.delivered=Math.min(r.required,before.delivered);r.valueMilli=before.valueMilli;}
             s.setDutyAssignmentData(KOMESerfKnightDutyType.PROVISIONING,replacement.writeToNBT());
         }else return false;
-        data.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,p);KOMEProgressionNpcSpeech.say(player,master,"Those supplies are no longer suitable. I have replaced the request in your book. Matching deposits and today's service limit remain recorded.");return true;
+        data.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,p);KOMEProgressionNpcSpeech.say(player,master,"Those supplies are no longer needed. Your book has new instructions; delivered goods remain credited.");return true;
     }
     /** Add quotes to active legacy requests without changing their goods or deposited counts. */
     static void priceLegacy(KOMEWorldData data,KOMESerfKnightProgression state){

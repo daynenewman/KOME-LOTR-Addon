@@ -101,8 +101,8 @@ public class KOMEKnightLordshipPassTest {
         assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());assertFalse(f.s.p.getSerfKnightProgression().hasLiege());
     }}
     @Test public void knightBookContainsOnlyActiveWorkAndCompactCreditedHistory()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);String context=KOMEKnightBookPresentation.context(f.s.p,"rohan");assertTrue(context.contains("Credited service"));assertFalse(context.contains("Stage:"));
-        KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,2000,"rohan");assertTrue(summary.activityObjective.contains("Report to your Liege"));assertFalse(summary.activityObjective.contains("survivors"));
+        f.credits(3);String context=KOMEKnightBookPresentation.context(f.s.p,"rohan");assertTrue(context.contains("Service reported"));assertFalse(context.contains("Stage:"));
+        KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,2000,"rohan");assertTrue(summary.activityObjective.contains("report to your Liege"));assertFalse(summary.activityObjective.contains("survivors"));
         KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.READY_TO_REPORT);assertFalse(KOMEProgressionTrackerSnapshot.lordship(t).hasNumericProgress());
     }}
     @Test public void unknownPrinceRemainsPrivateAndPersonalDiscoverySurvivesReload()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
