@@ -44,7 +44,7 @@ final class KOMECompanyUnitsPanel {
         Gui.drawRect(track.x,track.y,track.x+track.width,track.y+track.height,0xFF120D08);Gui.drawRect(track.x,y,track.x+track.width,y+height,browser.loading()?KOMEGuiTheme.COLOR_WARN:KOMEGuiTheme.COLOR_GOLD);
         if(browser.earlier())Gui.drawRect(track.x-2,track.y,track.x+10,track.y+2,KOMEGuiTheme.COLOR_WARN);
         if(browser.later())Gui.drawRect(track.x-2,track.y+track.height-2,track.x+10,track.y+track.height,KOMEGuiTheme.COLOR_WARN);
-        if(track.contains(mx,my))KOMEGuiTheme.drawTooltip(font,Arrays.asList("Loaded companies","Scrollbar shows loaded rows, not a global total."),mx,my,layout.viewRight,layout.viewBottom);
-        if(hover!=null)KOMEGuiTheme.drawTooltip(font,Arrays.asList(KOMECompanyUnitsBrowser.name(hover),KOMECompanyUnitsBrowser.population(hover),hover.state,hover.held?"Committed to battle":"Not committed to battle"),mx,my,layout.viewRight,layout.viewBottom);
+        if(track.contains(mx,my)&&KOMEConquestMapOverlay.panelHoverAllowed("units:scroll"))KOMEGuiTheme.drawTooltip(font,Arrays.asList("Loaded companies","Scrollbar shows loaded rows, not a global total."),mx,my,layout.viewRight,layout.viewBottom);
+        else if(hover!=null&&KOMEConquestMapOverlay.panelHoverAllowed("units:"+hover.companyId))KOMEGuiTheme.drawTooltip(font,Arrays.asList(KOMECompanyUnitsBrowser.name(hover),KOMECompanyUnitsBrowser.population(hover),hover.state,hover.held?"Committed to battle":"Not committed to battle"),mx,my,layout.viewRight,layout.viewBottom);
     }
 }

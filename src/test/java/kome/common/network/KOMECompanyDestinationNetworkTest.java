@@ -122,7 +122,8 @@ public class KOMECompanyDestinationNetworkTest {
         }finally{KOMEPacketHandler.clearPendingServerTasks();}
     }
     @Test public void newProtocolRejectsPreviousArtifactIdentity() {
-        assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g15"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g21"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));
     }
     @Test public void tokenBucketAllowsTwoThenRefillsOnePerSecondWithRetryTiming() {
         KOMECompanyDestinationRateLimit gate=new KOMECompanyDestinationRateLimit(2);Object connection=new Object();

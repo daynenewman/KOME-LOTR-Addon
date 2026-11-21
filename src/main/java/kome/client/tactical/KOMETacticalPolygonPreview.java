@@ -18,6 +18,11 @@ public final class KOMETacticalPolygonPreview {
             return new KOMEXZPoint(x+dx,z+dz);
         }
     }
+    /** Bottom-only display plan for each containing local draft prism, independent of selection. */
+    public static List<KOMEXZPoint> bottomFaceForPlayer(KOMEPolygonPrism prism, double x, double y, double z) {
+        return KOMETacticalGeometryPicker.containsPosition(prism, x, y, z)
+            ? triangles(prism.getPolygon()) : Collections.<KOMEXZPoint>emptyList();
+    }
     /** Exact ear selection for the translucent preview only; never changes the draft polygon. */
     public static List<KOMEXZPoint> triangles(KOMEPolygon polygon) {
         if (!KOMEPolygonValidator.validate(polygon,"fill").isValid()) return Collections.emptyList();

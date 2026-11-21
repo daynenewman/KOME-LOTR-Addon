@@ -30,13 +30,28 @@ public class KOMETacticalComplexEditorTest {
         requests.clear();
     }
     private void zone(ZoneType type, String id) { editor.zoneType(type); editor.createZone(id); }
+    @Test public void newZoneDefaultsToFixedHeightWithoutChangingSavedOrOtherDraftZones() {
+        editor = new KOMETacticalAreaEditor(requests::add);
+        editor.acceptCatalog(new KOMETacticalAreaCatalog("T100", -1, 10, 0, 0, Collections.emptyList()));
+        editor.openComplex("A", false); editor.accept(snapshot(original, 0, false, null), KOMETacticalEditSessionManager.Status.OPENED);
+        editor.zoneType(ZoneType.NORMAL); editor.createZone("new");
+        assertEquals(64, editor.getGeometry().getMinYInclusive()); assertEquals(70, editor.getGeometry().getMaxYInclusive());
+        assertEquals(71, editor.getGeometry().getMaxYExclusive());
+        editor.setYRangeInclusive(90, 94);
+        editor.zoneType(ZoneType.WALL); editor.createZone("wall");
+        assertEquals(64, editor.getGeometry().getMinYInclusive());
+        editor.zoneType(ZoneType.NORMAL); editor.selectZone("new");
+        assertEquals(90, editor.getGeometry().getMinYInclusive());
+        assertTrue(original.getNormalSegments().isEmpty());
+    }
     @Test public void allZoneTypesUseSameOrderedVerticesYBoundsUndoAndClear() {
         for (ZoneType type : ZoneType.values()) {
             zone(type, type + "Local"); editor.addVertex(3, -5); editor.addVertex(-7, 9); editor.addVertex(20, 30);
             editor.setYRangeInclusive(-2, 70);
             assertEquals(Arrays.asList(new KOMEXZPoint(3, -5), new KOMEXZPoint(-7, 9), new KOMEXZPoint(20, 30)), editor.getGeometry().getPolygon().getVertices());
             assertEquals(-2, editor.getGeometry().getMinYInclusive()); assertEquals(71, editor.getGeometry().getMaxYExclusive());
-            editor.undo(); assertEquals(2, editor.getGeometry().getPolygon().getVertices().size()); editor.clearVertices();
+            editor.undo(); assertEquals(70, editor.getGeometry().getMaxYInclusive()); editor.removeLastVertex();
+            assertEquals(2, editor.getGeometry().getPolygon().getVertices().size()); editor.clearVertices();
             editor.select(KOMETacticalAreaEditor.Selection.VERTICES); editor.worldPoint(4, 60, 8);
             assertEquals(Collections.singletonList(new KOMEXZPoint(4, 8)), editor.getConfirmedVertices());
             assertEquals(1,editor.getConfirmedVertexCount()); // incomplete input is visible in the actual draft immediately
@@ -82,6 +97,33 @@ public class KOMETacticalComplexEditorTest {
         assertThrows(UnsupportedOperationException.class, () -> overlays.clear());
         assertTrue(editor.overlays(UUID.randomUUID(), -1).isEmpty()); assertTrue(editor.overlays(player, 0).isEmpty());
         assertNull(editor.overlay(player, -1)); // complex geometry never becomes a tile deployment polygon
+    }
+    @Test public void wholeComplexViewLabelsAndHighlightsOnlyActiveUnsavedZone() {
+        zone(ZoneType.NORMAL, "n"); editor.setLabel("North court"); editor.addVertex(1, 2);
+        zone(ZoneType.WALL, "w"); editor.setLabel("Outer wall"); editor.addVertex(4, 5);
+        editor.zoneType(ZoneType.NORMAL); editor.selectZone("n");
+        net.minecraft.client.gui.GuiScreen origin = new net.minecraft.client.gui.GuiScreen() { };
+        editor.beginWorldView(origin, true);
+        List<KOMETacticalAreaEditor.Overlay> overlays = editor.overlays(player, -1);
+        assertEquals(2, overlays.size());
+        assertEquals("North court", overlays.get(0).label); assertTrue(overlays.get(0).selected); assertTrue(overlays.get(0).unsaved);
+        assertEquals("Outer wall", overlays.get(1).label); assertFalse(overlays.get(1).selected); assertTrue(overlays.get(1).unsaved);
+        assertSame(origin, editor.endWorldView());
+    }
+    @Test public void unexpectedComplexExpirationKeepsZoneContextAndRecoversWithFreshAuthority() {
+        zone(ZoneType.NORMAL, "n"); editor.setLabel("Unsaved north"); editor.addVertex(3, 6); editor.setYRangeInclusive(60, 72);
+        KOMESiegeComplex draft = editor.getComplexDraft();
+        editor.accept(snapshot(original, 0, true, null), KOMETacticalEditSessionManager.Status.EXPIRED);
+        assertSame(draft, editor.getComplexDraft()); assertEquals("n", editor.getZoneId()); assertFalse(editor.isEditing());
+        assertTrue(editor.retainedInspectionLines().stream().anyMatch(line -> line.contains("Unsaved north") && line.contains("60..72")));
+        assertTrue(editor.retainedInspectionLines().stream().anyMatch(line -> line.contains("X 3, Z 6")));
+        assertThrows(IllegalArgumentException.class, () -> editor.save());
+        editor.recoverRetainedDraft(player, -1);
+        UUID newToken = UUID.randomUUID();
+        editor.accept(new KOMETacticalEditSnapshot(player, newToken, editor.getRetainedScope(), 2, 3, 10, original.getRevision(), 0,
+            10, false, new KOMETacticalEditDraft(original), null), KOMETacticalEditSessionManager.Status.OPENED);
+        assertSame(draft, editor.getComplexDraft()); assertEquals("n", editor.getZoneId()); assertTrue(editor.isEditing());
+        editor.save(); assertEquals(newToken, requests.get(requests.size() - 1).getToken());
     }
     @Test public void cancelTimeoutAndResetClearComplexOverlayAndSelection() {
         zone(ZoneType.NORMAL, "n"); editor.select(KOMETacticalAreaEditor.Selection.VERTICES); editor.cancel();

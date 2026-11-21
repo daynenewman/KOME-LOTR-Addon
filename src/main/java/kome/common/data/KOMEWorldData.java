@@ -1124,7 +1124,11 @@ public class KOMEWorldData extends WorldSavedData {
             }
             KOMEConquestTile tile = getConquestTile(normalizedTile);
             KOMEWaypointDefaults.Entry defaults = defaultsByTile.get(normalizedTile);
-            int level = defaults == null ? 0 : defaults.waypointLevel;
+            int baselineLevel = defaults == null ? 0 : defaults.waypointLevel;
+            // The bundled level is a floor. Saved promotions survive reloads and
+            // ownership changes; a reviewed higher baseline can still advance them.
+            int level = tile.waypointLevel >= 1 && tile.waypointLevel <= 3
+                ? Math.max(tile.waypointLevel, baselineLevel) : baselineLevel;
             String defaultFaction = defaults == null ? "" : defaults.defaultRulingFaction;
             String region = defaults == null ? "" : defaults.mapRegion;
             if (tile.waypointLevel != level
@@ -2986,6 +2990,10 @@ public class KOMEWorldData extends WorldSavedData {
         }
 
         if (applyWaypointDefaults(!conquestDefaultsInitialized)) {
+            loadedStateReconciled = true;
+        }
+        loadSection = "Conquest Build level reconciliation";
+        if (KOMEConquestBuildPromotionService.promoteLoadedTiles(this)) {
             loadedStateReconciled = true;
         }
 

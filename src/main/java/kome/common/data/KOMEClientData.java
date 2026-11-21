@@ -8,6 +8,13 @@ public class KOMEClientData extends KOMEWorldData {
     public final java.util.Map<String, String> capitalTilesByFaction =
         new java.util.HashMap<String, String>();
     public int conquestRevision;
+    /** Presentation-only fence for GUIs created in an earlier connection/world session. */
+    public volatile long clientSessionEpoch;
+    /** Fence map-only inspection immediately on connection/world transitions. */
+    public synchronized void invalidateClientSessionEpoch() { clientSessionEpoch++; }
+    /** Client-only baseline state; an empty completed snapshot proves absence, unlike initial loading. */
+    private boolean completeConquestSnapshot;
+    public boolean hasCompleteConquestSnapshot() { return completeConquestSnapshot; }
     /** Immutable render inputs from the last COMPLETE public conquest update, never partial rows. */
     private java.util.Map<String, String> conquestRenderOwners = java.util.Collections.emptyMap();
 
@@ -23,6 +30,25 @@ public class KOMEClientData extends KOMEWorldData {
         }
         conquestRenderOwners = java.util.Collections.unmodifiableMap(owners);
         conquestRevision++;
+        completeConquestSnapshot = true;
+        sanitizeUnitMapMarkerDescriptors();
+    }
+
+    /** Drop optional private fields as soon as the completed recipient projection revokes them. */
+    public void sanitizeUnitMapMarkerDescriptors() {
+        if (!completeConquestSnapshot) return;
+        for (KOMEUnitMapMarker marker : unitMapMarkers) {
+            KOMEArmyCompany row = armyCompanies.get(marker.entityId);
+            if (row == null || kome.common.network.KOMECompanyMapProjection.SPOTTED_STATUS.equals(row.status))
+                marker.clearDescriptors();
+        }
+    }
+
+    /** Also sanitize late queued marker publications at their final client-thread application. */
+    public void replaceUnitMapMarkers(java.util.List<KOMEUnitMapMarker> markers) {
+        unitMapMarkers.clear();
+        unitMapMarkers.addAll(markers);
+        sanitizeUnitMapMarkerDescriptors();
     }
 
     /** Client-thread clearing; the client publisher owns pending batches and session tokens. */
@@ -73,6 +99,8 @@ public class KOMEClientData extends KOMEWorldData {
         clearProgressionProjection();
         progressionRevision = 0L;
         progressionViewer = null;
+        invalidateClientSessionEpoch();
+        completeConquestSnapshot = false;
         hiredUnits.clear();
         conquestTiles.clear();
         conquestRenderOwners = java.util.Collections.emptyMap();

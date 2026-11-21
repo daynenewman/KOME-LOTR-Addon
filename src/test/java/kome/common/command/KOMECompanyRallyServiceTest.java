@@ -72,6 +72,23 @@ public class KOMECompanyRallyServiceTest {
         void done(){for(int n=0;latest.phase==Phase.EXECUTING&&n<=MAX_CANDIDATES;n++)service.tick(101+n);assertEquals(latest.message,Phase.DONE,latest.phase);}
         List<Entry> finalRows(){Map<Integer,Entry> rows=new TreeMap<>();for(KOMECompanyRallySnapshot s:publications)if(s.entry!=null)rows.put(s.entry.index,s.entry);return new ArrayList<>(rows.values());}
     }
+    @Test public void formerOwnerCannotReadRallyCandidatesAfterPledgeChange()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.pledge(LOTRFaction.ROHAN);
+            Run run=new Run(f);run.open();
+            assertEquals(0,run.latest.total);
+        }
+    }
+    @Test public void pledgeRevocationClearsAnOpenRallyBeforeAnyDetailPublication()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            Run run=new Run(f);run.open();assertEquals(1,run.latest.total);
+            f.pledge(LOTRFaction.ROHAN);
+            run.service.tick(1);
+            assertEquals(Phase.ERROR,run.latest.phase);
+            assertNull(run.latest.entry);
+            assertEquals(0,run.service.size());
+        }
+    }
     @Test public void zeroOneAndCompleteTwentyCompanyPreviewNeverExecutesFirstPage()throws Exception{
         for(int count:new int[]{0,1,20})try(Fixture f=new Fixture(false,1)){
             if(count==0)f.data.armyCompanies.clear();for(int i=2;i<=count;i++)add(f,String.format(Locale.ROOT,"C%02d",i),"T001");

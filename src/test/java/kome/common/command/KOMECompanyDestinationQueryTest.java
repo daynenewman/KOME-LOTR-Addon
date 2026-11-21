@@ -46,6 +46,24 @@ public class KOMECompanyDestinationQueryTest {
         return new KOMECompanyDestinationQuery(f.service).query(f.data,f.player,session,13,f.destination,MAX_ROWS,"","");
     }
     private Row row(Fixture f) {KOMECompanyDestinationOptions p=query(f);assertEquals(Result.OK,p.result);assertEquals(1,p.rows.size());return p.rows.get(0);}
+    @Test public void formerOwnerCannotReadDestinationCatalogueAfterPledgeChange() throws Exception {
+        try(Fixture f=new Fixture(false,1)) {
+            assertEquals(1,query(f).rows.size());
+            f.pledge(LOTRFaction.ROHAN);
+            assertTrue(query(f).rows.isEmpty());
+        }
+    }
+    @Test public void operatorMapCatalogueNeedsAdministrativeVisionOptIn() throws Exception {
+        try(Fixture f=new Fixture(false,1)) {
+            f.player.operator=true;
+            f.pledge(LOTRFaction.ROHAN);
+            assertTrue(query(f).rows.isEmpty());
+            assertTrue(KOMEAdminMapVision.setEnabled(f.player,true));
+            assertEquals(1,query(f).rows.size());
+            KOMEAdminMapVision.forget(f.player);
+            assertTrue(query(f).rows.isEmpty());
+        }
+    }
     private KOMEArmyCompany add(Fixture f,String id,String origin) {
         KOMEArmyCompany c=new KOMEArmyCompany();c.readFromNBT(f.company.writeToNBT());c.id=id;c.name=id;c.currentTile=origin;c.units.clear();
         KOMEHiredUnitRecord u=new KOMEHiredUnitRecord();u.readFromNBT(f.unit.writeToNBT());u.entity=UUID.nameUUIDFromBytes(id.getBytes(java.nio.charset.StandardCharsets.UTF_8));u.companyId=id;u.currentTile=origin;

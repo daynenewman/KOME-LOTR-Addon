@@ -113,6 +113,7 @@ public final class KOMEBuildService {
             imported.decisionReason, "contribution=" + imported.id
                 + ";developedHours=" + KOMEBuildTime.formatHours(approvedCentiHours),
             nowMillis);
+        promoteAffectedTile(data, build);
         return build;
     }
 
@@ -262,6 +263,7 @@ public final class KOMEBuildService {
                 + ";priorHours=" + KOMEBuildTime.formatHours(priorHours)
                 + ";hours=" + KOMEBuildTime.formatHours(hours)
                 + ";approvedCentiHoursDelta=" + (build.approvedCentiHours() - before), nowMillis);
+        promoteAffectedTile(data, build);
         return Decision.allow();
     }
 
@@ -311,7 +313,12 @@ public final class KOMEBuildService {
         KOMEPopulationDevelopmentService.clampDevelopedToApproved(data, build,
             actor, actorName, nowMillis);
         auditContribution(data, build, repair, "ADJUST_TOTAL", actor, actorName, repair.decisionReason, before, nowMillis);
+        promoteAffectedTile(data, build);
         return Decision.allow();
+    }
+
+    private static void promoteAffectedTile(KOMEWorldData data, KOMEPlayerBuild build) {
+        if (KOMEConquestBuildPromotionService.promoteForTile(data, build.tileId)) data.syncConquestTiles();
     }
 
     private static Decision canReview(KOMEWorldData data, KOMEPlayerBuild build, UUID actor, boolean admin) {

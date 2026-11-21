@@ -16,14 +16,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
-    @Test public void commonerG15RequiresMatchingArtifactsOnBothSides() {
+    @Test public void combinedG21RequiresMatchingArtifactsOnBothSides() {
         KOMEAddon addon = new KOMEAddon();
-        for (String old : new String[] {"1.0.8", "1.0.9-integration-g5", "1.0.9-integration-g6", "1.0.9-integration-g7", "1.0.9-integration-g8", "1.0.9-integration-g9", "1.0.10-service-g10", "1.0.9-integration-g12", "1.0.9-integration-g13", "1.0.10-service-g14"}) {
+        for (String old : new String[] {"1.0.8", "1.0.9-integration-g5", "1.0.9-integration-g6", "1.0.9-integration-g7", "1.0.9-integration-g8", "1.0.9-integration-g9", "1.0.10-service-g10", "1.0.9-integration-g12", "1.0.9-integration-g13", "1.0.10-service-g14", "1.0.9-integration-g14", "1.0.11-commoner-g15", "1.0.9-integration-g15", "1.0.9-integration-g16", "1.0.9-integration-g17", "1.0.9-integration-g18", "1.0.9-integration-g19", "1.0.9-integration-g20"}) {
             assertFalse(KOMEPopulationWire.accepts(old));
             for (Side side : new Side[] {Side.CLIENT, Side.SERVER})
                 assertFalse(old + " / " + side, addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", old), side));
         }
-        assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g15"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g21"));
+    }
+    @Test public void packagedMetadataAndGradleUseTheCombinedWireIdentity() throws Exception {
+        assertTrue(source("build.gradle.kts").contains("extra[\"modVersion\"] = \"" + KOMEPopulationWire.VERSION + "\""));
+        assertTrue(source("src/main/resources/mcmod.info").contains("\"version\": \"" + KOMEPopulationWire.VERSION + "\""));
+        assertEquals(KOMEPopulationWire.VERSION, KOMEAddon.class.getAnnotation(Mod.class).version());
     }
     @Test public void preJoinBattleG4CannotHandshakeWithTheExtendedPacketTable() {
         KOMEAddon addon = new KOMEAddon();
@@ -36,11 +41,12 @@ public class KOMEPopulationProtocolTest {
         }
     }
 
-    @Test public void g14PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.11-commoner-g15", KOMEPopulationWire.VERSION);
+    @Test public void combinedPopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
+        assertEquals("1.0.11-commoner-g21", KOMEPopulationWire.VERSION);
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g8"));
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g6"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g19"));
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -153,6 +159,76 @@ public class KOMEPopulationProtocolTest {
             assertEquals(0L, ((KOMEUnitGuiEntry) read.units.get(1)).populationSpentCenti);
             assertEquals(0, bytes.readableBytes());
         } finally { bytes.release(); }
+    }
+
+    @Test public void mapDetailResponsesRetainOriginatingPublicationSerial() {
+        KOMEPacketConquestCaptureGui capture=new KOMEPacketConquestCaptureGui();
+        capture.canSubmitBuilds=true;capture.buildSubmissionReason="Commoner standing verified";
+        capture.mapPublicationSerial=41L;
+        capture.mapRequestId=141L;
+        ByteBuf bytes=Unpooled.buffer();
+        try {capture.toBytes(bytes);KOMEPacketConquestCaptureGui copy=new KOMEPacketConquestCaptureGui();copy.fromBytes(bytes);
+            assertTrue(copy.canSubmitBuilds);assertEquals("Commoner standing verified",copy.buildSubmissionReason);
+            assertEquals(41L,copy.mapPublicationSerial);assertEquals(141L,copy.mapRequestId);assertEquals(0,bytes.readableBytes());}
+        finally {bytes.release();}
+        KOMEPacketCompanyListGui companies=new KOMEPacketCompanyListGui();companies.mapPublicationSerial=42L;companies.mapRequestId=142L;
+        bytes=Unpooled.buffer();
+        try {companies.toBytes(bytes);KOMEPacketCompanyListGui copy=new KOMEPacketCompanyListGui();copy.fromBytes(bytes);
+            assertEquals(42L,copy.mapPublicationSerial);assertEquals(142L,copy.mapRequestId);assertEquals(0,bytes.readableBytes());}
+        finally {bytes.release();}
+        KOMEPacketPopulationUnitsGui units=new KOMEPacketPopulationUnitsGui();units.mapPublicationSerial=43L;units.mapRequestId=143L;
+        bytes=Unpooled.buffer();
+        try {units.toBytes(bytes);KOMEPacketPopulationUnitsGui copy=new KOMEPacketPopulationUnitsGui();copy.fromBytes(bytes);
+            assertEquals(43L,copy.mapPublicationSerial);assertEquals(143L,copy.mapRequestId);assertEquals(0,bytes.readableBytes());}
+        finally {bytes.release();}
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g16"));
+    }
+
+    @Test public void deniedBuildProjectionAndMapCorrelationSurviveDetachedPublication() {
+        KOMEPacketConquestCaptureGui sent=new KOMEPacketConquestCaptureGui();
+        sent.canSubmitBuilds=false;sent.buildSubmissionReason="Requires Commoner standing.";
+        sent.mapPublicationSerial=Long.MAX_VALUE;sent.mapRequestId=251L;
+        KOMEPacketConquestCaptureGui copy=KOMEPopulationWire.copyForPublication(sent,KOMEPacketConquestCaptureGui::new);
+        sent.canSubmitBuilds=true;sent.buildSubmissionReason="";sent.mapPublicationSerial=0L;sent.mapRequestId=0L;
+        assertFalse(copy.canSubmitBuilds);assertEquals("Requires Commoner standing.",copy.buildSubmissionReason);
+        assertEquals(Long.MAX_VALUE,copy.mapPublicationSerial);assertEquals(251L,copy.mapRequestId);
+        ByteBuf bytes=Unpooled.buffer();
+        try {
+            copy.toBytes(bytes);bytes.writerIndex(bytes.writerIndex()-1);
+            try {new KOMEPacketConquestCaptureGui().fromBytes(bytes);fail("Truncated combined capture accepted");}
+            catch(IndexOutOfBoundsException expected) { }
+        } finally {bytes.release();}
+    }
+
+    @Test public void mapDetailQueryPacketsRoundTripRequestIdentity() {
+        KOMEPacketConquestOpenCapture capture=new KOMEPacketConquestOpenCapture();
+        capture.tileId="T100";capture.focusBuildId="B1";capture.mapRequestId=57L;
+        ByteBuf bytes=Unpooled.buffer();
+        try {capture.toBytes(bytes);KOMEPacketConquestOpenCapture copy=new KOMEPacketConquestOpenCapture();copy.fromBytes(bytes);
+            assertEquals(57L,copy.mapRequestId);assertEquals("B1",copy.focusBuildId);assertEquals(0,bytes.readableBytes());}
+        finally {bytes.release();}
+        KOMEPacketTroopGuiAction list=new KOMEPacketTroopGuiAction();
+        list.action="list";list.tileId="T100";list.mapRequestId=58L;
+        bytes=Unpooled.buffer();
+        try {list.toBytes(bytes);KOMEPacketTroopGuiAction copy=new KOMEPacketTroopGuiAction();copy.fromBytes(bytes);
+            assertEquals(58L,copy.mapRequestId);assertEquals("T100",copy.tileId);assertEquals(0,bytes.readableBytes());}
+        finally {bytes.release();}
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g17"));
+    }
+
+    @Test public void mapUiQueryConstructorsRegisterOnlyReadOnlyRefreshIntent() {
+        kome.common.KOMECommonProxy previous=KOMEAddon.proxy;
+        KOMEAddon.proxy=new kome.common.KOMECommonProxy() {
+            @Override public long beginMapDetailRequest(String kind,String tile,String focus) {
+                return "capture".equals(kind)?51L:"companies".equals(kind)?52L:53L;
+            }
+        };
+        try {
+            assertEquals(51L,new KOMEPacketConquestOpenCapture("T100").mapRequestId);
+            assertEquals(52L,new KOMEPacketTroopGuiAction("list","","","T100").mapRequestId);
+            assertEquals(53L,new KOMEPacketTroopGuiAction("population_units","","","T100").mapRequestId);
+            assertEquals(0L,new KOMEPacketTroopGuiAction("recruit","","","T100").mapRequestId);
+        } finally {KOMEAddon.proxy=previous;}
     }
 
     @Test public void oldProtocolFailsClosedBeforePopulationDecode() {
@@ -280,7 +356,7 @@ public class KOMEPopulationProtocolTest {
         KOMEAddon addon = new KOMEAddon();
         for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
             assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", KOMEPopulationWire.VERSION), side));
-            for (String version : new String[] {"1.0.9-integration-g3", "1.0.9-integration-g2", "1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
+            for (String version : new String[] {"1.0.9-integration-g13", "1.0.9-integration-g3", "1.0.9-integration-g2", "1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
                 assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", version), side));
             assertFalse(addon.acceptsRemoteKome(java.util.Collections.<String, String>emptyMap(), side));
         }

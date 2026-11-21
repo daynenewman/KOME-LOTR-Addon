@@ -21,6 +21,55 @@ public class KOMEMapBordersTest {
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     private static final int A = 0xFF102030, B = 0xFF405060, C = 0xFF708090;
 
+    @Test public void compositedCornerOpacityIsOneStrongestBandRatherThanRepeatedSourceAlpha() throws Exception {
+        int[] pixels=new int[20*20];Arrays.fill(pixels,A);
+        KOMEMapBorders b=borders(fixture(20,20,pixels));
+        KOMEMapViewport view=new KOMEMapViewport(0,0,20,20,10,10,1);
+        for(double[] sample:new double[][]{{5.25,5.25,36},{3.75,3.75,96},{2.25,2.25,176},{0.75,0.75,255},
+                {5.25,2.25,176},{10,10,0}}) {
+            double[] output={0,0,0,0};int[] contributions={0};
+            b.drawTerritories(view,Collections.singletonMap(A & 0xFFFFFF,"gondor"),
+                Collections.singletonMap(A & 0xFFFFFF,0xF9F9F9),(x0,y0,x1,y1,c)->{
+                    if(sample[0]<x0 || sample[0]>=x1 || sample[1]<y0 || sample[1]>=y1)return;
+                    double alpha=(c>>>24)/255D;
+                    for(int channel=0;channel<3;channel++) {
+                        int rgb=c>>(16-channel*8)&255;
+                        output[channel]=rgb/255D*alpha+output[channel]*(1-alpha);
+                    }
+                    output[3]=alpha+output[3]*(1-alpha);contributions[0]++;
+                });
+            assertEquals("Actual source-over alpha at "+sample[0]+","+sample[1],sample[2]/255D,output[3],1e-10);
+            assertEquals("White faction's premultiplied color",249/255D*sample[2]/255D,output[0],1e-10);
+            assertTrue("A border sample must be submitted at most once",contributions[0]<=1);
+        }
+    }
+
+    @Test public void disjointMeshRetainsEveryClippedBandOnIrregularLandAndUnownedHoles() throws Exception {
+        int[] pixels=new int[24*24];
+        for(int y=0;y<24;y++)for(int x=0;x<24;x++) {
+            pixels[y*24+x]=(x<7 || y<9 || x>=15 && y<19)?A:B;
+            if(x>=10 && x<14 && y>=4 && y<16 || x>=20 && y>=20)pixels[y*24+x]=0;
+        }
+        KOMEMapBorders b=borders(fixture(24,24,pixels));KOMEMapViewport view=new KOMEMapViewport(0,0,24,24,12,12,1);
+        Map<Integer,String> owners=new HashMap<>();owners.put(A & 0xFFFFFF,"a");owners.put(B & 0xFFFFFF,"b");
+        Map<Integer,Integer> colors=new HashMap<>();colors.put(A & 0xFFFFFF,0xF9F9F9);colors.put(B & 0xFFFFFF,0xF9F9F9);
+        KOMETerritoryMesh.Rectangles raw=new KOMETerritoryMesh.Rectangles(),drawn=new KOMETerritoryMesh.Rectangles();
+        Method original=KOMEMapBorders.class.getDeclaredMethod("drawTerritoriesUncached",KOMEMapViewport.class,Map.class,Map.class,KOMEMapBorders.LayerSink.class);
+        original.setAccessible(true);original.invoke(b,view,owners,colors,(KOMEMapBorders.LayerSink)raw::add);
+        b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->drawn.add(x0,y0,x1,y1,c,0));
+        for(double y=0.25;y<24;y+=0.5)for(double x=0.25;x<24;x+=0.5) {
+            int expected=0,count=0;double alpha=0;
+            for(int i=0;i<raw.size;i++)if(contains(raw,i,x,y))expected=Math.max(expected,raw.argb[i]>>>24);
+            for(int i=0;i<drawn.size;i++)if(contains(drawn,i,x,y)){double a=(drawn.argb[i]>>>24)/255D;alpha=a+alpha*(1-a);count++;}
+            assertEquals(expected/255D,alpha,1e-12);assertTrue(count<=1);
+            if(pixels[(int)y*24+(int)x]==0)assertEquals(0,alpha,0);
+        }
+    }
+
+    private static boolean contains(KOMETerritoryMesh.Rectangles rectangles,int i,double x,double y) {
+        int p=i*4;return x>=rectangles.xy[p] && x<rectangles.xy[p+2] && y>=rectangles.xy[p+1] && y<rectangles.xy[p+3];
+    }
+
     @Test public void destinationBoundaryIsExactIndependentOfHoverAndTracksPanZoom() throws Exception {
         KOMEMapBorders borders=borders(fixture(3,1,A,B,C));
         for(double zoom:new double[]{4,16,32})for(double pan:new double[]{0,0.5,1}) {
@@ -215,11 +264,16 @@ public class KOMEMapBordersTest {
         Object oldRaster=raster.get(null),oldEdges=edges.get(null);
         try {
             for(int action=0;action<3;action++) {
-                raster.set(null,s);edges.set(null,borders(fixture(1,1,A)));
+                KOMEMapBorders cached=borders(fixture(1,1,A));
+                for(double zoom:new double[]{10,20,40})cached.territoryFrame(new KOMEMapViewport(0,0,40,20,.5,.5,zoom),
+                    Collections.singletonMap(A & 0xFFFFFF,"gondor"),Collections.singletonMap(A & 0xFFFFFF,0xF9F9F9)).mesh.vertices();
+                assertTrue(cached.retainedTerritoryBytes()>0);
+                raster.set(null,s);edges.set(null,cached);
                 if(action==0)KOMEConquestMapOverlay.resetClientMapState();
                 if(action==1)new KOMEConquestMapOverlay().onResourceManagerReload(null);
                 if(action==2){KOMETileWorldResolver.INSTANCE.invalidate();Method m=KOMEConquestMapOverlay.class.getDeclaredMethod("ensureTileMaskLoaded");m.setAccessible(true);assertEquals(false,m.invoke(null));}
                 assertNull(raster.get(null));assertNull(edges.get(null));
+                assertEquals(0,cached.retainedTerritoryBytes());assertEquals(0,cached.retainedTerritoryFrames());
                 assertTrue(((Map<?,?>)field(KOMEConquestMapOverlay.class,"tileColorsById").get(null)).isEmpty());
             }
         } finally {raster.set(null,oldRaster);edges.set(null,oldEdges);}
@@ -274,11 +328,46 @@ public class KOMEMapBordersTest {
         List<String> stats=new ArrayList<String>();
         stats.add("preprocessMillis="+nanos/1_000_000.0);stats.add("edgeRuns="+b.edgeRuns());stats.add("fillRuns="+b.fillRuns());stats.add("primitiveBytes="+b.primitiveBytes());stats.add("unitEdges="+actual[0]);
         stats.add("java="+System.getProperty("java.version"));stats.add("os="+System.getProperty("os.name"));stats.add("processors="+Runtime.getRuntime().availableProcessors());
+        Map<Integer,String> owners=new HashMap<>();Map<Integer,Integer> colors=new HashMap<>();
+        // Synthetic alternating ownership on real geometry, not a claim about a server snapshot.
+        for(Map.Entry<String,Integer> tile:s.colorsById().entrySet()) {
+            boolean dark=(tile.getKey().hashCode() & 1)==0;owners.put(tile.getValue(),dark?"mordor":"gondor");
+            colors.put(tile.getValue(),dark?0x351F1F:0xF9F9F9);
+        }
+        Map<Integer,String> packagedOwners=new HashMap<>();Map<Integer,Integer> packagedColors=new HashMap<>();
+        for(String line:Files.readAllLines(Paths.get("src/main/resources/assets/kome/config/kome_tile_ownership_defaults.csv"),StandardCharsets.UTF_8)) {
+            String[] fields=line.split(",",3);Integer mask=s.colorsById().get(fields[0]);
+            if(mask==null || fields.length<2 || fields[1].isEmpty())continue;
+            String owner=KOMEAlliance.normalizeFactionKey(fields[1]);if(owner.isEmpty())continue;
+            packagedOwners.put(mask,owner);packagedColors.put(mask,KOMETerritoryStyle.Palette.CLASSIC_LOTR.rgb(owner));
+        }
         for(double zoom:new double[]{0.25,0.5,1,2,4,8}) {
             KOMEMapViewport v=new KOMEMapViewport(0,0,1200,700,1000,730,zoom);final int[] counts={0,0};
             b.drawBorders(v,0,(x0,y0,x1,y1,c)->counts[0]++);
             b.drawHighlight(v,s.colorsById().get("T132"),(x0,y0,x1,y1,c)->counts[1]++);
             stats.add("zoom="+zoom+" borderQuads="+counts[0]+" hoverQuads="+counts[1]);
+            final int[] territoryQuads={0};long drawStart=System.nanoTime();
+            b.drawTerritories(v,owners,colors,(x0,y0,x1,y1,c)->{
+                assertTrue(x0>=v.left && x1<=v.right && y0>=v.top && y1<=v.bottom);territoryQuads[0]++;
+            });
+            stats.add("zoom="+zoom+" territoryQuads="+territoryQuads[0]+" territoryCpuMillis="+(System.nanoTime()-drawStart)/1_000_000.0);
+            recordMeshMetrics(stats,b,v,owners,colors,"fragmented");
+            territoryQuads[0]=0;drawStart=System.nanoTime();
+            b.drawTerritories(v,packagedOwners,packagedColors,(x0,y0,x1,y1,c)->territoryQuads[0]++);
+            stats.add("zoom="+zoom+" packagedOwnerQuads="+territoryQuads[0]+" packagedOwnerCpuMillis="+(System.nanoTime()-drawStart)/1_000_000.0);
+            territoryQuads[0]=0;drawStart=System.nanoTime();
+            b.drawTerritories(v,packagedOwners,packagedColors,(x0,y0,x1,y1,c)->territoryQuads[0]++);
+            stats.add("zoom="+zoom+" cachedPackagedOwnerQuads="+territoryQuads[0]+" cachedPackagedOwnerCpuMillis="+(System.nanoTime()-drawStart)/1_000_000.0);
+            recordMeshMetrics(stats,b,v,packagedOwners,packagedColors,"packaged");
+            if(zoom==0.25) {
+                KOMEMapBorders.TerritoryFrame before=b.territoryFrame(v,packagedOwners,packagedColors);
+                long rebuildStart=System.nanoTime();
+                KOMEMapBorders.TerritoryFrame outside=b.territoryFrame(new KOMEMapViewport(v.left,v.top,v.right,v.bottom,v.posX+96/v.zoom,v.posY,v.zoom),packagedOwners,packagedColors);
+                assertNotSame(before,outside);stats.add("pan96RebuildCpuMillis="+(System.nanoTime()-rebuildStart)/1_000_000.0);
+                rebuildStart=System.nanoTime();
+                assertNotSame(outside,b.territoryFrame(new KOMEMapViewport(v.left,v.top,v.right,v.bottom,v.posX,v.posY,v.zoom*2),packagedOwners,packagedColors));
+                stats.add("zoomRebuildCpuMillis="+(System.nanoTime()-rebuildStart)/1_000_000.0);
+            }
         }
         Files.write(report.resolve("metrics.txt"),stats,StandardCharsets.UTF_8);
         StringBuilder output=new StringBuilder("region\tleft\ttop\tright\tbottom\tlayer\tx0\ty0\tx1\ty1\targb\n");
@@ -296,10 +385,142 @@ public class KOMEMapBordersTest {
         assertArrayEquals(pixels,s.copyArgbPixels());
     }
 
+    @Test public void territoryBordersSuppressSameOwnerButKeepDifferentOwnersWithIdenticalColors() throws Exception {
+        KOMEMapBorders b = borders(fixture(2,1,A,B));
+        Map<Integer,String> owners = new HashMap<>();
+        Map<Integer,Integer> colors = new HashMap<>();
+        owners.put(A & 0xFFFFFF,"gondor"); owners.put(B & 0xFFFFFF,"gondor");
+        colors.put(A & 0xFFFFFF,0xFFFFFF); colors.put(B & 0xFFFFFF,0xFFFFFF);
+        KOMEMapViewport v = new KOMEMapViewport(0,0,40,20,1,0.5,20);
+        final int[] shared = {0};
+        KOMEMapBorders.QuadSink sink = (x0,y0,x1,y1,c) -> {
+            if (x0<=19.25 && x1>19.25 && y0<=10 && y1>10) shared[0]++;
+            assertTrue(x0>=0 && x1<=40 && y0>=0 && y1<=20);
+        };
+        b.drawTerritories(v,owners,colors,sink); assertEquals(0,shared[0]);
+        owners.put(B & 0xFFFFFF,"isengard");
+        b.drawTerritories(v,owners,colors,sink); assertEquals(1,shared[0]);
+        List<Integer> strokes = new ArrayList<>();
+        b.drawBorders(v,0,true,(x0,y0,x1,y1,c)->strokes.add(c)); assertTrue(strokes.isEmpty());
+        b.drawBorders(v,A & 0xFFFFFF,true,(x0,y0,x1,y1,c)->strokes.add(c));
+        assertFalse(strokes.isEmpty()); for(int c:strokes) assertEquals(KOMEMapBorders.HOVER_COLOR,c);
+    }
+
+    @Test public void territoryBordersKeepGapClearAndContrastBothBlackAndWhite() throws Exception {
+        KOMEMapBorders b = borders(fixture(3,1,A,0,B));
+        Map<Integer,String> owners = new HashMap<>(); Map<Integer,Integer> colors = new HashMap<>();
+        owners.put(A & 0xFFFFFF,"mordor");owners.put(B & 0xFFFFFF,"gondor");
+        colors.put(A & 0xFFFFFF,0);colors.put(B & 0xFFFFFF,0xFFFFFF);
+        Set<Integer> strokes = new HashSet<>();
+        b.drawTerritories(new KOMEMapViewport(0,0,30,10,1.5,0.5,10),owners,colors,(x0,y0,x1,y1,c)->{
+            assertTrue(x1<=10 || x0>=20); strokes.add(c);
+        });
+        assertTrue(strokes.contains(0xFF000000));assertTrue(strokes.contains(0xFFFFFFFF));
+        assertTrue(strokes.contains(0xFFB0AD9F));assertFalse(strokes.contains(0xFF161418));
+        for(int c:strokes)assertTrue((c>>>24)==255 || (c>>>24)==176 || (c>>>24)==96 || (c>>>24)==36);
+        final int[] count={0};b.drawTerritories(new KOMEMapViewport(0,0,30,10,1.5,0.5,10),
+            Collections.emptyMap(),colors,(x0,y0,x1,y1,c)->count[0]++);assertEquals(0,count[0]);
+    }
+
+    @Test public void wideFactionBandsFadeInwardAcrossRasterCellsWithoutDarkCasing() throws Exception {
+        int[] pixels=new int[20*20];Arrays.fill(pixels,A);
+        KOMEMapBorders b=borders(fixture(20,20,pixels));
+        Map<Integer,String> owners=Collections.singletonMap(A & 0xFFFFFF,"gondor");
+        Map<Integer,Integer> colors=Collections.singletonMap(A & 0xFFFFFF,0xF9F9F9);
+        Set<String> bands=new HashSet<>();
+        b.drawTerritories(new KOMEMapViewport(0,0,20,20,10,10,1),owners,colors,(x0,y0,x1,y1,c)->{
+            assertEquals(0xF9F9F9,c & 0xFFFFFF);
+            assertTrue(x0>=0 && y0>=0 && x1<=20 && y1<=20);
+            if(y0<=9 && y1>=10 && x1<=6)bands.add(x0+":"+x1+":"+(c>>>24));
+        });
+        assertTrue(bands.contains("0.0:1.5:255"));assertTrue(bands.contains("1.5:3.0:176"));
+        assertTrue(bands.contains("3.0:4.5:96"));assertTrue(bands.contains("4.5:6.0:36"));
+        final int[] cues={0};
+        b.drawDestination(new KOMEMapViewport(0,0,20,20,10,10,1),A & 0xFFFFFF,(x0,y0,x1,y1,c)->cues[0]++);
+        assertTrue(cues[0]>0);
+    }
+
+    @Test public void productionTileEdgePreferencePreservesHoverAndFactionBoundaries() throws Exception {
+        Field geometry=field(KOMEConquestMapOverlay.class,"mapBorders");Object oldGeometry=geometry.get(null);
+        Field ownerField=field(KOMEConquestMapOverlay.class,"territoryOwners"),colorField=field(KOMEConquestMapOverlay.class,"territoryColors");
+        Object oldOwners=ownerField.get(null),oldColors=colorField.get(null);
+        KOMETerritoryStyle style=KOMEConquestMapOverlay.territoryStyle;
+        KOMETerritoryStyle.DisplayMode oldMode=style.mode;boolean oldEdges=style.showTileBorders;
+        try {
+            geometry.set(null,borders(fixture(2,1,A,B)));
+            Map<Integer,String> owners=new HashMap<>();owners.put(A & 0xFFFFFF,"gondor");owners.put(B & 0xFFFFFF,"mordor");ownerField.set(null,owners);
+            Map<Integer,Integer> colors=new HashMap<>();colors.put(A & 0xFFFFFF,0xF9F9F9);colors.put(B & 0xFFFFFF,0x351F1F);colorField.set(null,colors);
+            KOMEMapViewport view=new KOMEMapViewport(0,0,40,20,1,0.5,20);
+            List<Integer> drawn=new ArrayList<>();KOMEMapBorders.QuadSink sink=(x0,y0,x1,y1,c)->drawn.add(c);
+            style.mode=KOMETerritoryStyle.DisplayMode.FULL_COLOR;style.showTileBorders=false;
+            KOMEConquestMapOverlay.drawTerritoryGeometry(view,0,sink);assertTrue(drawn.isEmpty());
+            KOMEConquestMapOverlay.drawTerritoryGeometry(view,A & 0xFFFFFF,sink);
+            assertFalse(drawn.isEmpty());for(int c:drawn)assertEquals(KOMEMapBorders.HOVER_COLOR,c);
+            drawn.clear();style.showTileBorders=true;
+            KOMEConquestMapOverlay.drawTerritoryGeometry(view,0,sink);assertTrue(drawn.contains(KOMEMapBorders.BORDER_COLOR));
+            drawn.clear();style.mode=KOMETerritoryStyle.DisplayMode.BORDERS_ONLY;style.showTileBorders=false;
+            KOMEConquestMapOverlay.drawTerritoryGeometry(view,0,sink);
+            assertTrue(drawn.contains(0xFFF9F9F9));assertTrue(drawn.contains(0xFF351F1F));
+            assertFalse(drawn.contains(KOMEMapBorders.BORDER_COLOR));
+            drawn.clear();style.showTileBorders=true;KOMEConquestMapOverlay.drawTerritoryGeometry(view,0,sink);
+            assertTrue(drawn.contains(KOMEMapBorders.BORDER_COLOR));assertTrue(drawn.contains(0xFFF9F9F9));
+        } finally {geometry.set(null,oldGeometry);ownerField.set(null,oldOwners);colorField.set(null,oldColors);style.mode=oldMode;style.showTileBorders=oldEdges;}
+    }
+
+    @Test public void wideBorderFrameCacheTracksViewOwnershipColorsAndFailedConstruction() throws Exception {
+        KOMEMapBorders b=borders(fixture(2,1,A,B));
+        Field frame=field(KOMEMapBorders.class,"territoryFrame");
+        Map<Integer,String> owners=new HashMap<>();owners.put(A & 0xFFFFFF,"gondor");owners.put(B & 0xFFFFFF,"mordor");
+        Map<Integer,Integer> colors=new HashMap<>();colors.put(A & 0xFFFFFF,0xF9F9F9);colors.put(B & 0xFFFFFF,0x351F1F);
+        KOMEMapViewport view=new KOMEMapViewport(0,0,40,20,1,0.5,20);
+        List<String> first=new ArrayList<>(),second=new ArrayList<>();
+        b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->first.add(x0+","+y0+","+x1+","+y1+","+c));
+        Object cached=frame.get(b);assertNotNull(cached);
+        b.drawTerritories(new KOMEMapViewport(0,0,40,20,1,0.5,20),new HashMap<>(owners),new HashMap<>(colors),
+            (x0,y0,x1,y1,c)->second.add(x0+","+y0+","+x1+","+y1+","+c));
+        assertSame(cached,frame.get(b));assertEquals(first,second);
+        KOMEMapBorders.TerritoryFrame retained=(KOMEMapBorders.TerritoryFrame)cached;
+        java.nio.ByteBuffer vertices=retained.mesh.vertices();
+        KOMEMapViewport panned=new KOMEMapViewport(0,0,40,20,1+32D/20,0.5,20);
+        assertSame(retained,b.territoryFrame(panned,owners,colors));assertSame(vertices,retained.mesh.vertices());
+        assertSame(retained,b.territoryFrame(new KOMEMapViewport(-5,-5,45,25,1,0.5,20),owners,colors));
+        colors.put(A & 0xFFFFFF,0x123456);b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->{});
+        assertNotSame(cached,frame.get(b));cached=frame.get(b);
+        owners.put(B & 0xFFFFFF,"gondor");b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->{});
+        assertNotSame(cached,frame.get(b));cached=frame.get(b);
+        view=new KOMEMapViewport(0,0,40,20,1,0.5,10);
+        try{b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->{throw new IllegalStateException("sink");});fail();}
+        catch(IllegalStateException expected){}
+        assertNull(frame.get(b));b.drawTerritories(view,owners,colors,(x0,y0,x1,y1,c)->{});
+        assertNotSame(cached,frame.get(b));assertNotNull(frame.get(b));
+        Object beforePan=frame.get(b);
+        b.territoryFrame(new KOMEMapViewport(0,0,40,20,1+96D/10,0.5,10),owners,colors);
+        assertNotSame(beforePan,frame.get(b));
+    }
+
     private static void assertRealEdge(KOMEMapBorders b,KOMETileRasterSnapshot s,int x,int y,String left,String right) {
         final int[] found={0};b.visitEdges(x,y,x+0.1,y+1,(v,l,a,z,c,d)->{
             if(v&&l==x&&a<=y&&z>y){assertEquals(s.colorsById().get(left).intValue(),c&0xFFFFFF);assertEquals(s.colorsById().get(right).intValue(),d&0xFFFFFF);found[0]++;}
         });assertEquals(1,found[0]);
+    }
+
+    private static void recordMeshMetrics(List<String> stats,KOMEMapBorders b,KOMEMapViewport view,
+            Map<Integer,String> owners,Map<Integer,Integer> colors,String fixture) {
+        KOMEMapBorders.TerritoryFrame frame=b.territoryFrame(view,owners,colors);
+        assertTrue("Both real-raster fixtures must retain their complete meshes",frame.mesh.cacheable());
+        long start=System.nanoTime();java.nio.ByteBuffer vertices=frame.mesh.vertices();
+        stats.add("zoom="+view.zoom+" fixture="+fixture+" submittedQuads="+frame.mesh.quads()+" vertices="+frame.mesh.quads()*4
+            +" drawArraysCalls="+(frame.mesh.quads()==0?0:1)+" vertexPreparationCpuMillis="+(System.nanoTime()-start)/1_000_000.0
+            +" retainedPrimitiveBytes="+frame.mesh.retainedBytes());
+        KOMEMapViewport pan=new KOMEMapViewport(view.left,view.top,view.right,view.bottom,view.posX+32/view.zoom,view.posY,view.zoom);
+        long checksum=0;boolean reused=true;start=System.nanoTime();
+        for(int i=0;i<512;i++) {
+            KOMEMapBorders.TerritoryFrame current=b.territoryFrame((i&1)==0?view:pan,owners,colors);
+            reused &= current==frame && current.mesh.vertices()==vertices;checksum+=current.mesh.vertices().remaining();
+        }
+        double micros=(System.nanoTime()-start)/512_000D;
+        assertTrue(reused);assertEquals((long)vertices.remaining()*512,checksum);
+        stats.add("zoom="+view.zoom+" fixture="+fixture+" retainedIdleAndPan32PreparationCpuMicros="+micros+" pan32Rebuilds=0");
     }
     private static Field field(Class<?> type,String name)throws Exception{Field f=type.getDeclaredField(name);f.setAccessible(true);return f;}
     private static KOMEMapBorders borders(KOMETileRasterSnapshot s){return new KOMEMapBorders.Cache().get(s,s.copyArgbPixels());}

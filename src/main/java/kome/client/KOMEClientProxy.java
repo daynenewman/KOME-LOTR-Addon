@@ -28,7 +28,31 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
-        new KOMEConquestSnapshotPublisher(clientTasks);
+        new KOMEConquestSnapshotPublisher(clientTasks, () -> {
+            destinationOptions().close();
+            KOMEConquestMapOverlay.resetDestinationSelection();
+            net.minecraft.client.gui.GuiScreen screen=KOMEMinecraftClient.currentScreen();
+            if(screen instanceof kome.client.gui.KOMEGuiCompanyList
+                    || screen instanceof kome.client.gui.KOMEGuiPopulationUnits
+                    || screen instanceof kome.client.gui.KOMEGuiConquestCapture
+                    || screen instanceof kome.client.gui.KOMEGuiCompanyMoveConfirm)
+                KOMEMinecraftClient.closePlayerScreen();
+            KOMEConquestMapOverlay.validateClusterPanelLifecycle();
+        });
+    private KOMEMapDetailRequests mapDetailRequests = new KOMEMapDetailRequests();
+    private synchronized KOMEMapDetailRequests mapDetailRequests() {
+        if(mapDetailRequests==null)mapDetailRequests=new KOMEMapDetailRequests();
+        return mapDetailRequests;
+    }
+    private KOMEUnitMapMarkerPublisher unitMarkers;
+    private synchronized KOMEUnitMapMarkerPublisher unitMarkers() {
+        if(unitMarkers==null)unitMarkers=new KOMEUnitMapMarkerPublisher(clientTasks,markers->{
+            KOMEClientData.INSTANCE.replaceUnitMapMarkers(markers);
+            KOMECompanyDescriptorRenderer.clear();
+            closeStaleCompanyClusterRoster();
+        });
+        return unitMarkers;
+    }
     private KOMECompanyDestinationClientState destinationOptions;
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
@@ -53,6 +77,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(tacticalInput);
         KOMEClientConfig clientConfig = new KOMEClientConfig(new java.io.File(
             cpw.mods.fml.common.Loader.instance().getConfigDir(), "kome-client.cfg"));
+        KOMEConquestMapOverlay.applyMapPreferences(clientConfig.mapPreferences());
+        KOMEConquestMapOverlay.applyTooltipMode(clientConfig.mapTooltipMode());
         currentTileHud = new KOMECurrentTileHud(net.minecraft.client.Minecraft.getMinecraft(), clientConfig);
         cpw.mods.fml.client.registry.ClientRegistry.registerKeyBinding(currentTileHud.toggle);
         ((net.minecraft.client.resources.IReloadableResourceManager)
@@ -91,10 +117,13 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         progressionConnection = event == null ? null : event.handler;
         progressionEpoch++;
         progressionRefreshPending = true;
+        KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
+        unitMarkers().start(event == null ? null : event.handler);
         destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
-        conquestSnapshots.resetSession();
+        conquestSnapshots.start(event == null ? null : event.handler);
+        mapDetailRequests().start(event == null ? null : event.handler);
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
             resetClientSessionState();
@@ -107,10 +136,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         progressionConnection = null;
         progressionEpoch++;
         progressionRefreshPending = false;
+        // Fence an open roster before the queued full client reset can run.
+        KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
+        unitMarkers().start(null);
         destinationOptions().start(null);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
-        conquestSnapshots.resetSession();
+        conquestSnapshots.start(null);
+        mapDetailRequests().start(null);
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
     }
@@ -123,12 +156,20 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             KOMEClientData.INSTANCE.clearProgressionProjection();
             KOMEGuiProgression.resetData();
             KOMEFactionTitleClientBridge.reset();
+            KOMEClientData.INSTANCE.invalidateClientSessionEpoch();
+            unitMarkers().invalidateWorld();
+            KOMEClientData.INSTANCE.unitMapMarkers.clear();
+            KOMECompanyDescriptorRenderer.clear();
             destinationOptions().close();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
             if (tacticalEditor != null) tacticalEditor.clearScope();
             tacticalEditorStatus = null;
-            conquestSnapshots.resetSession();
+            conquestSnapshots.invalidateWorld();
+            mapDetailRequests().invalidateWorld();
+            // Keep completed-snapshot absence authoritative while the next world is loading.
+            KOMEClientData.INSTANCE.armyCompanies.clear();
+            KOMEClientData.INSTANCE.armyMovements.clear();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
     }
@@ -205,10 +246,65 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         }
     }
 
+    @Override public void acceptUnitMapMarkers(java.util.List<kome.common.data.KOMEUnitMapMarker> markers,Object connection) {
+        unitMarkers().accept(markers,connection);
+    }
+
     @Override
     public void acceptConquestSnapshotChunk(
-            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
-        conquestSnapshots.accept(chunk);
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk,Object connection) {
+        conquestSnapshots.accept(chunk,connection);
+    }
+
+    @Override
+    public boolean allowsMapDetail(long publicationSerial, Object connection) {
+        return conquestSnapshots.allowsMapDetail(publicationSerial, connection);
+    }
+
+    @Override
+    public long beginMapDetailRequest(String kind, String tile, String focus) {
+        net.minecraft.client.gui.GuiScreen screen=KOMEMinecraftClient.currentScreen();
+        return mapDetailRequests().begin(kind,tile,focus,screen,mayCloseForMapDetail(screen));
+    }
+
+    static boolean mayCloseForMapDetail(net.minecraft.client.gui.GuiScreen screen) {
+        return screen instanceof kome.client.gui.KOMEGuiPopulation
+            || screen instanceof kome.client.gui.KOMEGuiPopulationUnits;
+    }
+
+    @Override public void cancelMapDetailRequest(Object screen) {
+        mapDetailRequests().cancelFromScreen(screen);
+    }
+
+    @Override public void displayCompanyClusterRoster(java.util.List<String> memberIds,Object sourceMap) {
+        if(sourceMap instanceof LOTRGuiMap)
+            KOMEConquestMapOverlay.openCompanyClusterPanel((LOTRGuiMap)sourceMap,memberIds);
+    }
+    private static void closeStaleCompanyClusterRoster() {
+        KOMEConquestMapOverlay.validateClusterPanelLifecycle();
+    }
+
+    @Override
+    public void handleMapDetailResponse(long requestId, String kind, String tile, String focus,
+            long serial, Object connection, Runnable publish) {
+        if(requestId==0L){
+            if(conquestSnapshots.allowsMapDetail(serial,connection))publish.run();
+            return;
+        }
+        KOMEMapDetailRequests.Decision decision=mapDetailRequests().resolve(requestId,kind,tile,focus,
+            serial,connection,KOMEMinecraftClient.currentScreen(),conquestSnapshots);
+        if(decision==KOMEMapDetailRequests.Decision.OPEN){publish.run();return;}
+        if(decision!=KOMEMapDetailRequests.Decision.REFRESH)return;
+        if("capture".equals(kind)){
+            kome.common.network.KOMEPacketConquestOpenCapture request=new kome.common.network.KOMEPacketConquestOpenCapture();
+            request.tileId=tile;request.focusBuildId=focus;request.mapRequestId=requestId;
+            kome.common.network.KOMEPacketHandler.network.sendToServer(request);
+        }else{
+            kome.common.network.KOMEPacketTroopGuiAction request=new kome.common.network.KOMEPacketTroopGuiAction();
+            request.action="companies".equals(kind)?"list":"population_units";
+            request.tileId=tile;request.mapRequestId=requestId;
+            kome.common.network.KOMEPacketHandler.network.sendToServer(request);
+        }
     }
 
     @Override
@@ -225,6 +321,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         tacticalEditorStatus = null;
         if (currentTileHud != null) currentTileHud.clear();
         KOMEClientData.INSTANCE.resetClientState();
+        KOMECompanyDescriptorRenderer.clear();
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();
@@ -265,6 +362,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public kome.client.tactical.KOMETacticalAreaEditor getTacticalAreaEditor() { return tacticalAreaEditor; }
     private void showTacticalEditor() {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (tacticalAreaEditor != null && tacticalAreaEditor.hasWorldViewContext()) return;
         if (mc.fontRenderer != null && !(mc.currentScreen instanceof kome.client.gui.KOMEGuiTacticalAreaEditor))
             mc.displayGuiScreen(new kome.client.gui.KOMEGuiTacticalAreaEditor(tacticalAreaEditor));
     }

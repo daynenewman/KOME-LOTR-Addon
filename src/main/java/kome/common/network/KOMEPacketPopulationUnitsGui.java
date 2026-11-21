@@ -16,6 +16,9 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
     public String filterTile;
     public List units = new ArrayList();
     public int farmhandsUsed;
+    /** Zero is an explicit command response; positive serials are map-origin views. */
+    public long mapPublicationSerial;
+    public long mapRequestId;
 
     public KOMEPacketPopulationUnitsGui() {
     }
@@ -43,6 +46,8 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
             entry.fromBytes(buf);
             units.add(entry);
         }
+        mapPublicationSerial = buf.readLong();
+        mapRequestId = buf.readLong();
         KOMEPopulationWire.requireFullyRead(buf);
     }
 
@@ -58,6 +63,8 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
             for (Object object : units) {
                 ((KOMEUnitGuiEntry) object).toBytes(buf);
             }
+            buf.writeLong(mapPublicationSerial);
+            buf.writeLong(mapRequestId);
         });
     }
 
@@ -65,7 +72,14 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketPopulationUnitsGui message, MessageContext ctx) {
             final KOMEPacketPopulationUnitsGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketPopulationUnitsGui::new);
-            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayPopulationUnitsGui(snapshot));
+            final Object source = ctx == null ? null : ctx.netHandler;
+            KOMEAddon.proxy.enqueueClientTask(() -> {
+                if (snapshot.mapPublicationSerial == 0L)
+                    KOMEAddon.proxy.displayPopulationUnitsGui(snapshot);
+                else KOMEAddon.proxy.handleMapDetailResponse(snapshot.mapRequestId,"units",
+                    snapshot.filterTile,"",snapshot.mapPublicationSerial,source,
+                    () -> KOMEAddon.proxy.displayPopulationUnitsGui(snapshot));
+            });
             return null;
         }
     }

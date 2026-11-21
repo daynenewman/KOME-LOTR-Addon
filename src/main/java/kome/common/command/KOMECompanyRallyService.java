@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.*;
 import kome.common.KOMEReflection;
 import kome.common.data.*;
+import kome.common.network.KOMECompanyMapProjection;
 import net.minecraft.entity.player.EntityPlayerMP;
 import static kome.common.data.KOMECompanyDestinationOptions.*;
 import static kome.common.data.KOMECompanyRallySnapshot.*;
@@ -36,6 +37,12 @@ public final class KOMECompanyRallyService {
     private boolean live(Session s){return s.current.getAsBoolean()&&s.actor.playerNetServerHandler==s.connection
         &&Objects.equals(s.actorId,KOMEReflection.getEntityUUID(s.actor))
         &&s.serverSession.equals(KOMECompanyMovementSessions.current(s.actor));}
+    private boolean readable(Session s){
+        KOMECompanyMapProjection.View view=KOMECompanyMapProjection.mapView(s.data,s.actor);
+        for(Candidate candidate:s.candidates)
+            if(!view.directlyVisible(s.data.armyCompanies.get(candidate.id)))return false;
+        return true;
+    }
     public KOMECompanyRallySnapshot open(Object connection,KOMEWorldData data,EntityPlayerMP actor,UUID client,String destination,
             BooleanSupplier current,Consumer<KOMECompanyRallySnapshot> publish,long now){
         Session old=find(connection);
@@ -46,8 +53,9 @@ public final class KOMECompanyRallyService {
         if(sessions.size()>=MAX_SESSIONS)return error(client,destination,"Rally capacity is busy. Try again shortly.");
         if(data.armyCompanies.size()>MAX_CATALOGUE)return error(client,destination,"Company catalogue exceeds the Rally safety limit.");
         List<Candidate> candidates=new ArrayList<Candidate>();
+        KOMECompanyMapProjection.View readView=KOMECompanyMapProjection.mapView(data,actor);
         for(KOMEArmyCompany c:data.armyCompanies.values()){
-            if(c==null||!movement.canPlayerConsiderCompany(data,actor,c))continue;
+            if(c==null||!readView.directlyVisible(c)||!movement.canPlayerConsiderCompany(data,actor,c))continue;
             if(c.units.size()>MAX_MEMBERS)return error(client,destination,"A company exceeds the bounded member limit.");
             boolean campaign=false;for(UUID id:c.units)if(KOMEHiredUnitClassification.isCampaignUnit(data,id)){campaign=true;break;}
             if(!campaign)continue;
@@ -64,7 +72,7 @@ public final class KOMECompanyRallyService {
     public KOMECompanyRallySnapshot confirm(Object connection,EntityPlayerMP actor,UUID client,UUID token,String destination,long now){
         Session s=find(connection);
         if(s==null||s.actor!=actor||!s.client.equals(client)||!s.token.equals(token)||!s.destination.equals(destination)
-                ||now>=s.expires||!live(s))return error(client,destination,"Rally preview expired or belongs to another connection. Refresh.");
+                ||now>=s.expires||!live(s)||!readable(s))return error(client,destination,"Rally preview expired or belongs to another connection. Refresh.");
         if(s.phase!=Phase.READY||s.included==0)return null; // Consumed, incomplete or empty: never execute twice.
         s.phase=Phase.EXECUTING;s.expires=now+LIFETIME_MILLIS;s.revision++;
         return snapshot(s,null);
@@ -78,7 +86,8 @@ public final class KOMECompanyRallyService {
         while(it.hasNext()){
             Session s=it.next();boolean live;
             try{live=live(s);}catch(RuntimeException stale){live=false;}
-            if(!live||now>=s.expires&&s.phase!=Phase.EXECUTING){
+            boolean revoked=live&&!readable(s);
+            if(!live||revoked&&s.phase!=Phase.EXECUTING||now>=s.expires&&s.phase!=Phase.EXECUTING){
                 it.remove();if(live){s.phase=Phase.ERROR;s.message="Rally session expired. Refresh before confirming.";s.revision++;publish(s,null);}
             }
         }
@@ -160,6 +169,11 @@ public final class KOMECompanyRallyService {
     }
     private static String concise(String reason){return reason.length()>256?reason.substring(0,253)+"...":reason;}
     private void publish(Session s,Entry entry){
+        if(!readable(s)){
+            try{s.publish.accept(error(s.client,s.destination,"Rally details are no longer available. Refresh."));}
+            catch(RuntimeException unavailable){ }
+            return;
+        }
         try{s.publish.accept(snapshot(s,entry));}
         catch(RuntimeException failure){
             // Never let an oversized projection or broken transport abort the server tick.

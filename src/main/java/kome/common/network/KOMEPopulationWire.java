@@ -7,13 +7,18 @@ import kome.common.data.KOMEPopulationProjection;
 
 /** Shared exact projection codec and one matching-artifact protocol identity. */
 public final class KOMEPopulationWire {
-    // g14 combines Pass 3 service/ability projections and dev KOM-84: progression identities retain ID 59; ID 60 stays unused.
+    // g21 combines Commoner progression with dev g20; retains g14's discriminator layout: progression identities use ID 59; ID 60 stays unused.
     // Destination queries use 61/62; confirmed movement uses 63/64; source queries use 65/66.
     // Rally retains its g11 payloads on 67/68; g12 source-scoped query semantics are preserved.
     // KOM-84 correlations on Join Battle IDs 53-58 and embedded views remain unchanged.
-    // Both prior service-g10 and integration-g13 artifacts are incompatible.
-    // g15 adds the canonical Commoner key; g14 readers do not understand it.
-    public static final String VERSION = "1.0.11-commoner-g15";
+    // Dev objective/eligibility payloads remain intact. G13 conquest rows are incompatible.
+    // Conquest company/movement sections now carry recipient-scoped presentation rows,
+    // and conquest chunks include a publication serial. Older clients must not decode them.
+    // g18 correlates map detail requests and bounded read-only refreshes; g17 is wire-incompatible.
+    // g20 adds one bounded saved armor item ID/metadata to g19's fixed unit-map marker.
+    // Capture appends Build eligibility/reason followed by publication serial/request ID.
+    // Commoner ranks and service/ability projections remain; both parent artifacts are incompatible.
+    public static final String VERSION = "1.0.11-commoner-g21";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;

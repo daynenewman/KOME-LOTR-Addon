@@ -54,10 +54,23 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Client publication is unavailable on the dedicated server");
     }
 
+    public void acceptUnitMapMarkers(java.util.List<kome.common.data.KOMEUnitMapMarker> markers,Object connection) {
+        throw new IllegalStateException("Client marker publication is unavailable on the dedicated server");
+    }
+
     public void acceptConquestSnapshotChunk(
-            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk,Object connection) {
         throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");
     }
+
+    public boolean allowsMapDetail(long publicationSerial, Object connection) { return false; }
+
+    public long beginMapDetailRequest(String kind, String tile, String focus) { return 0L; }
+    public void cancelMapDetailRequest(Object screen) {}
+    public void displayCompanyClusterRoster(java.util.List<String> memberIds,Object sourceMap) {}
+
+    public void handleMapDetailResponse(long requestId, String kind, String tile, String focus,
+            long publicationSerial, Object connection, Runnable publish) { }
 
     public void acceptTacticalEditSnapshot(kome.common.network.KOMEPacketTacticalEditSnapshot message) { }
     public void acceptTacticalAreaCatalog(kome.common.network.KOMEPacketTacticalAreaCatalog message) { }

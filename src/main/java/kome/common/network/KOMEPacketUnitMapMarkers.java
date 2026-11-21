@@ -6,13 +6,17 @@ import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
+import kome.common.KOMEAddon;
+import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEArmyCompany;
-import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEHaltedUnitProtection;
 import kome.common.data.KOMEHiredUnitClassification;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEUnitMapMarker;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMEAlliance;
+import lotr.common.LOTRLevelData;
+import lotr.common.fac.LOTRFaction;
 import lotr.common.LOTRDimension;
 import lotr.common.entity.npc.LOTREntityNPC;
 import net.minecraft.entity.Entity;
@@ -40,6 +44,8 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
     public void fromBytes(ByteBuf buf) {
         markers = new ArrayList();
         int count = buf.readInt();
+        if (count < 0 || count > KOMEPopulationWire.MAX_ROWS)
+            throw new IllegalArgumentException("Invalid unit marker count");
         for (int i = 0; i < count; i++) {
             KOMEUnitMapMarker marker = new KOMEUnitMapMarker();
             marker.readFromBytes(buf);
@@ -49,6 +55,8 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
+        if (markers.size() > KOMEPopulationWire.MAX_ROWS)
+            throw new IllegalArgumentException("Too many unit markers");
         buf.writeInt(markers.size());
         for (Object object : markers) {
             ((KOMEUnitMapMarker) object).writeToBytes(buf);
@@ -75,14 +83,35 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
     }
 
     private static List buildMarkers(KOMEWorldData data, EntityPlayerMP player) {
-        Map companyMarkers = new LinkedHashMap();
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null || server.worldServers == null) {
             return new ArrayList();
         }
         UUID viewer = KOMEReflection.getEntityUUID(player);
-        boolean admin = player.canCommandSenderUseCommand(2, "troops") && !data.isAdminUnitMapMarkersDisabled(viewer);
-        for (WorldServer world : server.worldServers) {
+        boolean admin = KOMEAdminMapVision.enabled(player);
+        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
+        String faction = pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
+        return buildMarkers(data, viewer, faction, admin, server.worldServers);
+    }
+
+    /** The publication builder, separated from transport for deterministic unload/reload fixtures. */
+    static List buildMarkers(KOMEWorldData data, UUID viewer, String faction, boolean admin, WorldServer[] worlds) {
+        Map companyMarkers = new LinkedHashMap();
+        KOMECompanyMapProjection.View visibility=KOMECompanyMapProjection.view(data,viewer,faction,admin);
+        // Presence is a recipient-filtered projection of committed members, never an NPC census.
+        for (KOMEArmyCompany company : data.armyCompanies.values()) {
+            if (visibility.soldierCount(company)<=0
+                    || !visibility.visible(company)) continue;
+            CompanyMarkerBuilder builder = new CompanyMarkerBuilder(
+                LOTRDimension.MIDDLE_EARTH.dimensionID, visibility.presentationId(company), company,
+                visibility.spotted(company), visibility.directlyVisible(company));
+            for (UUID id : new java.util.HashSet<UUID>(company.units)) {
+                KOMEHiredUnitRecord record = data.hiredUnits.get(id);
+                if (isCurrentCompanyMember(data, company, record)) builder.include(record);
+            }
+            if (builder.soldierCount > 0) companyMarkers.put(company.id, builder);
+        }
+        for (WorldServer world : worlds) {
             if (world == null || world.provider == null || world.provider.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID) {
                 continue;
             }
@@ -93,17 +122,14 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
                 LOTREntityNPC npc = (LOTREntityNPC) object;
                 UUID entityId = KOMEReflection.getEntityUUID(npc);
                 KOMEHiredUnitRecord record = data.hiredUnits.get(entityId);
-                if (!isStrategicMarkerRecord(record, viewer, admin)) {
+                KOMEArmyCompany company = record == null ? null : data.armyCompanies.get(record.companyId);
+                if (!visibility.directlyVisible(company)
+                        || !isCurrentCompanyMember(data, company, record) || npc.isDead) {
                     continue;
                 }
                 String key = record.companyId;
                 CompanyMarkerBuilder builder = (CompanyMarkerBuilder) companyMarkers.get(key);
-                if (builder == null) {
-                    builder = new CompanyMarkerBuilder(world.provider.dimensionId, key,
-                        data.armyCompanies.get(record.companyId), data);
-                    companyMarkers.put(key, builder);
-                }
-                builder.add(npc, record);
+                if (builder != null) builder.add(npc, record);
             }
         }
         List markers = new ArrayList();
@@ -116,82 +142,94 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
         return markers;
     }
 
-    static boolean isStrategicMarkerRecord(KOMEHiredUnitRecord record, UUID viewer, boolean admin) {
+    static boolean isStrategicMarkerRecord(KOMEHiredUnitRecord record) {
         return KOMEHiredUnitClassification.isCampaignUnit(record)
             && !record.farmhand && !record.isMoving()
-            && record.companyId != null && record.companyId.length() > 0
-            && (admin || viewer != null && viewer.equals(record.owner));
+            && record.companyId != null && record.companyId.length() > 0;
+    }
+
+    private static boolean isCurrentCompanyMember(KOMEWorldData data, KOMEArmyCompany company,
+            KOMEHiredUnitRecord record) {
+        return KOMECompanyMapProjection.presentMember(data,company,record);
     }
 
     private static class CompanyMarkerBuilder {
         private final int dimensionId;
         private final String companyId;
         private final KOMEArmyCompany company;
-        private final int campaignPopulation;
+        private final boolean spotted;
+        private final boolean directlyVisible;
+        private final List<KOMEHiredUnitRecord> descriptorMembers = new ArrayList<KOMEHiredUnitRecord>();
+        private int soldierCount;
+        private int campaignPopulation;
+        private int campaignMountedPopulation;
+        private final java.util.Set<UUID> loaded = new java.util.HashSet<UUID>();
         private double weightedX;
         private double weightedY;
         private double weightedZ;
-        private int weight;
-        private int loadedPopulation;
+        private double weight;
         private int unitCount;
-        private int mountedUnits;
         private boolean allHaltedProtected = true;
-        private String fallbackName = "";
-        private String fallbackTile = "";
 
         CompanyMarkerBuilder(int dimensionId, String companyId, KOMEArmyCompany company,
-                KOMEWorldData data) {
+                boolean spotted, boolean directlyVisible) {
             this.dimensionId = dimensionId;
             this.companyId = companyId == null ? "" : companyId;
             this.company = company;
-            this.campaignPopulation = company == null ? 0
-                : kome.common.data.KOMECampaignUnitTotals.of(data, company.units).population;
+            this.spotted = spotted;
+            this.directlyVisible = directlyVisible;
+        }
+
+        void include(KOMEHiredUnitRecord record) {
+            soldierCount++;
+            if (directlyVisible) descriptorMembers.add(record);
+            campaignPopulation = (int)Math.min(Integer.MAX_VALUE, (long)campaignPopulation + Math.max(0,record.cost));
+            if(record.mounted) campaignMountedPopulation = (int)Math.min(Integer.MAX_VALUE,
+                (long)campaignMountedPopulation + Math.max(0,record.cost));
         }
 
         void add(LOTREntityNPC npc, KOMEHiredUnitRecord record) {
+            if (!loaded.add(record.entity)) return;
             int cost = Math.max(1, record.cost);
             weightedX += npc.posX * cost;
             weightedY += npc.posY * cost;
             weightedZ += npc.posZ * cost;
             weight += cost;
-            loadedPopulation += Math.max(0, record.cost);
             unitCount++;
-            if (record.mounted) {
-                mountedUnits++;
-            }
             if (!KOMEHaltedUnitProtection.isProtected(npc)) {
                 allHaltedProtected = false;
-            }
-            if (fallbackName.length() == 0) {
-                fallbackName = record.companyName == null || record.companyName.length() == 0 ? record.lotrCompanyValue : record.companyName;
-            }
-            if (fallbackTile.length() == 0) {
-                fallbackTile = record.currentTile;
             }
         }
 
         KOMEUnitMapMarker toMarker() {
-            if (unitCount <= 0 || weight <= 0) {
+            if (soldierCount <= 0) {
                 return null;
             }
             KOMEUnitMapMarker marker = new KOMEUnitMapMarker();
             marker.entityId = companyId;
-            marker.companyName = company == null || company.name == null || company.name.length() == 0 ? fallbackName : company.name;
-            if (marker.companyName == null || marker.companyName.length() == 0) {
+            marker.companyName = spotted ? "" : company.name;
+            if (!spotted && (marker.companyName == null || marker.companyName.length() == 0)) {
                 marker.companyName = "Company";
             }
-            marker.currentTile = company == null || company.currentTile == null || company.currentTile.length() == 0
-                    ? fallbackTile
-                    : company.currentTile;
-            marker.unitName = marker.companyName;
-            marker.unitCount = unitCount;
+            marker.currentTile = KOMEConquestTile.normalizeId(company.currentTile);
+            marker.unitName = spotted ? "" : marker.companyName;
+            marker.unitCount = spotted ? 0 : unitCount;
+            marker.soldierCount = soldierCount;
             marker.dimensionId = dimensionId;
-            marker.x = weightedX / weight;
-            marker.y = weightedY / weight;
-            marker.z = weightedZ / weight;
-            marker.population = campaignPopulation <= 0 ? loadedPopulation : campaignPopulation;
-            marker.mounted = mountedUnits > 0 && mountedUnits == unitCount;
-            marker.haltedProtected = allHaltedProtected;
+            // Zero loaded units means tile-level presence. The client uses its existing
+            // tile presentation anchor and must never interpret these defaults as a physical fix.
+            if (weight > 0) {
+                marker.x = weightedX / weight;
+                marker.y = weightedY / weight;
+                marker.z = weightedZ / weight;
+            }
+            marker.population = spotted ? 0 : campaignPopulation;
+            marker.mounted = !spotted && campaignMountedPopulation == campaignPopulation;
+            marker.haltedProtected = !spotted && unitCount > 0 && allHaltedProtected;
+            if (directlyVisible) {
+                KOMECompanyMarkerDescriptors.projectMovement(marker, company);
+                KOMECompanyMarkerDescriptors.projectWeapons(marker, descriptorMembers);
+            }
             return marker;
         }
     }
@@ -199,8 +237,9 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketUnitMapMarkers, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketUnitMapMarkers message, MessageContext ctx) {
-            KOMEClientData.INSTANCE.unitMapMarkers.clear();
-            KOMEClientData.INSTANCE.unitMapMarkers.addAll(message.markers);
+            KOMEPacketUnitMapMarkers copy=KOMEPopulationWire.copyForPublication(message,KOMEPacketUnitMapMarkers::new);
+            try {KOMEAddon.proxy.acceptUnitMapMarkers(copy.markers,ctx.getClientHandler());}
+            catch(java.util.concurrent.RejectedExecutionException closed) { /* Never publish into a closed/full session. */ }
             return null;
         }
     }

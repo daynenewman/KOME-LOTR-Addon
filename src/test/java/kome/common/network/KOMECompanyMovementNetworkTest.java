@@ -77,5 +77,11 @@ public class KOMECompanyMovementNetworkTest {
         guard.forget(connections.get(0));assertTrue(guard.acquire(extra,1));assertFalse(guard.acquire(connections.get(1),1));
         guard.clear();assertTrue(guard.acquire(connections.get(1),1));
     }
-    @Test public void protocolRequiresMatchingG14Artifacts() {assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g15"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));}
+    @Test public void protocolRequiresMatchingCombinedArtifacts() {
+        assertTrue(KOMEPopulationWire.accepts("1.0.11-commoner-g21"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.11-commoner-g15"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g20"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g19"));
+    }
 }

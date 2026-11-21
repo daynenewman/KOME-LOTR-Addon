@@ -14,6 +14,10 @@ Owns Build placement/contributions/manager review and the developed rate → fac
 
 Dependencies/consumers: [tile control](../geography/README.md), [construction permission](../politics-diplomacy/README.md), [season gates/muster/defeat](../campaign-lifecycle/README.md), [hire spending](../hiring-companies/README.md), [defensive gates](../physical-siege/README.md), [client projections](../client-network/README.md).
 
+## KOM-90 Build-based conquest levels
+
+[KOMEConquestBuildPromotionService](../../../../src/main/java/kome/common/data/KOMEConquestBuildPromotionService.java) sums current approved centi-hours from active NORMAL and DEFENSIVE Builds on the same active tile. Any positive sum raises the tile to at least level 2; 5,000 centi-hours (50 hours) raises it to level 3. The persisted tile level is a high-water mark, so later rejection, adjustment, deletion, capture or ownership change never lowers it. Pending submissions, developed population hours, and inactive Builds do not supply the current sum. [KOMEBuildService](../../../../src/main/java/kome/common/data/KOMEBuildService.java) recomputes the affected tile after approval, adjustment, administrative total repair, and grandfather import; a genuine promotion dirties and syncs conquest tiles. Saved worlds reconcile after Builds and tiles load in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java). No new level ledger or root schema was added. [Promotion tests](../../../../src/test/java/kome/common/data/KOMEConquestBuildPromotionTest.java) cover thresholds, aggregation, lifecycle, and restart. This is source and JUnit coverage, not live multiplayer acceptance.
+
 ## Invariants and verification
 
 Approved time is not yet developed time. Captured pending development freezes; already-developed rate uses configured capture effects. Available bank, daily rate, and active investment are different quantities. Rates use exact `BigInteger` units before rounding; payout keeps fractional remainder and preflights a boundary. Payout is gated to WAR/FINALE; development has its own lifecycle. Ordinary combat spending has no automatic death/dismissal refund; Emergency Defense has a separate reserve/refund authority.
@@ -27,3 +31,7 @@ Tests: [precise Builds](../../../../src/test/java/kome/common/data/KOMEPreciseBu
 ```
 
 Use [shared prerequisites](../../INDEX.md). Compare approved/developed time, exact rate, bank/remainder, ownership, phase, and saved boundary before/after a live tick and cold restart. The development/payout loops are sequential, not one universal atomic daily transaction; historical per-boundary rate reconstruction remains a rules/acceptance question.
+
+## KOM-85 banner meaning
+
+Normal map Build banners use the existing authoritative populationFaction projection for population allegiance. This is not an independent per-Build capture controller. Map tooltips and Build details use population wording. Defensive Builds retain the custom castle. Future independently captured controller banners require a separate campaign/siege authority implementation; no such state, packet, save field or gameplay is added here. Sprite layering and interaction are in the [client route](../client-network/README.md).

@@ -26,6 +26,21 @@ public class KOMEVisualLocationTransformerTest {
         assertNativePassPreserved("/lotr/client/gui/LOTRGuiMap.class",
             KOMEVisualLocationTransformer.MAP, "renderMiniQuests",
             "(Lnet/minecraft/entity/player/EntityPlayer;II)V", "renderMapMarkers");
+        byte[] original=readResource("/lotr/client/gui/LOTRGuiMap.class");
+        MethodNode method=method(new KOMEVisualLocationTransformer().transform(
+            KOMEVisualLocationTransformer.MAP,KOMEVisualLocationTransformer.MAP,original),
+            "renderMiniQuests","(Lnet/minecraft/entity/player/EntityPlayer;II)V");
+        int book=-1,progression=-1,questText=-1;
+        for(AbstractInsnNode step:method.instructions.toArray()){
+            if(step instanceof MethodInsnNode){String name=((MethodInsnNode)step).name;
+                if("renderMapMarkers".equals(name))progression=method.instructions.indexOf(step);
+                if("renderItemAndEffectIntoGUI".equals(name)||"func_82406_b".equals(name))book=method.instructions.indexOf(step);
+            }
+            if(step instanceof FieldInsnNode&&"entityName".equals(((FieldInsnNode)step).name))
+                questText=method.instructions.indexOf(step);
+        }
+        assertTrue("Progression icons draw over the Red Book icon, before either hover box",
+            book>=0&&book<progression&&progression<questText);
     }
 
     @Test public void nativeOfferPredicateGetsPlayerSpecificRelationshipGuard() throws Exception {

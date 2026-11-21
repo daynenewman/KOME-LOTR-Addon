@@ -179,7 +179,9 @@ public final class KOMEVisualRenderBridge {
                     hoveredDistance = distance;
                 }
             }
-            if (hovered != null) {
+            if (hovered != null && map instanceof lotr.client.gui.LOTRGuiMap
+                    && KOMEConquestMapOverlay.allowProgressionMarkerTooltip(
+                        (lotr.client.gui.LOTRGuiMap)map,hovered,mouseX,mouseY)) {
                 drawNativeMapHover(map, hovered, mouseX, mouseY);
             }
         } catch (Throwable failure) {

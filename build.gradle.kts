@@ -53,7 +53,7 @@ tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
 }
 
-extra["modVersion"] = "1.0.11-commoner-g15"
+extra["modVersion"] = "1.0.11-commoner-g21"
 
 // Explicitly opt in for local dedicated online-mode=false testing. RFG's default UUID is a
 // cached Mojang profile even with Gradle --offline; it is NOT Minecraft's offline player UUID.

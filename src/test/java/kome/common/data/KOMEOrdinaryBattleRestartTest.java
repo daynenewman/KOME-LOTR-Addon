@@ -64,9 +64,49 @@ public class KOMEOrdinaryBattleRestartTest {
         KOMERecoveryRootCrashTest.load(directory,check);
     }
     private void noRestartAnnouncement(){assertFalse(messages.toString(),messages.stream().anyMatch(x->x.contains("began response episode")));}
+    @Test public void approvedBuildPromotionDoesNotResetStartedResponseTimer() throws Exception {
+        KOMEWorldData started = partial(false);
+        long durationSnapshot = record(started).getResponseTimer().durationSnapshotMillis;
+        long elapsed = record(started).getResponseTimer().elapsedMillis;
+        started.getConquestTileIfPresent("T101").waypointLevel = 1;
+        int[] point = tilePosition("T101");
+        KOMEBuildService.importGrandfatheredNormal(started, true, "Old fortress", "T101",
+            KOMETileTestResources.dimension(), point[0], 64D, point[1], UUID.randomUUID(),
+            "Admin", "gondor", 5000L, EPOCH + 20_200L);
+        assertEquals(3, started.getConquestTileIfPresent("T101").waypointLevel);
+        assertEquals(durationSnapshot, record(started).getResponseTimer().durationSnapshotMillis);
+        assertEquals(elapsed, record(started).getResponseTimer().elapsedMillis);
+        File directory = persist(started);
+        restart(directory, loaded -> {
+            assertEquals(3, loaded.getConquestTileIfPresent("T101").waypointLevel);
+            assertEquals(durationSnapshot, record(loaded).getResponseTimer().durationSnapshotMillis);
+            assertEquals(elapsed, record(loaded).getResponseTimer().elapsedMillis);
+        });
+    }
+
+    private static int[] tilePosition(String tileId) {
+        KOMETileRasterSnapshot raster = KOMETileTestResources.real();
+        int color = raster.colorsById().get(tileId);
+        int[] pixels = raster.copyArgbPixels();
+        for (int i = 0; i < pixels.length; i++) {
+            if ((pixels[i] >>> 24) <= 24 || (pixels[i] & 0xFFFFFF) != color) continue;
+            int x = KOMETileTestResources.worldX(i % raster.width);
+            int z = KOMETileTestResources.worldZ(i / raster.width);
+            if (tileId.equals(raster.resolve(KOMETileTestResources.dimension(), x, z).tileId))
+                return new int[] {x, z};
+        }
+        throw new AssertionError("No real coordinate for " + tileId);
+    }
+
     @Test public void activeTimerResumesRemainingServerTimeAndPublishesClosureExactlyOnce() throws Exception {
-        File directory=persist(partial(false));
+        KOMEWorldData started = partial(false);
+        long durationSnapshot = record(started).getResponseTimer().durationSnapshotMillis;
+        // Simulate an old saved level below the reviewed bundled baseline.
+        started.getConquestTileIfPresent("T101").waypointLevel = 1;
+        File directory=persist(started);
         restart(directory,data->{
+            assertEquals(3, data.getConquestTileIfPresent("T101").waypointLevel);
+            assertEquals(durationSnapshot, record(data).getResponseTimer().durationSnapshotMillis);
             assertTrue(data.recoveryStartup.diagnostic(),KOMERecoveryStartup.permits(data,record(data)));
             tick(data,1_000_000);assertEquals(20_000,record(data).getResponseTimer().elapsedMillis);
             tick(data,1_005_000);assertEquals(25_000,record(data).getResponseTimer().elapsedMillis);

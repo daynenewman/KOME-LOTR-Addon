@@ -77,7 +77,7 @@ public final class KOMEConquestSyncMeasurement {
         private final KOMEClientTaskQueue tasks = new KOMEClientTaskQueue(() -> true);
         private final KOMEConquestSnapshotPublisher publisher = new KOMEConquestSnapshotPublisher(tasks);
         Client() { tasks.resetSession(true, () -> {}); tasks.drain(); }
-        @Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk) {
+        @Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk,Object connection) {
             publisher.accept(chunk);
         }
     }

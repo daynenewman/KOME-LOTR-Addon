@@ -45,7 +45,7 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
                     && "renderMiniQuests".equals(method.name)
                     && "(Lnet/minecraft/entity/player/EntityPlayer;II)V".equals(method.desc)) {
                 found = true;
-                injectBeforeFinalReturn(method, mapCall());
+                injectBeforeQuestHover(method, mapCall());
             }
             if (QUEST_INFO.equals(transformedName) && "canOfferQuestsTo".equals(method.name)
                     && "(Lnet/minecraft/entity/player/EntityPlayer;)Z".equals(method.desc)) {
@@ -184,16 +184,26 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
         return false;
     }
 
-    private static void injectBeforeFinalReturn(MethodNode method, InsnList template) {
-        if (containsBridge(method)) return;
-        for (AbstractInsnNode instruction = method.instructions.getLast(); instruction != null;
-                instruction = instruction.getPrevious()) {
-            if (instruction.getOpcode() == Opcodes.RETURN) {
-                method.instructions.insertBefore(instruction, clone(template));
-                return;
+    /** Native quest icons finish before this null gate; its hover box begins afterward. */
+    private static void injectBeforeQuestHover(MethodNode method,InsnList template){
+        if(containsBridge(method))return;
+        AbstractInsnNode hoverStart=null;
+        for(AbstractInsnNode instruction=method.instructions.getFirst();instruction!=null;instruction=instruction.getNext())
+            if(instruction instanceof org.objectweb.asm.tree.FieldInsnNode){
+                org.objectweb.asm.tree.FieldInsnNode field=(org.objectweb.asm.tree.FieldInsnNode)instruction;
+                if(!"lotr/common/quest/LOTRMiniQuest".equals(field.owner)||!"entityName".equals(field.name))continue;
+                for(AbstractInsnNode cursor=instruction.getPrevious();cursor!=null;cursor=cursor.getPrevious())
+                    if(cursor instanceof JumpInsnNode&&cursor.getOpcode()==Opcodes.IFNULL){
+                        AbstractInsnNode load=cursor.getPrevious();
+                        while(load!=null&&load.getOpcode()<0)load=load.getPrevious();
+                        if(load instanceof VarInsnNode&&load.getOpcode()==Opcodes.ALOAD&&((VarInsnNode)load).var==4)
+                            hoverStart=load;
+                        break;
+                    }
+                break;
             }
-        }
-        throw new IllegalStateException("LOTR v36.15 visual rendering method has no final return: " + method.name);
+        if(hoverStart==null)throw new IllegalStateException("LOTR v36.15 quest hover boundary changed");
+        method.instructions.insertBefore(hoverStart,clone(template));
     }
 
     private static InsnList overheadCall() {

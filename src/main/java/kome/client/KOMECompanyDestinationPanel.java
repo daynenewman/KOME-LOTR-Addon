@@ -67,6 +67,9 @@ final class KOMECompanyDestinationPanel {
             case CONFIRM:return model.canConfirm();
             case CONFIRM_JOIN:return model.canConfirmAndJoin();
             case CLEAR:return model.selected()!=null&&model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING;
+            case BACK:case CLOSE:
+                return model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING
+                    &&model.phase()!=KOMECompanyDestinationSelector.Phase.JOINING;
             default:return true;
         }
     }
@@ -139,12 +142,12 @@ final class KOMECompanyDestinationPanel {
             font.drawString(label,rect.x+(rect.width-font.getStringWidth(label))/2,rect.y+(rect.height-8)/2,
                 active?KOMEGuiTheme.COLOR_TEXT_LIGHT:KOMEGuiTheme.COLOR_TEXT_DISABLED);
         }
-        if(layout.scrollTrack.contains(mouseX,mouseY))
+        if(layout.scrollTrack.contains(mouseX,mouseY)&&KOMEConquestMapOverlay.panelHoverAllowed("destination:scroll"))
             KOMEGuiTheme.drawTooltip(font,Arrays.asList("Loaded companies", "The thumb shows loaded rows, not a global total.",
                 scrollbar.pending?"Loading companies...":scrollbar.later?"Scroll to load more companies.":"End of the loaded list."),
                 mouseX,mouseY,layout.viewRight,layout.viewBottom);
         int hover=layout.rowAt(mouseX,mouseY,Math.max(0,count-offset));
-        if(hover>=0) {
+        if(hover>=0&&KOMEConquestMapOverlay.panelHoverAllowed("destination:"+model.rows().get(offset+hover).companyId)) {
             Row row=model.rows().get(offset+hover);
             List<String> help=new ArrayList<String>();
             for(String info:Arrays.asList(KOMECompanyDestinationSelector.name(row),

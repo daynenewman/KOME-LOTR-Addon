@@ -21,15 +21,35 @@ import java.util.List;
 /** Client-only input suppression and transient prism lines. No marker blocks, gate state or world mutations. */
 public final class KOMETacticalAreaInteractionHandler {
     private final KOMEClientProxy proxy;
+    public interface BlockTargeter { MovingObjectPosition target(Minecraft mc, double ox, double oy, double oz,
+        double dx, double dy, double dz, double reach); }
+    private final BlockTargeter blockTargeter;
     private boolean tabHeld;
-    public KOMETacticalAreaInteractionHandler(KOMEClientProxy proxy) { this.proxy = proxy; }
+    public KOMETacticalAreaInteractionHandler(KOMEClientProxy proxy) {
+        this(proxy, (mc, ox, oy, oz, dx, dy, dz, reach) ->
+            KOMETacticalBlockTarget.trace(mc.theWorld, ox, oy, oz, dx, dy, dz, reach));
+    }
+    public KOMETacticalAreaInteractionHandler(KOMEClientProxy proxy, BlockTargeter blockTargeter) {
+        this.proxy = proxy; this.blockTargeter = blockTargeter;
+    }
     private KOMETacticalAreaEditor editor() { return proxy.getTacticalAreaEditor(); }
     private boolean selecting() {
         Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
         return e != null && mc.thePlayer != null && mc.currentScreen == null
             && e.consumesClicks(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
     }
+    private boolean viewing() {
+        Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
+        return e != null && mc.thePlayer != null && mc.currentScreen == null
+            && e.worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
+    }
     @SubscribeEvent public void mouse(MouseEvent event) {
+        if (viewing() && (event.button == 0 || event.button == 1)) {
+            event.setCanceled(true);
+            if (event.buttonstate) handleWorldClick(event.button,
+                Keyboard.isCreated() && (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)));
+            return;
+        }
         if (!selecting() || (event.button != 0 && event.button != 1)) return;
         event.setCanceled(true); // Cancel before vanilla break/place/attack dispatch.
         if (event.button == 1 && event.buttonstate) {
@@ -40,13 +60,88 @@ public final class KOMETacticalAreaInteractionHandler {
             } else editor().error("Aim at a block; Tab chooses its corner, right-click confirms the vertex or Y level.");
         }
     }
+    /** One click owns one action; Forge samples Shift before vanilla dispatch. */
+    public void handleWorldClick(int button, boolean shift) {
+        Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
+        if (e == null || mc.thePlayer == null || mc.currentScreen != null || !e.isViewingGeometry() || e.isBusy()) return;
+        if (!e.canEditWorldGeometry(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) {
+            if (button == 1 && !selectByRay(mc, e)) e.error("Aim at an authored polygon to select it.");
+            return;
+        }
+        if (button == 0) {
+            if (e.getHeldVertex() < 0 && e.getWorldHeightMode() == KOMETacticalAreaEditor.Selection.NONE)
+                try { e.pickUpVertex(worldHoveredVertex(mc, e, null)); }
+                catch (RuntimeException invalid) { e.error(invalid.getMessage()); }
+            return;
+        }
+        try {
+            if (e.getHeldVertex() >= 0) {
+                MovingObjectPosition hit = placementTarget(mc);
+                if (hit == null) e.error("Aim at a physical block surface within 128 blocks to place the vertex.");
+                else e.placeHeldVertex(hit.blockX, hit.blockZ);
+                return;
+            }
+            if (e.getWorldHeightMode() != KOMETacticalAreaEditor.Selection.NONE) {
+                MovingObjectPosition hit = placementTarget(mc);
+                if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK)
+                    e.error("Aim at a physical block surface within 128 blocks to pick a height.");
+                else e.applyWorldHeight(hit.blockY);
+                return;
+            }
+            if (shift) {
+                if (!selectByRay(mc, e, true)) e.error("Aim at another authored polygon to switch selection.");
+                return;
+            }
+            if (!e.isWorldVertexPlacementActive()) return;
+            MovingObjectPosition hit = placementTarget(mc);
+            if (hit == null) e.error("Aim at a physical block surface within 128 blocks to add a corner.");
+            else e.addWorldVertex(hit.blockX, hit.blockZ);
+        } catch (RuntimeException invalid) { e.error(invalid.getMessage()); }
+    }
+    private MovingObjectPosition placementTarget(Minecraft mc) {
+        WorldPick ray = worldPick(mc);
+        return ray == null ? null : blockTargeter.target(mc, ray.ox, ray.oy, ray.oz,
+            ray.dx, ray.dy, ray.dz, ray.reach);
+    }
+    private boolean selectByRay(Minecraft mc, KOMETacticalAreaEditor e) {
+        return selectByRay(mc, e, false);
+    }
+    private boolean selectByRay(Minecraft mc, KOMETacticalAreaEditor e, boolean otherOnly) {
+        WorldPick ray = worldPick(mc);
+        if (ray == null) return false;
+        return otherOnly
+            ? e.selectOtherWorldPolygonRay(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension,
+                ray.ox, ray.oy, ray.oz, ray.dx, ray.dy, ray.dz, ray.reach)
+            : e.selectWorldPolygonRay(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension,
+                ray.ox, ray.oy, ray.oz, ray.dx, ray.dy, ray.dz, ray.reach);
+    }
+    private int worldHoveredVertex(Minecraft mc, KOMETacticalAreaEditor e, MovingObjectPosition hit) {
+        WorldPick ray = worldPick(mc);
+        return ray == null ? -1 : e.hoveredVertexRay(ray.ox, ray.oy, ray.oz, ray.dx, ray.dy, ray.dz, ray.reach);
+    }
+    private static final class WorldPick {
+        final double ox, oy, oz, dx, dy, dz, reach;
+        WorldPick(double ox, double oy, double oz, double dx, double dy, double dz, double reach) {
+            this.ox = ox; this.oy = oy; this.oz = oz; this.dx = dx; this.dy = dy; this.dz = dz; this.reach = reach;
+        }
+    }
+    /** Editor reach is independent of vanilla interaction reach; block collisions are checked separately. */
+    private WorldPick worldPick(Minecraft mc) {
+        if (mc.renderViewEntity == null || mc.thePlayer == null) return null;
+        Entity camera = mc.renderViewEntity;
+        net.minecraft.util.Vec3 look = camera.getLookVec();
+        if (look == null) return null;
+        double ox = camera.posX, oy = camera.posY + camera.getEyeHeight(), oz = camera.posZ;
+        return new WorldPick(ox, oy, oz, look.xCoord, look.yCoord, look.zCoord, 128D);
+    }
     @SubscribeEvent public void interact(PlayerInteractEvent event) {
-        if (event.world != null && event.world.isRemote && selecting()
+        if (event.world != null && event.world.isRemote && (selecting() || viewing())
                 && event.entityPlayer.getUniqueID().equals(Minecraft.getMinecraft().thePlayer.getUniqueID())) event.setCanceled(true);
     }
     @SubscribeEvent public void keys(InputEvent.KeyInputEvent event) {
         try {
-            handleKey(Keyboard.getEventKey(), Keyboard.getEventKeyState(), Keyboard.isRepeatEvent());
+            handleKey(Keyboard.getEventKey(), Keyboard.getEventKeyState(), Keyboard.isRepeatEvent(),
+                Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT));
         } catch (RuntimeException invalid) { editor().error(invalid.getMessage()); }
     }
     private boolean selectingVertices() { return selecting() && editor().getSelection() == KOMETacticalAreaEditor.Selection.VERTICES; }
@@ -57,6 +152,25 @@ public final class KOMETacticalAreaInteractionHandler {
     }
     /** The real FML callback delegates here; one physical Tab press changes only the corner. */
     public boolean handleKey(int key, boolean pressed, boolean repeat) {
+        return handleKey(key, pressed, repeat, false);
+    }
+    public boolean handleKey(int key, boolean pressed, boolean repeat, boolean shift) {
+        if (viewing()) {
+            if (!pressed || repeat || !editor().isWorldPolygonSelected() || editor().isBusy()) return false;
+            try {
+                if (key == Keyboard.KEY_TAB) { suppressPlayerListBinding(); editor().cycleWorldCorner(); return true; }
+                if (shift) {
+                    if (key == Keyboard.KEY_UP || key == Keyboard.KEY_DOWN) {
+                        editor().toggleWorldHeight(key == Keyboard.KEY_UP ? KOMETacticalAreaEditor.Selection.UPPER_Y : KOMETacticalAreaEditor.Selection.LOWER_Y);
+                        return true;
+                    }
+                }
+                if (key == Keyboard.KEY_BACK) { editor().undoWorldGeometry(); return true; }
+                if (key == Keyboard.KEY_DELETE) { editor().deleteSelectedVertex(); return true; }
+                if (key == Keyboard.KEY_RETURN) { returnToWorldViewScreen(); return true; }
+            } catch (RuntimeException invalid) { editor().error(invalid.getMessage()); return true; }
+            return false;
+        }
         if (viewingTopology() && key == Keyboard.KEY_RETURN && pressed && !repeat) { returnToScreen(); return true; }
         if (key == Keyboard.KEY_TAB) {
             if (!selectingVertices()) { tabHeld = false; return false; }
@@ -66,7 +180,7 @@ public final class KOMETacticalAreaInteractionHandler {
             return true;
         }
         if (!selecting() || !pressed || repeat) return false;
-        if (key == Keyboard.KEY_BACK) editor().undo();
+        if (key == Keyboard.KEY_BACK) editor().removeLastVertex();
         else if (key == Keyboard.KEY_DELETE) editor().clearVertices();
         else if (key == Keyboard.KEY_RETURN) returnToScreen();
         else return false;
@@ -82,13 +196,29 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void playerList(RenderGameOverlayEvent.Pre event) {
-        if (event.type == RenderGameOverlayEvent.ElementType.PLAYER_LIST && selectingVertices()) event.setCanceled(true);
+        if (event.type == RenderGameOverlayEvent.ElementType.PLAYER_LIST && (selectingVertices() || viewing() && editor().isWorldPolygonSelected())) event.setCanceled(true);
     }
     private void returnToScreen() {
         editor().select(KOMETacticalAreaEditor.Selection.NONE);
         Minecraft.getMinecraft().displayGuiScreen(new KOMEGuiTacticalAreaEditor(editor()));
     }
+    private void returnToWorldViewScreen() {
+        boolean focused = editor().isWorldPolygonSelected();
+        net.minecraft.client.gui.GuiScreen origin = editor().endWorldView();
+        if (origin instanceof KOMEGuiTacticalAreaEditor && focused) ((KOMEGuiTacticalAreaEditor) origin).focusWorldSelection();
+        Minecraft.getMinecraft().displayGuiScreen(origin == null ? new KOMEGuiTacticalAreaEditor(editor()) : origin);
+    }
     @SubscribeEvent public void gui(GuiOpenEvent event) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (event.gui instanceof GuiIngameMenu && editor() != null && mc.thePlayer != null
+                && editor().worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) {
+            boolean focused = editor().isWorldPolygonSelected();
+            editor().cancelHeldVertex();
+            net.minecraft.client.gui.GuiScreen origin = editor().endWorldView();
+            if (origin instanceof KOMEGuiTacticalAreaEditor && focused) ((KOMEGuiTacticalAreaEditor) origin).focusWorldSelection();
+            event.gui = origin == null ? new KOMEGuiTacticalAreaEditor(editor()) : origin;
+            return;
+        }
         if (editor() != null && editor().isEditing() && editor().getSelection() != KOMETacticalAreaEditor.Selection.NONE
                 && event.gui instanceof GuiIngameMenu) {
             editor().select(KOMETacticalAreaEditor.Selection.NONE);
@@ -96,8 +226,8 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void tick(TickEvent.ClientTickEvent event) {
-        if (selectingVertices()) suppressPlayerListBinding(); else tabHeld = false;
-        if (event.phase == TickEvent.Phase.START && selecting()) {
+        if (selectingVertices() || viewing() && editor().isWorldPolygonSelected()) suppressPlayerListBinding(); else tabHeld = false;
+        if (event.phase == TickEvent.Phase.START && (selecting() || viewing())) {
             Minecraft mc = Minecraft.getMinecraft();
             // MouseEvent cancels fresh clicks; clear held/buffered attack/use bindings as well.
             if (mc.gameSettings != null) {
@@ -107,10 +237,19 @@ public final class KOMETacticalAreaInteractionHandler {
                 while (mc.gameSettings.keyBindUseItem.isPressed()) { }
             }
         }
-        if (event.phase != TickEvent.Phase.END || editor() == null || !editor().isEditing()) return;
+        if (event.phase != TickEvent.Phase.END || editor() == null) return;
         Minecraft mc = Minecraft.getMinecraft();
+        if (editor().hasWorldViewContext() && (mc.thePlayer == null || mc.thePlayer.isDead
+                || !editor().worldViewMatches(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension))) { editor().reset(); return; }
+        if (editor().hasRetainedDraft()) {
+            if (mc.thePlayer != null) editor().tickSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
+            return;
+        }
+        if (!editor().isEditing()) return;
         if (mc.thePlayer == null || mc.thePlayer.isDead || !editor().hasSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) editor().reset();
-        else if (editor().getSelection() == KOMETacticalAreaEditor.Selection.NONE && !(mc.currentScreen instanceof KOMEGuiTacticalAreaEditor)) editor().cancel();
+        else if (editor().getSelection() == KOMETacticalAreaEditor.Selection.NONE && !editor().hasWorldViewContext()
+                && !(mc.currentScreen instanceof KOMEGuiTacticalAreaEditor)) editor().cancel();
+        else editor().tickSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension);
     }
     @SubscribeEvent public void render(RenderWorldLastEvent event) {
         Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
@@ -130,10 +269,12 @@ public final class KOMETacticalAreaInteractionHandler {
             for (KOMETacticalAreaEditor.Overlay overlay : overlays) {
             List<KOMEXZPoint> points = overlay.prism.getPolygon().getVertices();
             double low = overlay.prism.getMinYInclusive(), high = overlay.prism.getMaxYExclusive();
-            if (overlay.selected && overlay.prism == e.getGeometry()) {
+            List<KOMEXZPoint> bottomFace = KOMETacticalPolygonPreview.bottomFaceForPlayer(overlay.prism,
+                mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
+            if (!bottomFace.isEmpty()) {
                 Tessellator fill = Tessellator.instance; fill.startDrawing(GL11.GL_TRIANGLES);
                 fill.setColorRGBA_F(overlay.invalid ? 1F : 0.2F, overlay.invalid ? 0.15F : 1F, overlay.invalid ? 0.15F : 0.85F, 0.22F);
-                for (KOMEXZPoint p : e.getFillTriangles()) fill.addVertex(p.getX(), low + 0.02, p.getZ());
+                for (KOMEXZPoint p : bottomFace) fill.addVertex(p.getX(), low + 0.02, p.getZ());
                 fill.draw();
             }
             GL11.glLineWidth(overlay.selected ? 3F : 1F);
@@ -149,19 +290,25 @@ public final class KOMETacticalAreaInteractionHandler {
                 line(t, p.getX(), high, p.getZ(), next.getX(), high, next.getZ());
                 line(t, p.getX(), low, p.getZ(), p.getX(), high, p.getZ());
             }
+            MovingObjectPosition hit = selecting() ? mc.objectMouseOver
+                : overlay.selected && e.isWorldPolygonSelected()
+                    ? e.getWorldHeightMode() != KOMETacticalAreaEditor.Selection.NONE
+                        || e.isWorldVertexPlacementActive() || e.getHeldVertex() >= 0 ? placementTarget(mc) : null
+                    : null;
+            int hoverIndex = overlay.selected && e.isWorldPolygonSelected() ? worldHoveredVertex(mc, e, hit) : -1;
             if (overlay.selected) for (int i = 0; i < points.size(); i++) {
                 KOMEXZPoint p = points.get(i);
-                if (i == 0) t.setColorOpaque_F(0.2F, 1F, 0.2F);
+                if (e.isWorldPolygonSelected() && (hoverIndex == i || e.getSelectedVertex() == i)) t.setColorOpaque_F(1F, 1F, 0.1F);
+                else if (i == 0) t.setColorOpaque_F(0.2F, 1F, 0.2F);
                 else if (i == points.size() - 1) t.setColorOpaque_F(1F, 0.8F, 0.2F);
                 else t.setColorOpaque_F(0.2F, 0.85F, 1F);
                 line(t, p.getX() - 0.3, low, p.getZ(), p.getX() + 0.3, low, p.getZ());
                 line(t, p.getX(), low, p.getZ() - 0.3, p.getX(), low, p.getZ() + 0.3);
             }
-            MovingObjectPosition hit = mc.objectMouseOver;
-            if (overlay.selected && selecting() && hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+            if (overlay.selected && (selecting() || e.isWorldPolygonSelected()) && hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
                 t.setColorOpaque_F(1F, 0.2F, 1F);
                 blockOutline(t, hit.blockX, hit.blockZ, hit.blockY, (double)hit.blockY+1);
-                if (e.getSelection() == KOMETacticalAreaEditor.Selection.VERTICES) {
+                if (e.getSelection() == KOMETacticalAreaEditor.Selection.VERTICES || e.isWorldPolygonSelected() && e.getWorldHeightMode() == KOMETacticalAreaEditor.Selection.NONE) {
                     KOMEXZPoint p = e.aimedCorner(hit.blockX,hit.blockZ);
                     line(t,p.getX()-0.3,low,p.getZ(),p.getX()+0.3,low,p.getZ());
                     line(t,p.getX(),low,p.getZ()-0.3,p.getX(),low,p.getZ()+0.3);
@@ -170,24 +317,51 @@ public final class KOMETacticalAreaInteractionHandler {
                     line(t,p.getX()-0.3,cursorY,p.getZ(),p.getX()+0.3,cursorY,p.getZ());
                     line(t,p.getX(),cursorY,p.getZ()-0.3,p.getX(),cursorY,p.getZ()+0.3);
                     if (!points.isEmpty()) {
-                        KOMEXZPoint last = points.get(points.size()-1);
+                        KOMEXZPoint last = e.getHeldVertex() >= 0 ? points.get((e.getHeldVertex() + points.size() - 1) % points.size()) : points.get(points.size()-1);
                         line(t,last.getX(),low,last.getZ(),p.getX(),low,p.getZ());
                         line(t,last.getX(),high,last.getZ(),p.getX(),high,p.getZ());
+                        if (e.getHeldVertex() >= 0) {
+                            KOMEXZPoint next = points.get((e.getHeldVertex() + 1) % points.size());
+                            line(t,p.getX(),low,p.getZ(),next.getX(),low,next.getZ());
+                            line(t,p.getX(),high,p.getZ(),next.getX(),high,next.getZ());
+                        }
                     }
                 } else {
-                    line(t, hit.blockX + 0.5, low, hit.blockZ + 0.5, hit.blockX + 0.5, high, hit.blockZ + 0.5);
+                    double guideY = heightGuideY(e.getWorldHeightMode(), hit.blockY);
+                    t.setColorOpaque_F(1F, 1F, 0.2F);
+                    blockOutline(t, hit.blockX, hit.blockZ, guideY, guideY);
+                    for (int i = 0; i < points.size(); i++) {
+                        KOMEXZPoint a = points.get(i), b = points.get((i + 1) % points.size());
+                        line(t, a.getX(), guideY, a.getZ(), b.getX(), guideY, b.getZ());
+                    }
                 }
             }
             t.draw();
+            if (e.isViewingGeometry() && overlay.prism.getPolygon().hasBounds()) {
+                GL11.glEnable(GL11.GL_TEXTURE_2D);
+                String kind = overlay.type == null ? "Area" : overlay.type == KOMETacticalComplexDraft.ZoneType.NORMAL ? "Normal"
+                    : overlay.type == KOMETacticalComplexDraft.ZoneType.WALL ? "Wall" : "Transition";
+                String authored = overlay.label == null || overlay.label.trim().isEmpty() ? "" : " - " + overlay.label.trim();
+                String title = mc.fontRenderer.trimStringToWidth(kind + " " + overlay.id + authored
+                    + (overlay.unsaved ? " [unsaved]" : "") + (e.isWorldPolygonSelected() && overlay.selected ? " [editing]" : ""), 180);
+                label(mc, camera, centerX(overlay.prism), high + 0.6, centerZ(overlay.prism),
+                    title, overlay.invalid ? 0xFF5555 : overlay.selected ? 0x55FFDD : 0xFFFFFF);
+                GL11.glDisable(GL11.GL_TEXTURE_2D);
+            }
             if (overlay.selected) {
                 GL11.glEnable(GL11.GL_TEXTURE_2D);
                 for (int i = 0; i < points.size(); i++) {
                     KOMEXZPoint p = points.get(i);
                     label(mc, camera, p.getX(), low + 0.3, p.getZ(), Integer.toString(i+1), overlay.invalid ? 0xFF5555 : 0xFFFFFF);
                 }
-                if (selectingVertices() && hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+                if ((selectingVertices() || e.isWorldPolygonSelected() && (e.isWorldVertexPlacementActive() || e.getHeldVertex() >= 0)
+                        && e.getWorldHeightMode() == KOMETacticalAreaEditor.Selection.NONE) && hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
                     KOMEXZPoint p = e.aimedCorner(hit.blockX,hit.blockZ);
-                    label(mc,camera,p.getX(),(double)hit.blockY+1.3,p.getZ(),"Next " + e.getCorner(),0xFF55FF);
+                    label(mc,camera,p.getX(),(double)hit.blockY+1.3,p.getZ(),(e.getHeldVertex() >= 0 ? "Move " : "Next ") + e.getCorner(),0xFF55FF);
+                } else if (e.isWorldPolygonSelected() && e.getWorldHeightMode() != KOMETacticalAreaEditor.Selection.NONE
+                        && hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
+                    label(mc, camera, hit.blockX + 0.5, hit.blockY + 1.3, hit.blockZ + 0.5,
+                        heightGuideLabel(e.getWorldHeightMode(), hit.blockY), 0xFFFF55);
                 }
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
             }
@@ -213,6 +387,14 @@ public final class KOMETacticalAreaInteractionHandler {
         } finally { GL11.glPopAttrib(); GL11.glPopMatrix(); }
     }
     private static double centerX(KOMEPolygonPrism prism) { return ((double) prism.getMinX() + prism.getMaxX()) / 2D; }
+    static double heightGuideY(KOMETacticalAreaEditor.Selection mode, int blockY) {
+        return mode == KOMETacticalAreaEditor.Selection.UPPER_Y ? (double) blockY + 1D : blockY;
+    }
+    static String heightGuideLabel(KOMETacticalAreaEditor.Selection mode, int blockY) {
+        return mode == KOMETacticalAreaEditor.Selection.UPPER_Y
+            ? "Top Y " + blockY + " (upper face " + ((long) blockY + 1L) + ")"
+            : "Bottom Y " + blockY;
+    }
     private static double centerZ(KOMEPolygonPrism prism) { return ((double) prism.getMinZ() + prism.getMaxZ()) / 2D; }
     private static void line(Tessellator t, double x, double y, double z, double xx, double yy, double zz) {
         t.addVertex(x, y, z); t.addVertex(xx, yy, zz);
@@ -237,6 +419,27 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void hud(RenderGameOverlayEvent.Text event) {
+        if (viewing()) {
+            KOMETacticalAreaEditor e = editor();
+            event.left.add("Tactical Geometry | Esc: return to editor");
+            event.left.add((e.isComplexEditing() ? "Siege Complex " : "Deployment Area ") + e.getTargetId());
+            if (e.isViewingGeometry()) {
+                if (!e.isWorldPolygonSelected()) event.left.add("Shift+right-click a polygon to edit vertices.");
+                else if (e.getWorldHeightMode() != KOMETacticalAreaEditor.Selection.NONE) {
+                    event.left.add((e.getWorldHeightMode() == KOMETacticalAreaEditor.Selection.UPPER_Y ? "Pick Top Y" : "Pick Bottom Y")
+                        + " | Aim at block; right-click applies Y | same Shift+Arrow exits");
+                } else if (e.getHeldVertex() >= 0) event.left.add("Moving vertex " + (e.getHeldVertex() + 1) + " | Tab: corner | right-click: place | Esc: cancel");
+                else if (e.isWorldVertexPlacementActive()) event.left.add("Placement ready | Left-click vertex: pick up | Right-click: add corner | Shift+Right-click: switch | Tab: corner");
+                else event.left.add("Passive Geometry View | Left-click vertex: move | Shift+Right-click: edit vertices | Esc: GUI");
+                if (e.isWorldPolygonSelected()) {
+                    event.left.add("Backspace: Undo | Delete: held or last vertex | Shift+Up/Down: pick Y");
+                    event.left.addAll(e.geometryFeedback().messages);
+                }
+                if (e.isComplexEditing()) event.left.add("Normal blue | Wall orange | Transition purple | Selected cyan | Invalid red");
+            } else event.left.add("Session expired. Return and reopen the geometry before editing.");
+            if (!e.getMessage().isEmpty()) event.left.add(e.getMessage());
+            return;
+        }
         if (viewingTopology()) {
             event.left.add("Tactical Connections | Enter/Esc editor | Yellow selected | Cyan gated | White gateless | Red invalid");
             if (editor().getConnection() != null) { event.left.add(editor().getConnection().getEndpointA() + " <-> " + editor().getConnection().getEndpointB()); event.left.add(editor().connectionStatus()); }
@@ -249,7 +452,7 @@ public final class KOMETacticalAreaInteractionHandler {
             ? "Polygon vertices | Corner " + editor().getCorner()
             : editor().getSelection() == KOMETacticalAreaEditor.Selection.LOWER_Y ? "Bottom Y" : "Top block Y"));
         event.left.add("Aim at block | Tab: NW / NE / SE / SW | Right-click confirms corner/Y");
-        event.left.add("Backspace undo vertex | Delete clear | Enter/Esc editor | N = -Z, E = +X");
+        event.left.add("Backspace remove last | Delete clear | Enter/Esc editor | N = -Z, E = +X");
         event.left.add(editor().getConfirmedVertexCount() + " confirmed vertices / " + editor().getDistinctVertexCount() + " distinct"
             + " | Y [" + prism.getMinYInclusive() + ", " + prism.getMaxYExclusive() + ")");
         List<KOMEXZPoint> vertices = editor().getConfirmedVertices();

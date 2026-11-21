@@ -2,6 +2,7 @@ package kome.common.command;
 
 import java.util.*;
 import kome.common.data.*;
+import kome.common.network.KOMECompanyMapProjection;
 import net.minecraft.entity.player.EntityPlayerMP;
 import static kome.common.data.KOMECompanyDestinationOptions.*;
 
@@ -11,8 +12,8 @@ public final class KOMECompanyOriginQuery {
     private final KOMECompanyMovementService movement;
     private final KOMECompanyDestinationQuery projections;
     public KOMECompanyOriginQuery(KOMECompanyMovementService movement){this.movement=movement;projections=new KOMECompanyDestinationQuery(movement);}
-    private boolean candidate(KOMEWorldData data,EntityPlayerMP actor,KOMEArmyCompany c,String source) {
-        if(c==null||c.owner==null||data.armyCompanies.get(c.id)!=c||!source.equals(c.currentTile)||!movement.canPlayerConsiderCompany(data,actor,c)
+    private boolean candidate(KOMEWorldData data,EntityPlayerMP actor,KOMECompanyMapProjection.View readView,KOMEArmyCompany c,String source) {
+        if(c==null||c.owner==null||data.armyCompanies.get(c.id)!=c||!source.equals(c.currentTile)||!readView.directlyVisible(c)||!movement.canPlayerConsiderCompany(data,actor,c)
                 ||c.units.isEmpty()||c.units.size()>MAX_MEMBERS)return false;
         if(c.isMoving()){
             KOMEArmyMovementOrder order=data.armyMovements.get(c.movementOrderId);
@@ -33,7 +34,8 @@ public final class KOMECompanyOriginQuery {
         if(data==null||!KOMEConquestTile.isCanonicalTileId(source)||data.armyCompanies.size()>MAX_CATALOGUE)
             return new KOMECompanySourceOptions(session,seq,source,Result.CATALOGUE_LIMIT,rows,"","",false,0);
         List<String> ids=new ArrayList<String>();
-        for(KOMEArmyCompany c:data.armyCompanies.values())if(candidate(data,actor,c,source))ids.add(c.id);
+        KOMECompanyMapProjection.View readView=KOMECompanyMapProjection.mapView(data,actor);
+        for(KOMEArmyCompany c:data.armyCompanies.values())if(candidate(data,actor,readView,c,source))ids.add(c.id);
         Collections.sort(ids);
         String current=UUID.nameUUIDFromBytes(ids.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
         if(!after.isEmpty()&&(!current.equals(token)||!ids.contains(after)))
@@ -70,7 +72,7 @@ public final class KOMECompanyOriginQuery {
     }
     public KOMECompanyDestinationOptions target(KOMEWorldData data,EntityPlayerMP actor,UUID session,long seq,
             String source,String company,String destination) {
-        if(data==null||!candidate(data,actor,data.armyCompanies.get(company),source))
+        if(data==null||!candidate(data,actor,KOMECompanyMapProjection.mapView(data,actor),data.armyCompanies.get(company),source))
             return KOMECompanyDestinationQuery.error(session,seq,destination,Result.SOURCE_CHANGED);
         try {
             Row row=projections.evaluateRow(data,actor,company,destination,
