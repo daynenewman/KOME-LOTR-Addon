@@ -112,6 +112,11 @@ uses the native LOTR base class so subclasses remain supported. See
 
 Owns authenticated request scheduling, packet codecs/publication, client snapshots, menus/maps/HUDs, and server-record presentation. Server domain services remain authoritative; client caches are transient.
 
+KOM-79's Dwarf-only rune HUD consumes the integrated Character Creation module's
+existing four-field Dwarf trait message and local predicted stamina; it adds no
+KOME packet or persistence field. Its FOOD/ALL overlay timing, hotbar-side placement,
+and narrow-screen Forge-stack fallback are documented in the [character-creation route](../character-creation/README.md).
+
 KOM-85 Phase 1 adds client-only territory palette/display controls and faction boundaries to the conquest map. See [territory presentation and verification](../geography/README.md). The existing completed public ownership projection is the sole input; no packet, server ownership, schema or gameplay behavior changes. `KOMEConquestMapOverlay.onMapSelectorMouseClicked` consumes these controls before native picking and captures their drag gesture; selector/radial panels retain priority where they cover a control. After independent review, the controls sit below native Zoom Out, and event picking and destination polling share `mapUiOwnsPointer` so a territory/native UI click cannot also issue a previewmove intent. Classic LOTR resolves canonical KOME/native aliases to native faction colors, including Utumno; Current KOME's legacy lookup/hash is preserved.
 
 ## Entry points and boundaries
