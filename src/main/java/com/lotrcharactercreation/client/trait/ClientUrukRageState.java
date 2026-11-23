@@ -1,9 +1,11 @@
 package com.lotrcharactercreation.client.trait;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.audio.PositionedSoundRecord;
+import net.minecraft.client.audio.SoundEventAccessorComposite;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.event.world.WorldEvent;
 
@@ -12,21 +14,24 @@ import org.lwjgl.opengl.GL11;
 import com.lotrcharactercreation.trait.UrukHaiTraitService;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
 
 public final class ClientUrukRageState {
 
-    private static final int HUD_X = 6;
-    private static final int HUD_BOTTOM_OFFSET = 46;
-    private static final int HUD_BAR_WIDTH = 88;
-    private static final int HUD_BAR_HEIGHT = 5;
-    private static final int HUD_ROW_HEIGHT = 18;
-    private static final int HUD_BACKGROUND_COLOR = 0xB0000000;
-    private static final int HUD_RAGE_COLOR = 0xFFC23B2A;
+    static final ResourceLocation EMPOWERED_HIT_SOUND = new ResourceLocation(
+        "lotrcharactercreation", "uruk.empowered_hit");
+    private static final ResourceLocation VESSELS = new ResourceLocation(
+        "lotrcharactercreation", "textures/gui/uruk_rage_vessels.png");
+    private static final ResourceLocation VESSEL_SWELL = new ResourceLocation(
+        "lotrcharactercreation", "textures/gui/uruk_rage_vessels_swell.png");
     private static final ClientUrukRageState INSTANCE = new ClientUrukRageState();
 
+    private final UrukHeavyBlowFeedback feedback = new UrukHeavyBlowFeedback();
+    private final UrukEmpoweredHitAudio audio = new UrukEmpoweredHitAudio();
     private boolean active;
     private float rage;
+    private int visualTicks;
 
     private ClientUrukRageState() {}
 
@@ -37,32 +42,103 @@ public final class ClientUrukRageState {
     public void update(boolean newActive, float newRage) {
         active = newActive;
         rage = active ? MathHelper.clamp_float(newRage, 0.0F, UrukHaiTraitService.MAX_RAGE) : 0.0F;
+        if (!active) {
+            visualTicks = 0;
+            feedback.clearTransient();
+            stopActiveAudio(Minecraft.getMinecraft());
+        }
+    }
+
+    public void confirmHeavyBlow(long activationId) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        boolean alive = minecraft.theWorld != null && minecraft.thePlayer != null
+            && minecraft.thePlayer.isEntityAlive();
+        if (!feedback.accept(activationId, active, alive)) {
+            return;
+        }
+        try {
+            if (isSoundAvailable(minecraft, EMPOWERED_HIT_SOUND)) {
+                PositionedSoundRecord cue = PositionedSoundRecord.func_147673_a(EMPOWERED_HIT_SOUND);
+                minecraft.getSoundHandler().playSound(cue);
+                audio.track(cue);
+            }
+        } catch (RuntimeException ignored) {
+            // A malformed local sound replacement must not affect the confirmed visual cue.
+        }
+    }
+
+    private static boolean isSoundAvailable(Minecraft minecraft, ResourceLocation event) {
+        try {
+            SoundEventAccessorComposite sound = minecraft.getSoundHandler().getSound(event);
+            return sound != null && sound.func_148721_a() > 0;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    @SubscribeEvent
+    public void clientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getMinecraft();
+        boolean alive = minecraft.theWorld != null && minecraft.thePlayer != null
+            && minecraft.thePlayer.isEntityAlive();
+        if (!alive) {
+            visualTicks = 0;
+            feedback.clearTransient();
+            stopActiveAudio(minecraft);
+            return;
+        }
+        if (audio.hasActive()) {
+            audio.forgetFinished(minecraft.getSoundHandler()::isSoundPlaying);
+        }
+        if (active && !minecraft.isGamePaused()) {
+            ++visualTicks;
+            feedback.tick(true);
+        }
     }
 
     @SubscribeEvent
     public void renderOverlay(RenderGameOverlayEvent.Post event) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (event.type != RenderGameOverlayEvent.ElementType.ALL || !active
-            || minecraft.thePlayer == null
-            || minecraft.gameSettings.hideGUI) {
+        boolean alive = minecraft.thePlayer != null && minecraft.thePlayer.isEntityAlive();
+        int flashTicks = feedback.getFlashTicksRemaining();
+        if (event.type != RenderGameOverlayEvent.ElementType.ALL
+            || !UrukRageHudModel.shouldRender(active, minecraft.theWorld != null, alive,
+                minecraft.gameSettings.hideGUI, rage, flashTicks)) {
             return;
         }
 
-        ScaledResolution resolution = event.resolution;
-        int top = resolution.getScaledHeight() - HUD_BOTTOM_OFFSET - HUD_ROW_HEIGHT;
-        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        float visualTime = visualTicks + event.partialTicks;
+        float intensity = UrukRageHudModel.intensity(rage, visualTime, flashTicks);
+        float flash = UrukRageHudModel.flashBlend(flashTicks);
+        float red = UrukRageHudModel.colorChannel(UrukRageHudModel.normalRed(rage), 1.0F, flash);
+        float green = UrukRageHudModel.colorChannel(0.045F, 0.87F, flash);
+        float blue = UrukRageHudModel.colorChannel(0.035F, 0.85F, flash);
+
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_TEXTURE_BIT
+            | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
         try {
-            minecraft.fontRenderer.drawStringWithShadow(
-                "Rage: " + Math.round(rage) + "/" + Math.round(UrukHaiTraitService.MAX_RAGE),
-                HUD_X,
-                top,
-                0xFFFFFF);
-            int barTop = top + 10;
-            Gui.drawRect(HUD_X, barTop, HUD_X + HUD_BAR_WIDTH, barTop + HUD_BAR_HEIGHT, HUD_BACKGROUND_COLOR);
-            int fillWidth = Math
-                .round((HUD_BAR_WIDTH - 2) * MathHelper.clamp_float(rage / UrukHaiTraitService.MAX_RAGE, 0.0F, 1.0F));
-            if (fillWidth > 0) {
-                Gui.drawRect(HUD_X + 1, barTop + 1, HUD_X + 1 + fillWidth, barTop + HUD_BAR_HEIGHT - 1, HUD_RAGE_COLOR);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(false);
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            int width = event.resolution.getScaledWidth();
+            int height = event.resolution.getScaledHeight();
+            GL11.glColor4f(red, green, blue, intensity);
+            int frame = UrukRageHudModel.heartbeatFrame(rage, visualTime, flashTicks);
+            if (frame == 0) {
+                minecraft.getTextureManager().bindTexture(VESSELS);
+                drawFullscreen(width, height, 0.0D, 0.0D, 1.0D, 1.0D);
+            } else {
+                minecraft.getTextureManager().bindTexture(VESSEL_SWELL);
+                double tile = 1.0D / UrukRageHudModel.HEARTBEAT_ATLAS_COLUMNS;
+                double u = (frame % UrukRageHudModel.HEARTBEAT_ATLAS_COLUMNS) * tile;
+                double v = (frame / UrukRageHudModel.HEARTBEAT_ATLAS_COLUMNS) * tile;
+                drawFullscreen(width, height, u, v, u + tile, v + tile);
             }
         } finally {
             GL11.glPopAttrib();
@@ -72,22 +148,41 @@ public final class ClientUrukRageState {
     @SubscribeEvent
     public void worldUnloaded(WorldEvent.Unload event) {
         if (event.world.isRemote) {
-            clear();
+            clearConnection();
         }
     }
 
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        clear();
+        clearConnection();
     }
 
     @SubscribeEvent
     public void disconnected(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        clear();
+        clearConnection();
     }
 
-    private void clear() {
+    private static void drawFullscreen(int width, int height, double u0, double v0, double u1, double v1) {
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawingQuads();
+        tessellator.addVertexWithUV(0, height, 0, u0, v1);
+        tessellator.addVertexWithUV(width, height, 0, u1, v1);
+        tessellator.addVertexWithUV(width, 0, 0, u1, v0);
+        tessellator.addVertexWithUV(0, 0, 0, u0, v0);
+        tessellator.draw();
+    }
+
+    private void clearConnection() {
+        stopActiveAudio(Minecraft.getMinecraft());
         active = false;
         rage = 0.0F;
+        visualTicks = 0;
+        feedback.resetConnection();
+    }
+
+    private void stopActiveAudio(Minecraft minecraft) {
+        if (audio.hasActive()) {
+            audio.stopAll(minecraft.getSoundHandler()::stopSound);
+        }
     }
 }

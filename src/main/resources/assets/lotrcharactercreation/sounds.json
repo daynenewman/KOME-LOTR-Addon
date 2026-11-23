@@ -1,0 +1,9 @@
+{
+  "uruk.empowered_hit": {
+    "category": "player",
+    "sounds": [
+      { "name": "lotr:orc/hurt1", "type": "file" },
+      { "name": "lotr:orc/hurt2", "type": "file" }
+    ]
+  }
+}

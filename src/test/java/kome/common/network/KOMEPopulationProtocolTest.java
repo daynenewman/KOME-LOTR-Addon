@@ -24,7 +24,8 @@ public class KOMEPopulationProtocolTest {
                 assertFalse(old + " / " + side, addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", old), side));
         }
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g14"));
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g20"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g20"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g21"));
     }
     @Test public void preJoinBattleG4CannotHandshakeWithTheExtendedPacketTable() {
         KOMEAddon addon = new KOMEAddon();
@@ -38,7 +39,7 @@ public class KOMEPopulationProtocolTest {
     }
 
     @Test public void g13PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g20", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g19"));
+        assertEquals("1.0.9-integration-g21", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g20"));
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -330,9 +331,27 @@ public class KOMEPopulationProtocolTest {
         KOMEAddon addon = new KOMEAddon();
         for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
             assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", KOMEPopulationWire.VERSION), side));
-            for (String version : new String[] {"1.0.9-integration-g13", "1.0.9-integration-g3", "1.0.9-integration-g2", "1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
+            for (String version : new String[] {"1.0.9-integration-g20", "1.0.9-integration-g13", "1.0.9-integration-g3", "1.0.9-integration-g2", "1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
                 assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", version), side));
             assertFalse(addon.acceptsRemoteKome(java.util.Collections.<String, String>emptyMap(), side));
+        }
+    }
+
+    @Test public void preFeedbackG20ClientIsRejectedBeforeDiscriminator29CanBeSent() throws Exception {
+        String registration = source("src/main/java/com/lotrcharactercreation/network/ModNetwork.java");
+        assertTrue(java.util.regex.Pattern.compile(
+            "UrukHeavyBlowActivationMessage\\.class,\\s*29,\\s*Side\\.CLIENT")
+            .matcher(registration).find());
+        assertTrue(source("build.gradle.kts").contains("extra[\"modVersion\"] = \""
+            + KOMEPopulationWire.VERSION + "\""));
+        assertTrue(source("src/main/resources/mcmod.info").contains("\"version\": \""
+            + KOMEPopulationWire.VERSION + "\""));
+        KOMEAddon addon = new KOMEAddon();
+        for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
+            assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                KOMEAddon.MODID, "1.0.9-integration-g20"), side));
+            assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                KOMEAddon.MODID, KOMEPopulationWire.VERSION), side));
         }
     }
 

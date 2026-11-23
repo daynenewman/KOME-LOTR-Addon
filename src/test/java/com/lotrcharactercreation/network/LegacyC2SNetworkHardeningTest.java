@@ -187,7 +187,7 @@ public class LegacyC2SNetworkHardeningTest {
     }
 
     @Test
-    public void packetDiscriminatorsAndPhaseSevenAdmissionRemainUnchanged() throws Exception {
+    public void packetDiscriminatorsAppendUrukFeedbackAndPreservePhaseSevenAdmission() throws Exception {
         String network = read(source("com/lotrcharactercreation/network/ModNetwork.java"));
         String phaseSeven = read(source("com/lotrcharactercreation/network/CustomSkinSyncProtocol.java"));
         Matcher matcher = Pattern.compile(",\\s*(\\d+),\\s*Side\\.(?:CLIENT|SERVER)").matcher(network);
@@ -197,8 +197,8 @@ public class LegacyC2SNetworkHardeningTest {
         }
         Collections.sort(discriminators);
 
-        assertEquals(29, discriminators.size());
-        for (int discriminator = 0; discriminator <= 28; discriminator++) {
+        assertEquals(30, discriminators.size());
+        for (int discriminator = 0; discriminator <= 29; discriminator++) {
             assertEquals(discriminator, discriminators.get(discriminator).intValue());
         }
         assertTrue(phaseSeven.contains("MAX_PENDING_SERVER_ACTIONS_PER_PLAYER = 128"));

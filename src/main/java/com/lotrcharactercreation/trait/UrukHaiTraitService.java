@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLog;
@@ -38,6 +39,7 @@ public final class UrukHaiTraitService {
     private static final int LOG_WOOD_ORE_ID = OreDictionary.getOreID("logWood");
     private static final List<PendingHeavyBlow> PENDING_HEAVY_BLOWS = new ArrayList<PendingHeavyBlow>();
     private static final Map<UUID, UrukRageState> PLAYER_RAGE = new HashMap<UUID, UrukRageState>();
+    private static final AtomicLong HEAVY_BLOW_ACTIVATION_IDS = new AtomicLong();
 
     private UrukHaiTraitService() {}
 
@@ -123,6 +125,7 @@ public final class UrukHaiTraitService {
         if (!attacker.isEntityAlive() || !target.isEntityAlive()
             || RaceTraitService.getActiveRace(attacker) != PlayerRace.URUK_HAI
             || state == null
+            || !(state.rage >= HEAVY_BLOW_RAGE_COST)
             || attacker.getRNG()
                 .nextFloat() >= getHeavyBlowChance(state.rage)) {
             return;
@@ -142,8 +145,9 @@ public final class UrukHaiTraitService {
 
         event.ammount += HEAVY_BLOW_DAMAGE_BONUS;
         PENDING_HEAVY_BLOWS.add(new PendingHeavyBlow(attacker, target, directionX, directionZ));
-        state.rage = Math.max(0.0F, state.rage - HEAVY_BLOW_RAGE_COST);
+        state.rage = UrukHeavyBlowRules.remainingRage(state.rage, HEAVY_BLOW_RAGE_COST);
         synchronize(attacker, state, true);
+        ModNetwork.sendUrukHeavyBlowActivation(attacker, HEAVY_BLOW_ACTIVATION_IDS.incrementAndGet());
     }
 
     private static void gainRageFromDamage(LivingHurtEvent event) {
@@ -208,7 +212,7 @@ public final class UrukHaiTraitService {
     }
 
     private static float getHeavyBlowChance(float rage) {
-        return MathHelper.clamp_float(rage / MAX_RAGE, 0.0F, 1.0F);
+        return UrukHeavyBlowRules.chance(rage, HEAVY_BLOW_RAGE_COST, MAX_RAGE);
     }
 
     private static boolean isActiveUrukHai(EntityPlayerMP player) {

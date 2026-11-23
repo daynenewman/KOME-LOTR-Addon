@@ -65,7 +65,7 @@ public class CharacterCreationAlignmentSyncTest {
     }
 
     @Test
-    public void alignmentRefreshAddsNoCharacterCreationPacketDiscriminator() throws Exception {
+    public void alignmentDiscriminatorsRemainStableWithAppendedUrukFeedback() throws Exception {
         String network = source("main/java/com/lotrcharactercreation/network/ModNetwork.java");
         List<Integer> discriminators = new ArrayList<Integer>();
         java.util.regex.Matcher matcher = java.util.regex.Pattern
@@ -78,8 +78,8 @@ public class CharacterCreationAlignmentSyncTest {
         }
 
         Collections.sort(discriminators);
-        assertEquals(29, discriminators.size());
-        for (int index = 0; index <= 28; index++) {
+        assertEquals(30, discriminators.size());
+        for (int index = 0; index <= 29; index++) {
             assertEquals(index, discriminators.get(index).intValue());
         }
     }

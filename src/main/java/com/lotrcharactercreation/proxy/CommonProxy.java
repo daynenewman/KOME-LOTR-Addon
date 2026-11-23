@@ -53,5 +53,7 @@ public class CommonProxy {
 
     public void handleUrukRageState(boolean active, float rage) {}
 
+    public void handleUrukHeavyBlowActivation(long activationId) {}
+
     public void handleElfGrappleState(int playerEntityId, int targetEntityId, boolean active, boolean ready) {}
 }

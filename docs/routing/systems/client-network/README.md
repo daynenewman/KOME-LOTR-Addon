@@ -32,7 +32,11 @@ the closed session; the server order can already have been accepted. This is exi
 GUI dismissal behavior, distinct from in-panel Back. No server order or packet
 semantics changed; live map acceptance remains pending.
 
-The current matching-artifact protocol is `1.0.9-integration-g20`.
+The current matching-artifact protocol is `1.0.9-integration-g21`. KOM-79 Phase 2F
+advances the Forge mod-list handshake because g20 clients lack character-creation
+S2C discriminator 29. `KOMEAddon.acceptsRemoteKome` rejects g20 in both directions;
+matching g21 client/server artifacts are required for combined development tests.
+Existing KOME packet payloads and authority remain unchanged.
 KOM-85 map hover text now has an installation-local `map.tooltipMode` preference
 (`IMMEDIATE`, `DELAYED`, `OFF`; default `DELAYED` at 500 ms). A 10 x 10 native-framed
 icon control below the left map controls cycles it without changing company display
@@ -117,6 +121,19 @@ existing four-field Dwarf trait message and local predicted stamina; it adds no
 KOME packet or persistence field. Its FOOD/ALL overlay timing, hotbar-side placement,
 and narrow-screen Forge-stack fallback are documented in the [character-creation route](../character-creation/README.md).
 
+KOM-79 Phase 2 preserves the integrated module's two-field Uruk Rage state message
+and adds one owner-only S2C activation message. The server sends that event only
+after its existing successful heavy-blow decision has increased damage, queued
+knockback, consumed 50 Rage, and force-synchronized the remaining Rage. A monotonic
+event ID provides same-connection duplicate/stale rejection; client dispatch also
+captures the current play connection before scheduling the event on the client
+thread. The event grants no combat authority and is never broadcast to observers.
+Phase 2B's approved balance change requires at least 50 Rage before that server
+decision; its `Rage / 100` chance remains unchanged from 50 to 100.
+Rendering, lifecycle clearing, native LOTR Orc file fallback and local
+resource-pack event replacement are documented
+in the [character-creation route](../character-creation/README.md).
+
 KOM-85 Phase 1 adds client-only territory palette/display controls and faction boundaries to the conquest map. See [territory presentation and verification](../geography/README.md). The existing completed public ownership projection is the sole input; no packet, server ownership, schema or gameplay behavior changes. `KOMEConquestMapOverlay.onMapSelectorMouseClicked` consumes these controls before native picking and captures their drag gesture; selector/radial panels retain priority where they cover a control. After independent review, the controls sit below native Zoom Out, and event picking and destination polling share `mapUiOwnsPointer` so a territory/native UI click cannot also issue a previewmove intent. Classic LOTR resolves canonical KOME/native aliases to native faction colors, including Utumno; Current KOME's legacy lookup/hash is preserved.
 
 ## Entry points and boundaries
@@ -171,7 +188,7 @@ The merged g13 discriminator layout retains dev's progression identities at 59, 
 
 ID 60 remains unused. Destination queries use 61/62, confirmed single-company movement uses 63/64,
 source metadata/source-scoped destination queries use 65/66, and Rally sessions use 67/68.
-KOM-84 payloads are unchanged by discriminator reassignment. Matching g20 artifacts are required;
+KOM-84 payloads are unchanged by discriminator reassignment. Matching g21 artifacts are required;
 g13, g12 and 1.0.8 are rejected. Server intents retain the bounded server-thread handlers;
 tactical ID 48 continues to own its separate bounded queue.
 

@@ -173,6 +173,11 @@ public final class ModNetwork {
             CustomSkinTransferResultMessage.class,
             28,
             Side.SERVER);
+        CHANNEL.registerMessage(
+            UrukHeavyBlowActivationMessage.Handler.class,
+            UrukHeavyBlowActivationMessage.class,
+            29,
+            Side.CLIENT);
     }
 
     public static void beginCustomSkinSync(EntityPlayerMP player) {
@@ -265,6 +270,10 @@ public final class ModNetwork {
 
     public static void sendUrukRageState(EntityPlayerMP player, boolean active, float rage) {
         CHANNEL.sendTo(new UrukRageStateMessage(active, rage), player);
+    }
+
+    public static void sendUrukHeavyBlowActivation(EntityPlayerMP player, long activationId) {
+        CHANNEL.sendTo(new UrukHeavyBlowActivationMessage(activationId), player);
     }
 
     public static void sendElfGrappleState(EntityPlayerMP subject, EntityPlayerMP recipient, int targetEntityId,

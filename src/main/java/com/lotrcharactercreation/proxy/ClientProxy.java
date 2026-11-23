@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ChatComponentText;
@@ -460,6 +461,22 @@ public class ClientProxy extends CommonProxy {
                         .update(active, rage);
                 }
             });
+    }
+
+    @Override
+    public void handleUrukHeavyBlowActivation(final long activationId) {
+        final Minecraft minecraft = Minecraft.getMinecraft();
+        final NetHandlerPlayClient sourceConnection = minecraft.getNetHandler();
+        minecraft.func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                if (sourceConnection != null && minecraft.getNetHandler() == sourceConnection) {
+                    ClientUrukRageState.getInstance()
+                        .confirmHeavyBlow(activationId);
+                }
+            }
+        });
     }
 
     @Override
